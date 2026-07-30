@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Minecraft.App/Minecraft.App.csproj" />
+    <Project Path="src/Minecraft.Core/Minecraft.Core.csproj" />
+  </Folder>
+</Solution>
