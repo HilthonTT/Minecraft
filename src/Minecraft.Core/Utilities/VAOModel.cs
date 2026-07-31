@@ -9,6 +9,8 @@ public sealed class VAOModel
 {
     private int _vaoId;
     private readonly List<int> _buffers = [];
+    /// <summary> Next vertex attribute slot. Tracked separately from <see cref="_buffers"/>, which also holds the index buffer. </summary>
+    private int _nextAttribute;
 
     public int IndicesCount { get; private set; }
 
@@ -69,6 +71,7 @@ public sealed class VAOModel
         }
         GL.DeleteVertexArray(_vaoId);
         _buffers.Clear();
+        _nextAttribute = 0;
     }
 
 
@@ -128,9 +131,10 @@ public sealed class VAOModel
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(overrideLength * SizeOf<T>()), data, BufferUsageHint.StaticDraw);
         }
 
-        GL.VertexAttribPointer(_buffers.Count, nrOfElementsInStructure, dataType, false, 0, 0);
+        int attribute = _nextAttribute++;
+        GL.VertexAttribPointer(attribute, nrOfElementsInStructure, dataType, false, 0, 0);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-        GL.EnableVertexAttribArray(_buffers.Count);
+        GL.EnableVertexAttribArray(attribute);
         _buffers.Add(vboID);
     }
 }

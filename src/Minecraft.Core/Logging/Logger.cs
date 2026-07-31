@@ -11,7 +11,9 @@ public static class Logger
 
     private static void Print(string message, LogLevel level)
     {
-        Console.WriteLine(string.Format("[{0:HH:mm:ss}][" + level.ToString() + "] " + message, DateTime.Now));
+        // The message is concatenated, never used as a format string: log output such as a shader
+        // info log can legitimately contain braces and would otherwise throw a FormatException.
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}][{level}] {message}");
     }
 
     public static void Info(string message)

@@ -1,5 +1,6 @@
 ﻿using Minecraft.Core.Logging;
 using OpenTK.Mathematics;
+using Vector3i = Minecraft.Core.Utilities.Vector.Vector3i;
 
 namespace Minecraft.Core.IO;
 

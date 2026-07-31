@@ -58,7 +58,7 @@ public sealed class ScreenFBO
 
         // Set internal format to depth component
         GL.Ext.RenderbufferStorage(RenderbufferTarget.RenderbufferExt, RenderbufferStorage.DepthComponent24, screenWidth, screenHeight);
-        GL.Ext.FramebufferRenderbuffer(FramebufferTarget.FramebufferExt, FramebufferAttachment.DepthAttachmentExt, RenderbufferTarget.RenderbufferExt, renderBuffer);
+        GL.Ext.FramebufferRenderbuffer(FramebufferTarget.FramebufferExt, FramebufferAttachment.DepthAttachmentExt, RenderbufferTarget.RenderbufferExt, _renderBuffer);
 
         ValidateFBO();
         UnbindFBO();

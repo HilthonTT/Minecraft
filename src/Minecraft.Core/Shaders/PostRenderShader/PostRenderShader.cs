@@ -16,11 +16,11 @@ public sealed class PostRenderShader : Shader
 
     protected override void BindAttributes()
     {
-        LocationColorTexture = GetUniformLocation("colorTexture");
-        LocationNormalDepthTexture = GetUniformLocation("depthNormalTexture");
     }
 
     protected override void GetAllUniformLocations()
     {
+        LocationColorTexture = GetUniformLocation("colorTexture");
+        LocationNormalDepthTexture = GetUniformLocation("depthNormalTexture");
     }
 }

@@ -21,14 +21,17 @@ public static class MathUtils
             Matrix4.CreateTranslation(translation);
     }
 
+    /// <summary>
+    /// Builds a unit direction vector from angles in radians. Yaw turns around the Y axis,
+    /// pitch tilts up and down.
+    /// </summary>
     public static Vector3 CreateLookAtVector(float yaw, float pitch)
     {
-        var lookAt = new Vector3();
-        double cosY = Math.Cos(yaw);
-        lookAt.X = (float)(Math.Sin(pitch) * cosY);
-        lookAt.Y = (float)Math.Sin(yaw);
-        lookAt.Z = (float)(Math.Cos(pitch) * cosY);
-        return lookAt;
+        double cosPitch = Math.Cos(pitch);
+        return new Vector3(
+            (float)(Math.Sin(yaw) * cosPitch),
+            (float)Math.Sin(pitch),
+            (float)(Math.Cos(yaw) * cosPitch));
     }
 
     public static float DegreeToRadian(double angle)

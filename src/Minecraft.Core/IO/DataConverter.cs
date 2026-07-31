@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using Minecraft.Core.Utilities.Vector;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Minecraft.Core.IO;
@@ -42,14 +43,23 @@ public static class DataConverter
 
     public static bool BytesToBool(byte[] bytes, ref int head)
     {
-        bool value = bytes[head] == 0 ? false : true;
+        bool value = bytes[head] != 0;
         head += 1;
         return value;
     }
 
-    public static T BytesToByteStruct<T>(byte[] bytes, ref int head) where T : struct
+    /// <summary>Reads a single byte and reinterprets it as <typeparamref name="T"/>, typically a byte backed enum.</summary>
+    public static unsafe T BytesToByteStruct<T>(byte[] bytes, ref int head) where T : unmanaged
     {
-        return (T)(object)bytes[head++];
+        // Boxing the byte and unboxing it as T would throw for every type but byte itself,
+        // including the byte backed enums this is meant to read.
+        if (sizeof(T) != 1)
+        {
+            throw new NotSupportedException($"{typeof(T).Name} is not a single byte type.");
+        }
+
+        byte value = bytes[head++];
+        return Unsafe.As<byte, T>(ref value);
     }
 
     public static Vector3i BytesToVector3i(byte[] bytes, ref int head)

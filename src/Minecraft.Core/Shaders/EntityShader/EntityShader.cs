@@ -20,17 +20,17 @@ public sealed class EntityShader : Shader
 
     protected override void BindAttributes()
     {
-        LocationTextureAtlas = GetUniformLocation("textureAtlas");
-        LocationTransformationMatrix = GetUniformLocation("transformationMatrix");
-        LocationViewMatrix = GetUniformLocation("viewMatrix");
-        LocationProjectionMatrix = GetUniformLocation("projectionMatrix");
-    }
-
-    protected override void GetAllUniformLocations()
-    {
         BindAttribute(0, "vertexPosition");
         BindAttribute(1, "vertexNormal");
         BindAttribute(2, "vertexUv");
         BindAttribute(3, "vertexIllumination");
+    }
+
+    protected override void GetAllUniformLocations()
+    {
+        LocationTextureAtlas = GetUniformLocation("textureAtlas");
+        LocationTransformationMatrix = GetUniformLocation("transformationMatrix");
+        LocationViewMatrix = GetUniformLocation("viewMatrix");
+        LocationProjectionMatrix = GetUniformLocation("projectionMatrix");
     }
 }

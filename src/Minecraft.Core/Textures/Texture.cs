@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Utilities;
+using System.Runtime.Versioning;
 
 namespace Minecraft.Core.Textures;
 
@@ -21,6 +22,8 @@ public class Texture
         PixelHeight = pixelHeight;
     }
 
+    /// <summary> Loads through System.Drawing, which is Windows only. </summary>
+    [SupportedOSPlatform("windows")]
     public Texture(string pathToFile, int pixelWidth, int pixelHeight)
     {
         Id = TextureLoader.LoadTexture(pathToFile);

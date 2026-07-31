@@ -1,40 +1,41 @@
-﻿namespace Minecraft.Core.Utilities.Models;
+namespace Minecraft.Core.Utilities.Models;
 
 public static class OBJLoader
 {
     private readonly static char[] _splitCharacters = [' '];
     private readonly static char[] _faceParamaterSplitter = ['/'];
 
-    private readonly static List<float> _vertices = [];
-    private readonly static List<float> _normals = [];
-    private readonly static List<float> _texCoords = [];
-    private readonly static List<int> _indices = [];
-
     public static ModelData Load(string fileName)
     {
-        var m = new ModelData();
         try
         {
             using var streamReader = new StreamReader(fileName);
-            m = Load(streamReader);
-            streamReader.Close();
-            return m;
+            return Load(streamReader);
         }
-        catch (Exception e) 
+        catch (Exception e)
         {
             Console.WriteLine(e);
         }
-        return m;
+        return new ModelData();
     }
 
     private static ModelData Load(TextReader textReader)
     {
+        // Kept local so a failed load cannot leak half a model into the next one.
+        List<float> vertices = [];
+        List<float> normals = [];
+        List<float> texCoords = [];
+        List<int> indices = [];
+
         string? line;
         while ((line = textReader.ReadLine()) is not null)
         {
-            line = line.Trim(_splitCharacters);
-            line = line.Replace("  ", " ");
-            string[] parameters = line.Split(_splitCharacters);
+            string[] parameters = line.Split(_splitCharacters, StringSplitOptions.RemoveEmptyEntries);
+            if (parameters.Length == 0)
+            {
+                continue;
+            }
+
             switch (parameters[0])
             {
                 case "p": // point
@@ -43,9 +44,9 @@ public static class OBJLoader
                     float x = float.Parse(parameters[1]);
                     float y = float.Parse(parameters[2]);
                     float z = float.Parse(parameters[3]);
-                    _vertices.Add(x);
-                    _vertices.Add(y);
-                    _vertices.Add(z);
+                    vertices.Add(x);
+                    vertices.Add(y);
+                    vertices.Add(z);
                     break;
                 case "vt": // texCoord
                     throw new NotImplementedException();
@@ -55,9 +56,9 @@ public static class OBJLoader
                     switch (parameters.Length)
                     {
                         case 4:
-                            ParseFace(parameters[1]);
-                            ParseFace(parameters[2]);
-                            ParseFace(parameters[3]);
+                            ParseFace(parameters[1], vertices, indices);
+                            ParseFace(parameters[2], vertices, indices);
+                            ParseFace(parameters[3], vertices, indices);
                             break;
                         case 5:
                             throw new NotImplementedException();
@@ -68,35 +69,30 @@ public static class OBJLoader
             }
         }
 
-        var model = new ModelData()
+        return new ModelData()
         {
-            positions = _vertices.ToArray(),
-            normals = _normals.ToArray(),
-            textureCoordinates = _texCoords.ToArray(),
-            indices = _indices.ToArray()
+            positions = [.. vertices],
+            normals = [.. normals],
+            textureCoordinates = [.. texCoords],
+            indices = [.. indices],
         };
-
-        _vertices.Clear();
-        _normals.Clear();
-        _texCoords.Clear();
-        _indices.Clear();
-
-        return model;
     }
 
-    private static void ParseFace(string faceParameter)
+    private static void ParseFace(string faceParameter, List<float> vertices, List<int> indices)
     {
         string[] parameters = faceParameter.Split(_faceParamaterSplitter);
         int vertexIndex = int.Parse(parameters[0]);
 
         if (vertexIndex < 0)
         {
-            vertexIndex = _vertices.Count + vertexIndex;
+            // OBJ indices are 1 based; a negative one counts back from the last vertex read so far.
+            // The list holds three floats per vertex, so the vertex count is a third of its length.
+            vertexIndex = (vertices.Count / 3) + vertexIndex;
         }
         else
         {
             vertexIndex--;
         }
-        _indices.Add(vertexIndex);
+        indices.Add(vertexIndex);
     }
 }
