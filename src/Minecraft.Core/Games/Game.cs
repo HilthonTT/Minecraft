@@ -113,6 +113,11 @@ public sealed class Game
         AverageFPSCounter.IncrementFrameCounter();
         AverageFPSCounter.AddElapsedTime(elapsedSeconds);
 
+        // The counters above report the frame as it really was, but the simulation is only ever advanced by
+        // a bounded amount, so that a stutter cannot move anything further in one step than it can be
+        // simulated over.
+        elapsedSeconds = MathF.Min(elapsedSeconds, Constants.MAX_FRAME_TIME_SECONDS);
+
         if (IsServer)
         {
             Server.World.Update(elapsedSeconds);

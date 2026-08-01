@@ -16,6 +16,24 @@ public abstract class Player : Entity
 
     private const float MovementFriction = -10.0F;
 
+    /// <summary>The furthest the player may move within a single collision step.</summary>
+    private const float MaxDistancePerCollisionStep = 0.4F;
+
+    /// <summary>Caps how far a single frame is split up, so an extreme speed cannot stall the frame.</summary>
+    private const int MaxCollisionStepsPerFrame = 32;
+
+    /// <summary>Slack when comparing hitbox faces, to absorb the rounding left by an earlier resolve.</summary>
+    private const float CollisionTolerance = 0.001F;
+
+    /// <summary>How far inside a block the player has to be before they count as stuck in it.</summary>
+    private const float StuckPenetrationDepth = 0.01F;
+
+    /// <summary>How many times per frame the player is pushed up while stuck inside blocks.</summary>
+    private const int MaxUnstickAttempts = 4;
+
+    /// <summary>How far below the feet the ground is looked for.</summary>
+    private const float GroundProbeDepth = 0.01F;
+
     public string Name { get; set; }
 
     protected bool _isFlying;
@@ -39,6 +57,9 @@ public abstract class Player : Entity
     protected float _verticalSpeed;
 
     private readonly Dictionary<Vector3i, BlockState> _collidableBlocks = [];
+
+    /// <summary>Reused by the ground check, which runs every frame.</summary>
+    private readonly AxisAlignedBox _groundProbeBox = new(Vector3.Zero, Vector3.Zero);
 
     protected delegate void OnToggleRunning(bool isRunning);
     protected event OnToggleRunning? OnToggleRunningHandler;
@@ -80,7 +101,9 @@ public abstract class Player : Entity
             return;
         }
 
-        _verticalSpeed += Constants.GRAVITY * deltaTime;
+        // Capped, because a fall that keeps accelerating eventually covers more ground per frame than the
+        // collision check can follow.
+        _verticalSpeed = MathF.Max(_verticalSpeed + Constants.GRAVITY * deltaTime, Constants.MAX_FALL_SPEED);
         MovePlayerVertically(_verticalSpeed);
     }
 
@@ -151,8 +174,10 @@ public abstract class Player : Entity
     }
 
     /// <summary>
-    /// Integrates velocity and resolves collisions. Each axis is moved and resolved on its own, so that
-    /// sliding along a wall does not also stop movement along the other axes.
+    /// Integrates velocity and resolves collisions. The movement is split into steps short enough that the
+    /// player can never cross a whole block within one of them, since the collision check only looks at the
+    /// blocks immediately around them: a long frame, or a fall that has been accelerating for a while, would
+    /// otherwise carry the player straight past the floor and leave them inside the world.
     /// </summary>
     protected void ApplyVelocityAndCheckCollision(float deltaTime, World world)
     {
@@ -161,52 +186,91 @@ public abstract class Player : Entity
             TryApplyGravity(deltaTime);
         }
 
-        Dictionary<Vector3i, BlockState>? blocks = null;
+        int steps = GetCollisionStepCount(deltaTime);
+        float stepDeltaTime = deltaTime / steps;
+
+        for (int step = 0; step < steps; step++)
+        {
+            MoveAndResolveCollisions(stepDeltaTime, world);
+        }
+
         if (_doCollisionDetection)
         {
-            blocks = GetCollisionDetectionBlocks(world);
-        }
-
-        Velocity.X += Acceleration.X * deltaTime;
-        Position.X += Velocity.X * deltaTime;
-        UpdateAxisAlignedBox();
-        if (blocks is not null)
-        {
-            DoXAxisCollisionDetection(blocks);
-        }
-
-        Velocity.Y += Acceleration.Y * deltaTime;
-        Position.Y += Velocity.Y * deltaTime;
-        UpdateAxisAlignedBox();
-        if (blocks is not null)
-        {
-            DoYAxisCollisionDetection(blocks);
-        }
-
-        Velocity.Z += Acceleration.Z * deltaTime;
-        Position.Z += Velocity.Z * deltaTime;
-        UpdateAxisAlignedBox();
-        if (blocks is not null)
-        {
-            DoZAxisCollisionDetection(blocks);
+            PushOutOfBlocksPlayerIsStuckIn(world);
         }
 
         Velocity += MovementFriction * Velocity * deltaTime;
     }
 
-    /// <summary>Returns the blocks around the player's position used for collision detection.</summary>
+    /// <summary>How many steps this frame's movement is split into to keep every step below a block.</summary>
+    private int GetCollisionStepCount(float deltaTime)
+    {
+        if (!_doCollisionDetection)
+        {
+            return 1;
+        }
+
+        // The velocity at the end of the frame, which is the highest it gets while accelerating, so this
+        // never underestimates the distance covered.
+        Vector3 endOfFrameVelocity = Velocity + Acceleration * deltaTime;
+        float distance = endOfFrameVelocity.Length * deltaTime;
+
+        var steps = (int)MathF.Ceiling(distance / MaxDistancePerCollisionStep);
+        return Math.Clamp(steps, 1, MaxCollisionStepsPerFrame);
+    }
+
+    /// <summary>
+    /// Moves by a single step. Each axis is moved and resolved on its own, so that sliding along a wall does
+    /// not also stop movement along the other axes.
+    /// </summary>
+    private void MoveAndResolveCollisions(float deltaTime, World world)
+    {
+        Velocity += Acceleration * deltaTime;
+
+        if (!_doCollisionDetection)
+        {
+            Position += Velocity * deltaTime;
+            UpdateAxisAlignedBox();
+            return;
+        }
+
+        // Gathered before moving. A step covers less than a block, so the margin around the hitbox still
+        // reaches everything the player can run into within it.
+        Dictionary<Vector3i, BlockState> blocks = GetCollisionDetectionBlocks(world);
+
+        float previousX = Position.X;
+        Position.X += Velocity.X * deltaTime;
+        UpdateAxisAlignedBox();
+        DoXAxisCollisionDetection(blocks, previousX);
+
+        float previousY = Position.Y;
+        Position.Y += Velocity.Y * deltaTime;
+        UpdateAxisAlignedBox();
+        DoYAxisCollisionDetection(blocks, previousY);
+
+        float previousZ = Position.Z;
+        Position.Z += Velocity.Z * deltaTime;
+        UpdateAxisAlignedBox();
+        DoZAxisCollisionDetection(blocks, previousZ);
+    }
+
+    /// <summary>
+    /// Returns the blocks around the player used for collision detection. The range comes from the hitbox
+    /// rather than the position, so that the whole body is covered whichever way the player is moving, plus
+    /// a block of margin on every side for the movement done within a step.
+    /// </summary>
     private Dictionary<Vector3i, BlockState> GetCollisionDetectionBlocks(World world)
     {
         _collidableBlocks.Clear();
 
-        Vector3i pos = Position.ToBlockPos();
-        int topY = pos.Y + (int)Math.Ceiling(Constants.PLAYER_HEIGHT);
+        Vector3i min = Hitbox.Min.ToBlockPos() - Vector3i.One;
+        Vector3i max = Hitbox.Max.ToBlockPos() + Vector3i.One;
 
-        for (int worldX = pos.X - 1; worldX <= pos.X + 1; worldX++)
+        for (int worldX = min.X; worldX <= max.X; worldX++)
         {
-            for (int worldY = pos.Y - 1; worldY <= topY; worldY++)
+            for (int worldY = min.Y; worldY <= max.Y; worldY++)
             {
-                for (int worldZ = pos.Z - 1; worldZ <= pos.Z + 1; worldZ++)
+                for (int worldZ = min.Z; worldZ <= max.Z; worldZ++)
                 {
                     var blockPos = new Vector3i(worldX, worldY, worldZ);
                     BlockState blockState = world.GetBlockAt(blockPos);
@@ -221,7 +285,7 @@ public abstract class Player : Entity
         return _collidableBlocks;
     }
 
-    private void DoXAxisCollisionDetection(Dictionary<Vector3i, BlockState> blocks)
+    private void DoXAxisCollisionDetection(Dictionary<Vector3i, BlockState> blocks, float previousX)
     {
         foreach (KeyValuePair<Vector3i, BlockState> collidable in blocks)
         {
@@ -232,22 +296,30 @@ public abstract class Player : Entity
                     continue;
                 }
 
-                if (Velocity.X > 0.0F)
+                if (Velocity.X > 0.0F && previousX + _width <= aabb.Min.X + CollisionTolerance)
                 {
-                    Position.X = aabb.Min.X - Constants.PLAYER_WIDTH;
+                    Position.X = aabb.Min.X - _width;
                 }
-                else if (Velocity.X < 0.0F)
+                else if (Velocity.X < 0.0F && previousX >= aabb.Max.X - CollisionTolerance)
                 {
                     Position.X = aabb.Max.X;
                 }
+                else
+                {
+                    // The player was already inside this block before the step. Snapping to whichever face
+                    // their velocity points at would push them further into the world instead of out of it,
+                    // so getting them out is left to the unstick pass.
+                    continue;
+                }
 
                 Velocity.X = 0.0F;
+                UpdateAxisAlignedBox();
                 TryStopRunning();
             }
         }
     }
 
-    private void DoYAxisCollisionDetection(Dictionary<Vector3i, BlockState> blocks)
+    private void DoYAxisCollisionDetection(Dictionary<Vector3i, BlockState> blocks, float previousY)
     {
         bool landed = false;
 
@@ -260,25 +332,33 @@ public abstract class Player : Entity
                     continue;
                 }
 
-                if (Velocity.Y > 0.0F)
+                if (Velocity.Y > 0.0F && previousY + _height <= aabb.Min.Y + CollisionTolerance)
                 {
-                    Position.Y = aabb.Min.Y - Constants.PLAYER_HEIGHT;
+                    Position.Y = aabb.Min.Y - _height;
                 }
-                else if (Velocity.Y < 0.0F)
+                else if (Velocity.Y < 0.0F && previousY >= aabb.Max.Y - CollisionTolerance)
                 {
                     Position.Y = aabb.Max.Y;
                     landed = true;
                 }
+                else
+                {
+                    continue;
+                }
 
                 Velocity.Y = 0.0F;
                 _verticalSpeed = 0.0F;
+                UpdateAxisAlignedBox();
             }
         }
 
-        _isInAir = !landed;
+        // A player moving upwards is airborne no matter what is under them. On a short frame the first step
+        // of a jump lifts them by less than the ground is probed for, and looking for it would put them back
+        // on the ground before they ever left it.
+        _isInAir = !landed && (Velocity.Y > 0.0F || !IsStandingOnGround(blocks));
     }
 
-    private void DoZAxisCollisionDetection(Dictionary<Vector3i, BlockState> blocks)
+    private void DoZAxisCollisionDetection(Dictionary<Vector3i, BlockState> blocks, float previousZ)
     {
         foreach (KeyValuePair<Vector3i, BlockState> collidable in blocks)
         {
@@ -289,18 +369,94 @@ public abstract class Player : Entity
                     continue;
                 }
 
-                if (Velocity.Z > 0.0F)
+                if (Velocity.Z > 0.0F && previousZ + _length <= aabb.Min.Z + CollisionTolerance)
                 {
-                    Position.Z = aabb.Min.Z - Constants.PLAYER_LENGTH;
+                    Position.Z = aabb.Min.Z - _length;
                 }
-                else if (Velocity.Z < 0.0F)
+                else if (Velocity.Z < 0.0F && previousZ >= aabb.Max.Z - CollisionTolerance)
                 {
                     Position.Z = aabb.Max.Z;
                 }
+                else
+                {
+                    continue;
+                }
 
                 Velocity.Z = 0.0F;
+                UpdateAxisAlignedBox();
                 TryStopRunning();
             }
         }
+    }
+
+    /// <summary>
+    /// Whether something solid sits directly under the player's feet. Resolving the vertical move is not
+    /// enough on its own to tell: a player standing still never moves into the ground, and so would be
+    /// considered airborne every other frame.
+    /// </summary>
+    private bool IsStandingOnGround(Dictionary<Vector3i, BlockState> blocks)
+    {
+        _groundProbeBox.SetDimensions(
+            new Vector3(Hitbox.Min.X, Hitbox.Min.Y - GroundProbeDepth, Hitbox.Min.Z),
+            new Vector3(Hitbox.Max.X, Hitbox.Min.Y, Hitbox.Max.Z));
+
+        foreach (KeyValuePair<Vector3i, BlockState> collidable in blocks)
+        {
+            foreach (AxisAlignedBox aabb in collidable.Value.GetBlock().GetCollisionBox(collidable.Value, collidable.Key))
+            {
+                if (_groundProbeBox.Intersects(aabb))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Lifts the player onto the block they ended up inside of. Moving no longer puts them there, but a
+    /// chunk loading around them or a block appearing where they stand still can, and without this they are
+    /// trapped: every direction they could move into is solid.
+    /// </summary>
+    private void PushOutOfBlocksPlayerIsStuckIn(World world)
+    {
+        for (int attempt = 0; attempt < MaxUnstickAttempts; attempt++)
+        {
+            float highestBlockTop = float.MinValue;
+
+            foreach (KeyValuePair<Vector3i, BlockState> collidable in GetCollisionDetectionBlocks(world))
+            {
+                foreach (AxisAlignedBox aabb in collidable.Value.GetBlock().GetCollisionBox(collidable.Value, collidable.Key))
+                {
+                    if (IsStuckInside(aabb))
+                    {
+                        highestBlockTop = MathF.Max(highestBlockTop, aabb.Max.Y);
+                    }
+                }
+            }
+
+            if (highestBlockTop == float.MinValue)
+            {
+                return;
+            }
+
+            Position.Y = highestBlockTop;
+            Velocity.Y = 0.0F;
+            _verticalSpeed = 0.0F;
+            _isInAir = false;
+            UpdateAxisAlignedBox();
+        }
+    }
+
+    /// <summary>
+    /// Whether the player is inside the given box by more than the rounding a resolved collision leaves
+    /// behind. Touching a face, or overlapping it by a fraction, is not being stuck.
+    /// </summary>
+    private bool IsStuckInside(AxisAlignedBox aabb)
+    {
+        return Hitbox.Min.X < aabb.Max.X - StuckPenetrationDepth && Hitbox.Max.X > aabb.Min.X + StuckPenetrationDepth &&
+               Hitbox.Min.Y < aabb.Max.Y - StuckPenetrationDepth && Hitbox.Max.Y > aabb.Min.Y + StuckPenetrationDepth &&
+               Hitbox.Min.Z < aabb.Max.Z - StuckPenetrationDepth && Hitbox.Max.Z > aabb.Min.Z + StuckPenetrationDepth;
     }
 }

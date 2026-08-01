@@ -11,6 +11,16 @@ public static class Constants
     //Physics
     public const float GRAVITY = -475F;
 
+    /// <summary>The downwards pull a fall builds up to, so that falling stays within what collision can follow.</summary>
+    public const float MAX_FALL_SPEED = -1000F;
+
+    /// <summary>
+    /// The longest frame the game simulates in one go. A frame that took longer, because of a hitch or
+    /// because the window was not being drawn, is simulated as if it took this long instead: catching up on
+    /// all of it at once would move everything so far in a single step that it passes through the world.
+    /// </summary>
+    public const float MAX_FRAME_TIME_SECONDS = 0.1F;
+
     //Player
     public const float PLAYER_HEIGHT = CUBE_DIM * 1.75F;
     public const float PLAYER_CAMERA_HEIGHT = CUBE_DIM * 1.5F;
