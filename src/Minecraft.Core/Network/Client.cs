@@ -84,7 +84,7 @@ public sealed class Client
 
     private void HandlePacketCommunication()
     {
-        while (_session == null || _session.State == SessionState.Started)
+        while (_session is null || _session.State == SessionState.Started)
         {
             Thread.Sleep(5);
         }
@@ -134,7 +134,7 @@ public sealed class Client
 
     public void Update(float deltaTime)
     {
-        if (_session == null || _session.State == SessionState.Closed)
+        if (_session is null || _session.State == SessionState.Closed)
         {
             return;
         }
@@ -173,7 +173,7 @@ public sealed class Client
 
     public void Stop()
     {
-        if (_session != null)
+        if (_session is not null)
         {
             _session.State = SessionState.Closed;
         }

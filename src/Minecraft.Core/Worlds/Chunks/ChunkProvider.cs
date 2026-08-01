@@ -57,7 +57,7 @@ public sealed class ChunkProvider
     private void OnPlayerAssigned()
     {
         _player = _session.Player;
-        if (_player != null)
+        if (_player is not null)
         {
             _player.OnChunkChangedHandler += OnPlayerChunkChanged;
         }
@@ -211,7 +211,7 @@ public sealed class ChunkProvider
     {
         HandleReceivedChunk();
 
-        if (_player == null || _remainingChunkRequests.Count == 0)
+        if (_player is null || _remainingChunkRequests.Count == 0)
         {
             return;
         }
@@ -235,7 +235,7 @@ public sealed class ChunkProvider
         if (_remainingChunkRequests.Peek().DistanceToPlayer <= chunkDist)
         {
             World? playerWorld = _player.World;
-            if (playerWorld != null)
+            if (playerWorld is not null)
             {
                 LoadChunk(playerWorld, _remainingChunkRequests.Dequeue().GridPosition);
             }

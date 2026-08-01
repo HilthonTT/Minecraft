@@ -71,7 +71,7 @@ public abstract class Session
     /// </summary>
     public bool IsChunkVisible(Vector2 chunkPosition)
     {
-        if (Player == null)
+        if (Player is null)
         {
             return false;
         }

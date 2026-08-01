@@ -120,7 +120,7 @@ public sealed class MasterRenderer
 
     public void SetActiveCamera(Camera camera)
     {
-        if (_cameraController.Camera != null)
+        if (_cameraController.Camera is not null)
         {
             _cameraController.Camera.OnProjectionChangedHandler -= OnPlayerCameraProjectionChanged;
         }
@@ -167,7 +167,7 @@ public sealed class MasterRenderer
         foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
         {
             VAOModel? model = chunkToRender.Value.HardBlocksModel;
-            if (model == null)
+            if (model is null)
             {
                 continue;
             }
@@ -237,7 +237,7 @@ public sealed class MasterRenderer
             lock (_meshLock)
             {
                 // Hold off while a finished mesh is still waiting, since there is only one slot for it.
-                if (_toRemeshChunksQueue.First == null || _chunkAvailableToRemesh)
+                if (_toRemeshChunksQueue.First is null || _chunkAvailableToRemesh)
                 {
                     continue;
                 }

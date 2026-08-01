@@ -78,7 +78,7 @@ public sealed class UIImage : UIComponent
 
     public override void Render(UIShader uiShader)
     {
-        if (_vaoModel == null)
+        if (_vaoModel is null)
         {
             return;
         }

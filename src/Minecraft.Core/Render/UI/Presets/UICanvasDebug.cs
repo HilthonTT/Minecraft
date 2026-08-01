@@ -54,7 +54,7 @@ public sealed class UICanvasDebug : UICanvas
         builder.AppendLine($"Acceleration X={acceleration.X:0.00} Y={acceleration.Y:0.00} Z={acceleration.Z:0.00}");
         builder.AppendLine($"Chunk X={(int)chunkPos.X} Z={(int)chunkPos.Y} Section Y={(int)(position.Y / 16)}");
 
-        if (currentChunk != null)
+        if (currentChunk is not null)
         {
             builder.AppendLine(
                 $"Light sources in chunk={currentChunk.LightSourceBlocks.Count}" +
@@ -85,7 +85,7 @@ public sealed class UICanvasDebug : UICanvas
                 $" Sun={currentChunk.LightMap.GetSunLightIntensityAt(chunkLocalPos)}");
         }
 
-        if (_game.ClientPlayer.MouseOverObject == null)
+        if (_game.ClientPlayer.MouseOverObject is null)
         {
             return;
         }

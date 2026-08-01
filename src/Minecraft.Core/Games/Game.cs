@@ -145,7 +145,7 @@ public sealed class Game
 
     public void OnWindowResize(int newWidth, int newHeight)
     {
-        if (RunMode != RunMode.Server && ClientPlayer != null)
+        if (RunMode != RunMode.Server && ClientPlayer is not null)
         {
             ClientPlayer.Camera.SetWindowSize(newWidth, newHeight);
         }

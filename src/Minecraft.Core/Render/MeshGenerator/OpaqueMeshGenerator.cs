@@ -45,7 +45,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         for (int sectionHeight = 0; sectionHeight < chunk.Sections.Length; sectionHeight++)
         {
             Section? section = chunk.Sections[sectionHeight];
-            if (section == null || section.IsEmpty)
+            if (section is null || section.IsEmpty)
             {
                 continue;
             }
@@ -57,7 +57,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
                     for (int sectionLocalY = 0; sectionLocalY < 16; sectionLocalY++)
                     {
                         BlockState? state = section.GetBlockAt(localX, sectionLocalY, localZ);
-                        if (state == null)
+                        if (state is null)
                         {
                             continue;
                         }
@@ -234,7 +234,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         {
             light = chunk.LightMap.GetLightColorAt((uint)x, (uint)chunkLocalPos.Y, (uint)z, LightScale);
         }
-        else if (neighbourChunk != null)
+        else if (neighbourChunk is not null)
         {
             light = neighbourChunk.LightMap.GetLightColorAt(
                 (uint)(x & 15),
@@ -310,7 +310,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         else
         {
             Section? neighbourSection = neighbourChunk?.Sections[currentSection.Height];
-            if (neighbourSection == null)
+            if (neighbourSection is null)
             {
                 return true;
             }
@@ -318,7 +318,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
             neighbour = neighbourSection.GetBlockAt(localX & 15, localY, localZ & 15);
         }
 
-        if (neighbour == null)
+        if (neighbour is null)
         {
             return true;
         }
@@ -348,7 +348,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
             }
 
             Section? neighbourSection = chunk.Sections[neighbourSectionHeight];
-            if (neighbourSection == null)
+            if (neighbourSection is null)
             {
                 return true;
             }
@@ -356,7 +356,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
             neighbour = neighbourSection.GetBlockAt(localX, above ? 0 : 15, localZ);
         }
 
-        if (neighbour == null)
+        if (neighbour is null)
         {
             return true;
         }

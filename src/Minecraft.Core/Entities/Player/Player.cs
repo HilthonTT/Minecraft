@@ -170,7 +170,7 @@ public abstract class Player : Entity
         Velocity.X += Acceleration.X * deltaTime;
         Position.X += Velocity.X * deltaTime;
         UpdateAxisAlignedBox();
-        if (blocks != null)
+        if (blocks is not null)
         {
             DoXAxisCollisionDetection(blocks);
         }
@@ -178,7 +178,7 @@ public abstract class Player : Entity
         Velocity.Y += Acceleration.Y * deltaTime;
         Position.Y += Velocity.Y * deltaTime;
         UpdateAxisAlignedBox();
-        if (blocks != null)
+        if (blocks is not null)
         {
             DoYAxisCollisionDetection(blocks);
         }
@@ -186,7 +186,7 @@ public abstract class Player : Entity
         Velocity.Z += Acceleration.Z * deltaTime;
         Position.Z += Velocity.Z * deltaTime;
         UpdateAxisAlignedBox();
-        if (blocks != null)
+        if (blocks is not null)
         {
             DoZAxisCollisionDetection(blocks);
         }

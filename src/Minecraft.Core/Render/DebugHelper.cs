@@ -110,7 +110,7 @@ public sealed class DebugHelper
             _debugCanvas = new UICanvasDebug(_game);
             _game.MasterRenderer.AddCanvas(_debugCanvas);
         }
-        else if (_debugCanvas != null)
+        else if (_debugCanvas is not null)
         {
             _game.MasterRenderer.RemoveCanvas(_debugCanvas);
             _debugCanvas = null;

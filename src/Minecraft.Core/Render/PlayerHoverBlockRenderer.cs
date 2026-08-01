@@ -18,7 +18,7 @@ public sealed class PlayerHoverBlockRenderer
 
     public void RenderSelection()
     {
-        if (_player.MouseOverObject == null)
+        if (_player.MouseOverObject is null)
         {
             return;
         }

@@ -46,7 +46,7 @@ public sealed class ServerNetHandler : INetHandler
     public void ProcessPlayerDataPacket(PlayerDataPacket playerDataPacket)
     {
         // Positional updates can arrive before the join handshake has assigned a player.
-        if (_session.Player == null)
+        if (_session.Player is null)
         {
             return;
         }
@@ -87,7 +87,7 @@ public sealed class ServerNetHandler : INetHandler
         // And let the new player know about everyone already online.
         foreach (Session.Session client in _game.Server.ConnectedClients)
         {
-            if (client.Player != null && client.Player != player)
+            if (client.Player is not null && client.Player != player)
             {
                 _session.WritePacket(new PlayerJoinPacket(client.Player.Name, client.Player.ID));
             }
