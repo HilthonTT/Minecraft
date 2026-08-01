@@ -5,6 +5,8 @@ A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https:
 Infinite procedurally generated terrain, coloured block lighting with smooth per vertex ambient occlusion, a
 day/night cycle, and a client/server architecture that the singleplayer mode also runs through.
 
+![Forest terrain blending into stone highlands, with oak trees, grass and flowers under a daytime sky](Screenshots/sample-1.png)
+
 ## Requirements
 
 - [.NET SDK 10](https://dotnet.microsoft.com/download) or newer
