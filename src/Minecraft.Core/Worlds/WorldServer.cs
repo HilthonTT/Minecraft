@@ -6,6 +6,7 @@ using Minecraft.Core.Network.Session;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using Minecraft.Core.Worlds.Generation;
+using Minecraft.Core.Worlds.Storage;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds;
@@ -20,17 +21,76 @@ public sealed class WorldServer : World
     /// </summary>
     private const int SpawnAreaRadius = 3;
 
+    /// <summary>How often the world writes itself out while running, in seconds.</summary>
+    private const float AutoSaveIntervalSeconds = 60;
+
     private readonly IdTracker _entityIdTracker = new();
     private readonly WorldGenerator _worldGenerator;
+    private readonly WorldStorage _storage;
+    private readonly WorldMetadata _metadata;
 
-    public WorldServer(Game game) : base(game)
+    private float _elapsedSecondsSinceAutoSave;
+
+    public WorldServer(Game game, WorldStorage storage, int? seed) : base(game)
     {
         OnBlockPlacedHandler += OnBlockPlacedServer;
         OnBlockRemovedHandler += OnBlockRemovedServer;
         OnEntityDespawnedHandler += OnEntityDespawnedServer;
 
-        _worldGenerator = new WorldGenerator(this);
+        _storage = storage;
+        _metadata = storage.LoadOrCreateMetadata(seed);
+        Environment.CurrentTime = _metadata.CurrentTime;
+
+        _worldGenerator = new WorldGenerator(this, storage, _metadata.Seed);
+
+        // Written straight away so the seed is on disk even if the process never shuts down cleanly.
+        _storage.SaveMetadata(_metadata);
+
         LoadSpawnArea();
+    }
+
+    public override void Update(float deltaTimeSeconds)
+    {
+        base.Update(deltaTimeSeconds);
+
+        _elapsedSecondsSinceAutoSave += deltaTimeSeconds;
+        if (_elapsedSecondsSinceAutoSave >= AutoSaveIntervalSeconds)
+        {
+            _elapsedSecondsSinceAutoSave = 0;
+            Save();
+        }
+    }
+
+    /// <summary>
+    /// Writes the world out. Only chunks that were modified since they were generated or last saved carry
+    /// any cost, so this is cheap to call on a timer.
+    /// </summary>
+    public void Save()
+    {
+        foreach (Chunk chunk in LoadedChunks.Values)
+        {
+            _storage.QueueChunkSave(chunk);
+        }
+
+        _metadata.CurrentTime = Environment.CurrentTime;
+        _storage.SaveMetadata(_metadata);
+    }
+
+    /// <summary>Saves everything and waits for it to reach disk. Called when the server shuts down.</summary>
+    public void SaveAndFlush()
+    {
+        Save();
+        _storage.Flush();
+    }
+
+    /// <summary>
+    /// A chunk about to be recycled is the last chance to persist it, so it is written before the pool can
+    /// hand the instance out for another position.
+    /// </summary>
+    protected override void OnChunkUnloadedPostProcess(Chunk chunk)
+    {
+        _storage.QueueChunkSave(chunk);
+        base.OnChunkUnloadedPostProcess(chunk);
     }
 
     private void LoadSpawnArea()
@@ -39,7 +99,7 @@ public sealed class WorldServer : World
         {
             for (int y = -SpawnAreaRadius; y <= SpawnAreaRadius; y++)
             {
-                AddPlayerPresenceToChunk(_worldGenerator.GenerateBlocksForChunkAt(x, y));
+                AddPlayerPresenceToChunk(_worldGenerator.ProvideChunkAt(x, y));
             }
         }
     }

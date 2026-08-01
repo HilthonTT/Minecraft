@@ -1,10 +1,12 @@
-using Minecraft.Core.Games;
+﻿using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.NetHandler;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
+using Minecraft.Core.Utilities;
 using Minecraft.Core.Worlds;
+using Minecraft.Core.Worlds.Storage;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -17,6 +19,9 @@ namespace Minecraft.Core.Network;
 /// </summary>
 public sealed class Server
 {
+    /// <summary>Worlds live under this directory, next to the executable.</summary>
+    private const string SavesDirectoryName = "saves";
+
     private readonly Game _game;
 
     private readonly Lock _newJoinsLock = new();
@@ -29,6 +34,7 @@ public sealed class Server
     private volatile bool _isRunning;
     private int _port;
     private ServerSession? _host;
+    private WorldStorage? _storage;
 
     public List<ServerSession> ConnectedClients { get; } = [];
 
@@ -49,7 +55,8 @@ public sealed class Server
     {
         _port = port;
 
-        World = new WorldServer(_game);
+        _storage = new WorldStorage(Assets.Path(SavesDirectoryName), _game.WorldName);
+        World = new WorldServer(_game, _storage, _game.WorldSeed);
 
         _connectionsThread = new Thread(StartServerAndListenForConnections)
         {
@@ -63,6 +70,11 @@ public sealed class Server
     {
         _isRunning = false;
         _tcpServer?.Stop();
+
+        // Saved before the storage is torn down, so the last minute of play is not lost.
+        World?.SaveAndFlush();
+        _storage?.Dispose();
+        _storage = null;
     }
 
     private void StartServerAndListenForConnections()

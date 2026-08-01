@@ -2,15 +2,19 @@
   "profiles": {
     "Singleplayer": {
       "commandName": "Project",
-      "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565"
+      "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 world=world"
     },
     "Singleplayer (verbose)": {
       "commandName": "Project",
-      "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 loglevel=info"
+      "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 world=world loglevel=info"
+    },
+    "Singleplayer (fixed seed)": {
+      "commandName": "Project",
+      "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 world=seeded seed=12345 loglevel=info"
     },
     "Dedicated server": {
       "commandName": "Project",
-      "commandLineArgs": "mode=server ip=0.0.0.0 port=25565 loglevel=info"
+      "commandLineArgs": "mode=server ip=0.0.0.0 port=25565 world=world loglevel=info"
     },
     "Client (connect to localhost)": {
       "commandName": "Project",

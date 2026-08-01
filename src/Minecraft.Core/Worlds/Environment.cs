@@ -33,7 +33,7 @@ public sealed class Environment
     /// </summary>
     private double _sunRotationRads = 0;
 
-    private Sky _sky;
+    private readonly Sky _sky;
 
     public Environment(int timeInDaySeconds)
     {

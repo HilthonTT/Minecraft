@@ -31,18 +31,49 @@ That starts a singleplayer game. In Visual Studio, pick a profile from the launc
 
 Every argument is optional; anything left out uses its default.
 
-| Argument   | Values                              | Default        | Purpose                            |
-| ---------- | ----------------------------------- | -------------- | ---------------------------------- |
-| `mode`     | `client`, `server`, `clientserver`  | `clientserver` | `clientserver` is singleplayer     |
-| `ip`       | Host to connect to or bind          | `127.0.0.1`    |                                    |
-| `port`     | `1`–`65535`                         | `25565`        |                                    |
-| `loglevel` | `packet`, `info`, `warn`, `error`   | `error`        | `packet` traces network traffic    |
+| Argument   | Values                              | Default        | Purpose                             |
+| ---------- | ----------------------------------- | -------------- | ----------------------------------- |
+| `mode`     | `client`, `server`, `clientserver`  | `clientserver` | `clientserver` is singleplayer      |
+| `ip`       | Host to connect to or bind          | `127.0.0.1`    |                                     |
+| `port`     | `1`–`65535`                         | `25565`        |                                     |
+| `world`    | Save directory name                 | `world`        | Which world to load or create       |
+| `seed`     | Any whole number                    | random         | Only used when creating a new world |
+| `loglevel` | `packet`, `info`, `warn`, `error`   | `error`        | `packet` traces network traffic     |
 
 ```sh
 dotnet run --project src/Minecraft.App -- mode=server ip=0.0.0.0 port=25565 loglevel=info
+dotnet run --project src/Minecraft.App -- world=canyons seed=12345
 ```
 
 `server` runs headless. `client` connects to a server started separately.
+
+## Saved worlds
+
+Worlds live in `saves/<name>/` next to the executable and are written by whichever side runs the server, so
+singleplayer and a dedicated server save identically. A world is saved when a chunk unloads, every 60
+seconds, and on a clean exit. Quit with `Escape` or by closing the window rather than killing the process,
+or anything since the last autosave is lost.
+
+```
+saves/world/
+  level.dat          format version, seed and time of day, as plain text
+  chunks/c.0.-1.gz   one gzipped chunk, named after its grid position
+```
+
+Only chunks that were actually **modified** are stored. Everything else is regenerated from the seed on
+demand, which is both faster and far smaller than writing terrain nobody has touched — a world that has only
+been walked across saves nothing at all. This works because generation is fully deterministic: the noise
+fields are seeded from `seed`, and each chunk's decoration draws from a `Random` seeded by mixing the world
+seed with the chunk position. Two worlds created with the same seed generate byte-identical terrain.
+
+That determinism is load bearing. If you add generation code, drive every random choice from the `Random`
+handed to `IDecorator.Decorate`, never from an unseeded one, or stored chunks will stop matching their
+regenerated neighbours.
+
+Passing `seed` for a world that already exists is ignored, with a warning — its terrain is already fixed. To
+start over, delete the world directory or pick a different `world` name. A save whose `version` does not
+match the running build is refused rather than misread, and a corrupt chunk file is reported and regenerated
+instead of taking the world down with it.
 
 ## Controls
 
@@ -88,6 +119,7 @@ Inside `Minecraft.Core`:
 | `Textures/`            | Texture atlas and the offscreen framebuffer                              |
 | `Utilities/`           | Math, input, noise, OBJ loading, VAO wrapper, object pool                |
 | `Worlds/`              | Blocks, chunks, sections, biomes, terrain generation and lighting        |
+| `Worlds/Storage/`      | Reading and writing saved worlds                                         |
 
 ## How it fits together
 

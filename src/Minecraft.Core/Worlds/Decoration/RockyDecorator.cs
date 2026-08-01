@@ -1,4 +1,4 @@
-using Minecraft.Core.Utilities.Noise;
+﻿using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using Minecraft.Core.Worlds.Trees;
@@ -9,7 +9,7 @@ public sealed class RockyDecorator : IDecorator
 {
     private readonly OakTreeGenerator _oakTreeGenerator = new();
 
-    public void Decorate(Chunk chunk, int worldY, int localX, int localZ)
+    public void Decorate(Chunk chunk, int worldY, int localX, int localZ, Random random)
     {
         int worldX = chunk.GridX * 16 + localX;
         int worldZ = chunk.GridZ * 16 + localZ;
@@ -36,7 +36,7 @@ public sealed class RockyDecorator : IDecorator
         float foliage = Noise3DPerlin.Noise(worldX * 0.75F, worldY * 0.75F, worldZ * 0.75F);
         if (foliage < -0.9F)
         {
-            _oakTreeGenerator.GenerateTreeAt(chunk, localX, worldY, localZ);
+            _oakTreeGenerator.GenerateTreeAt(chunk, localX, worldY, localZ, random);
         }
         else if (foliage < -0.5F)
         {

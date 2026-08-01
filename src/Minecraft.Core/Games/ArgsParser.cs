@@ -1,4 +1,4 @@
-using Minecraft.Core.Logging;
+﻿using Minecraft.Core.Logging;
 using Minecraft.Core.Network;
 
 namespace Minecraft.Core.Games;
@@ -12,6 +12,8 @@ public sealed class ArgsParser
           mode=client|server|clientserver   Defaults to clientserver (singleplayer).
           ip=<address>                      Defaults to 127.0.0.1.
           port=<1-65535>                    Defaults to 25565.
+          world=<name>                      Save directory under saves/. Defaults to world.
+          seed=<number>                     Seeds a new world. Ignored if the world already exists.
           loglevel=packet|info|warn|error   Defaults to error.
         """;
 
@@ -24,7 +26,9 @@ public sealed class ArgsParser
 
     public const LogLevel DefaultLogLevel = LogLevel.Error;
 
-    private static readonly string[] _knownKeys = ["mode", "ip", "port", "loglevel"];
+    public const string DefaultWorldName = "world";
+
+    private static readonly string[] _knownKeys = ["mode", "ip", "port", "world", "seed", "loglevel"];
 
     /// <summary>
     /// Parses <c>key=value</c> start arguments. Every argument is optional; anything left out falls back to
@@ -63,6 +67,8 @@ public sealed class ArgsParser
             IP = GetIp(parsedArgs),
             Port = GetPort(parsedArgs),
             LogLevel = GetLogLevel(parsedArgs),
+            WorldName = GetWorldName(parsedArgs),
+            Seed = GetSeed(parsedArgs),
         };
     }
 
@@ -106,6 +112,31 @@ public sealed class ArgsParser
         }
 
         return port;
+    }
+
+    private static string GetWorldName(Dictionary<string, string> startArgs)
+    {
+        if (!startArgs.TryGetValue("world", out string? value) || value.Length == 0)
+        {
+            return DefaultWorldName;
+        }
+
+        return value;
+    }
+
+    private static int? GetSeed(Dictionary<string, string> startArgs)
+    {
+        if (!startArgs.TryGetValue("seed", out string? value))
+        {
+            return null;
+        }
+
+        if (!int.TryParse(value, out int seed))
+        {
+            throw new ArgumentException("Invalid seed '" + value + "'. Expected a whole number.");
+        }
+
+        return seed;
     }
 
     private static LogLevel GetLogLevel(Dictionary<string, string> startArgs)

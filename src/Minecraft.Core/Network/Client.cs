@@ -1,4 +1,4 @@
-using Minecraft.Core.Entities.Player;
+﻿using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
@@ -106,8 +106,15 @@ public sealed class Client
                 }
                 catch (Exception e)
                 {
-                    Logger.Error("Failed reading packet: " + e.Message);
+                    // Once the session is closing, the socket being torn down underneath this thread is
+                    // how shutdown is meant to look rather than a failure worth reporting.
+                    if (_session.State != SessionState.Closed)
+                    {
+                        Logger.Error("Failed reading packet: " + e.Message);
+                    }
+
                     Stop();
+                    break;
                 }
             }
 

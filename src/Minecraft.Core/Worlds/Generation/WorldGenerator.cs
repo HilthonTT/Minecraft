@@ -1,7 +1,8 @@
-using Minecraft.Core.Utilities.Noise;
+﻿using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Biomes;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
+using Minecraft.Core.Worlds.Storage;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Generation;
@@ -26,6 +27,8 @@ public sealed class WorldGenerator
     private const int GradientDepth = 3;
 
     private readonly WorldServer _world;
+    private readonly WorldStorage _storage;
+    private readonly int _seed;
     private readonly Biome[] _registeredBiomes;
     private readonly BiomeProvider _biomeProvider;
 
@@ -36,9 +39,15 @@ public sealed class WorldGenerator
 
     public int SeaLevel { get; } = 62;
 
-    public WorldGenerator(WorldServer world)
+    public WorldGenerator(WorldServer world, WorldStorage storage, int seed)
     {
         _world = world;
+        _storage = storage;
+        _seed = seed;
+
+        // The noise fields are shared static state, so seeding them here fixes the terrain for every biome.
+        Noise2DPerlin.Reseed(seed);
+        Noise3DPerlin.Reseed(seed);
 
         _registeredBiomes =
         [
@@ -105,7 +114,7 @@ public sealed class WorldGenerator
                 waitingRequests = requests;
             }
 
-            Chunk chunk = GenerateBlocksForChunkAt((int)request.GridPosition.X, (int)request.GridPosition.Y);
+            Chunk chunk = ProvideChunkAt((int)request.GridPosition.X, (int)request.GridPosition.Y);
             var output = new GenerateChunkOutput
             {
                 Chunk = chunk,
@@ -119,12 +128,49 @@ public sealed class WorldGenerator
         }
     }
 
+    /// <summary>
+    /// The chunk at the given position, loaded from disk if it was ever modified and generated from the
+    /// seed otherwise. This is the only way a chunk should be brought into the world.
+    /// </summary>
+    public Chunk ProvideChunkAt(int chunkX, int chunkZ)
+    {
+        return _storage.TryLoadChunk(_world, chunkX, chunkZ) ?? GenerateBlocksForChunkAt(chunkX, chunkZ);
+    }
+
+    /// <summary>
+    /// Mixes the world seed with a chunk position into a seed for that chunk's decoration.
+    /// <para>
+    /// Deliberately not <see cref="HashCode.Combine{T1, T2, T3}"/>: that is randomised per process, so a
+    /// world would decorate differently every time it was loaded and stored chunks would stop lining up
+    /// with regenerated neighbours.
+    /// </para>
+    /// </summary>
+    private static int GetChunkSeed(int seed, int chunkX, int chunkZ)
+    {
+        unchecked
+        {
+            // Multiply and xor-shift so that neighbouring chunks get unrelated seeds rather than adjacent
+            // ones, which a plain sum would produce.
+            uint hash = (uint)seed;
+            hash = (hash ^ (uint)chunkX) * 2654435761u;
+            hash = (hash ^ (uint)chunkZ) * 2246822519u;
+            hash ^= hash >> 13;
+            hash *= 3266489917u;
+            hash ^= hash >> 16;
+            return (int)hash;
+        }
+    }
+
     public Chunk GenerateBlocksForChunkAt(int chunkX, int chunkZ)
     {
         Chunk chunk = _world.ChunkPool.GetObject();
         chunk.ResetAndAssign(chunkX, chunkZ);
 
         const int chunkDim = 16;
+
+        // Derived from the seed and the position so decoration is reproducible, which is what lets an
+        // unmodified chunk be regenerated instead of stored.
+        var random = new Random(GetChunkSeed(_seed, chunkX, chunkZ));
 
         for (int localX = 0; localX < chunkDim; localX++)
         {
@@ -176,10 +222,13 @@ public sealed class WorldGenerator
                 }
 
                 // Decoration sits on top of the surface block.
-                dominant.Biome.Decorator.Decorate(chunk, surfaceY + 1, localX, localZ);
+                dominant.Biome.Decorator.Decorate(chunk, surfaceY + 1, localX, localZ, random);
             }
         }
 
+        // Freshly generated terrain matches what the generator would produce by definition, so there is
+        // nothing here worth writing to disk yet.
+        chunk.MarkClean();
         return chunk;
     }
 }

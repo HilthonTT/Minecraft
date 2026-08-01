@@ -10,13 +10,13 @@ public sealed class Sky
      * and the next color linearly for smooth transitions between the different colors.
      */
 
-    private Vector3[] _topSkyColors = new Vector3[24];
-    private Vector3[] _bottomSkyColors = new Vector3[24];
-    private Vector3[] _horizonColors = new Vector3[24];
-    private Vector3[] _sunColors = new Vector3[24];
-    private Vector3[] _sunGlowColors = new Vector3[24];
-    private Vector3[] _moonColors = new Vector3[24];
-    private Vector3[] _moonGlowColors = new Vector3[24];
+    private readonly Vector3[] _topSkyColors = new Vector3[24];
+    private readonly Vector3[] _bottomSkyColors = new Vector3[24];
+    private readonly Vector3[] _horizonColors = new Vector3[24];
+    private readonly Vector3[] _sunColors = new Vector3[24];
+    private readonly Vector3[] _sunGlowColors = new Vector3[24];
+    private readonly Vector3[] _moonColors = new Vector3[24];
+    private readonly Vector3[] _moonGlowColors = new Vector3[24];
 
     private readonly Vector3 _invalidColor = new(-1, -1, -1);
 

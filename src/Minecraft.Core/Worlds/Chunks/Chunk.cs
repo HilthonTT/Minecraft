@@ -1,5 +1,4 @@
-using Minecraft.Core.Utilities.Vectors;
-using Minecraft.Core.Worlds.Blocks;
+﻿using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Lighting;
 using Minecraft.Core.Worlds.Sections;
 using OpenTK.Mathematics;
@@ -30,6 +29,12 @@ public sealed class Chunk
     /// <summary>The height of the highest non air block in each column, used to speed up lighting.</summary>
     public int[,] TopMostBlocks { get; } = new int[16, 16];
 
+    /// <summary>
+    /// Whether this chunk differs from what the generator would produce for its position. Only dirty chunks
+    /// are written to disk; the rest are regenerated from the world seed, which is cheaper than storing them.
+    /// </summary>
+    public bool IsDirty { get; private set; }
+
     public Chunk(int gridX, int gridZ)
     {
         GridX = gridX;
@@ -53,7 +58,7 @@ public sealed class Chunk
         for (int height = 0; height < Constants.NUM_SECTIONS_IN_CHUNKS; height++)
         {
             Section? section = Sections[height];
-            if (section == null)
+            if (section is null)
             {
                 continue;
             }
@@ -87,11 +92,21 @@ public sealed class Chunk
 
         GridX = gridX;
         GridZ = gridZ;
+        IsDirty = false;
 
         for (int height = 0; height < Constants.NUM_SECTIONS_IN_CHUNKS; height++)
         {
             Sections[height]?.ResetAndAssign(gridX, gridZ);
         }
+    }
+
+    /// <summary>
+    /// Records that this chunk now matches what is on disk, or what the generator just produced. Called
+    /// after generating, loading and saving.
+    /// </summary>
+    public void MarkClean()
+    {
+        IsDirty = false;
     }
 
     public override string ToString()
@@ -121,7 +136,7 @@ public sealed class Chunk
         }
 
         Section? section = Sections[localPos.Y / 16];
-        if (section == null)
+        if (section is null)
         {
             return BlockRegistry.GetState(BlockRegistry.Air);
         }
@@ -141,7 +156,7 @@ public sealed class Chunk
         }
 
         Section? section = Sections[worldY / 16];
-        if (section == null)
+        if (section is null)
         {
             return;
         }
@@ -151,6 +166,7 @@ public sealed class Chunk
         section.RemoveBlockAt(localX, worldY & 15, localZ);
         TickableBlocks.Remove(blockPos);
         LightSourceBlocks.Remove(blockPos);
+        IsDirty = true;
 
         // Recomputed after the removal, otherwise the block being removed is still found as the top one.
         if (TopMostBlocks[localX, localZ] == worldY)
@@ -193,6 +209,7 @@ public sealed class Chunk
 
         var worldPos = new Vector3i(localX + GridX * 16, worldY, localZ + GridZ * 16);
         section.AddBlockAt(localX, worldY & 15, localZ, blockState);
+        IsDirty = true;
 
         // Assigned rather than added: the slot may already hold the state of the block being replaced.
         if (block.IsTickable)
@@ -230,7 +247,7 @@ public sealed class Chunk
         for (int i = Constants.NUM_SECTIONS_IN_CHUNKS - 1; i >= 0; i--)
         {
             Section? section = Sections[i];
-            if (section != null && !section.IsFullTransparent)
+            if (section is not null && !section.IsFullTransparent)
             {
                 break;
             }
@@ -252,7 +269,7 @@ public sealed class Chunk
             size++;
 
             Section? section = Sections[i];
-            if (section == null)
+            if (section is null)
             {
                 continue;
             }

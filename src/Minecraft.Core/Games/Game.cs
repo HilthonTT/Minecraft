@@ -1,4 +1,4 @@
-using Minecraft.Core.Entities.Player;
+﻿using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Network;
 using Minecraft.Core.Render;
 using Minecraft.Core.Render.UI;
@@ -32,11 +32,19 @@ public sealed class Game
     public RunMode RunMode { get; }
     public float CurrentFPS { get; private set; }
 
+    /// <summary>The world the server half of this process loads and saves.</summary>
+    public string WorldName { get; }
+
+    /// <summary>Seed for a newly created world, or null to pick one at random.</summary>
+    public int? WorldSeed { get; }
+
     public Game(StartArgs startArgs)
     {
         _startArgs = startArgs;
         RunMode = startArgs.RunMode;
         IsServer = RunMode is RunMode.ClientServer or RunMode.Server;
+        WorldName = startArgs.WorldName;
+        WorldSeed = startArgs.Seed;
     }
 
     public void OnStartGame(GameWindow window)
@@ -85,8 +93,10 @@ public sealed class Game
             Input.Dispose();
         }
 
-        Server?.Stop();
+        // The client goes first: stopping the server closes the sockets underneath it, and a read already
+        // in flight would then fail on a disposed stream.
         Client?.Stop();
+        Server?.Stop();
     }
 
     public void OnUpdateGame(double deltaTimeSeconds)
