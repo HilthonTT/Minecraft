@@ -478,10 +478,16 @@ public sealed class MasterRenderer
     {
         _isRunning = false;
 
+        // The meshing thread touches no GL state, but it does hand over buffers, so let it finish its
+        // current chunk before the models it feeds are deleted.
+        _meshGenerationThread.Join(TimeSpan.FromSeconds(1));
+
         _basicShader.CleanUp();
         _entityShader.CleanUp();
         _uiRenderer.CleanUp();
         _wireframeRenderer.CleanUp();
+        _screenQuad.CleanUp();
+        _skydome.CleanUp();
         TextureLoader.Cleanup();
 
         foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)

@@ -8,6 +8,10 @@
       "commandName": "Project",
       "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 world=world loglevel=info"
     },
+    "Singleplayer (random seed)": {
+      "commandName": "Project",
+      "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 world=scratch fresh=true loglevel=info"
+    },
     "Singleplayer (fixed seed)": {
       "commandName": "Project",
       "commandLineArgs": "mode=clientserver ip=127.0.0.1 port=25565 world=seeded seed=12345 loglevel=info"

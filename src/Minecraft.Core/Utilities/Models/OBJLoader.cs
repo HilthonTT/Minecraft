@@ -17,9 +17,18 @@ public static class OBJLoader
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            Logger.Error($"Could not load model '{fileName}': {e.Message}");
         }
-        return new ModelData();
+
+        // Empty rather than default, so a failed load cannot hand null arrays to whoever asked for the
+        // model. The result draws nothing instead of throwing far away from the actual problem.
+        return new ModelData
+        {
+            positions = [],
+            normals = [],
+            textureCoordinates = [],
+            indices = [],
+        };
     }
 
     private static ModelData Load(TextReader textReader)

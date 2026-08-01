@@ -80,6 +80,30 @@ public sealed class WorldStorage : IDisposable
     }
 
     /// <summary>
+    /// Deletes this world from disk, so the next load generates it afresh from a new seed. Only ever touches
+    /// the one directory this instance owns, which <see cref="SanitiseWorldName"/> has already confined to
+    /// the saves directory. Call before anything has been read or written.
+    /// </summary>
+    public void DeleteExistingWorld()
+    {
+        if (!System.IO.Directory.Exists(_worldDirectory))
+        {
+            return;
+        }
+
+        try
+        {
+            System.IO.Directory.Delete(_worldDirectory, recursive: true);
+            Logger.Info("Discarded the existing world at " + _worldDirectory + ".");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Better to play on the old world than to refuse to start over a scratch directory.
+            Logger.Warn("Could not discard the existing world at " + _worldDirectory + ": " + e.Message);
+        }
+    }
+
+    /// <summary>
     /// Reads the metadata of an existing world, or describes a new one seeded from <paramref name="seed"/>
     /// when there is nothing on disk yet. Nothing is written until <see cref="SaveMetadata"/> is called.
     /// </summary>
@@ -110,7 +134,7 @@ public sealed class WorldStorage : IDisposable
             {
                 Version = version,
                 Seed = ReadInt(fields, "seed", 0),
-                CurrentTime = ReadFloat(fields, "time", 0),
+                CurrentTime = ReadFloat(fields, "time", World.MiddayTimeSeconds),
             };
 
             // An explicit seed cannot be honoured for a world that already exists; its terrain is fixed.

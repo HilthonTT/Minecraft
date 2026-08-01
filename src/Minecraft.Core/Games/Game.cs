@@ -38,6 +38,9 @@ public sealed class Game
     /// <summary>Seed for a newly created world, or null to pick one at random.</summary>
     public int? WorldSeed { get; }
 
+    /// <summary>Whether the world is discarded and regenerated when the server starts.</summary>
+    public bool FreshWorld { get; }
+
     public Game(StartArgs startArgs)
     {
         _startArgs = startArgs;
@@ -45,6 +48,7 @@ public sealed class Game
         IsServer = RunMode is RunMode.ClientServer or RunMode.Server;
         WorldName = startArgs.WorldName;
         WorldSeed = startArgs.Seed;
+        FreshWorld = startArgs.FreshWorld;
     }
 
     public void OnStartGame(GameWindow window)

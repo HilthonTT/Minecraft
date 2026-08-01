@@ -33,6 +33,9 @@ public sealed class ScreenQuad
         GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
         GL.EnableVertexAttribArray(1);
         GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
+        // Left bound, every VAO created afterwards would be built on top of this one's state.
+        GL.BindVertexArray(0);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
 
         _shader = new PostRenderShader();
         _fbo = new ScreenFBO(window.ClientSize.X, window.ClientSize.Y);
@@ -45,7 +48,16 @@ public sealed class ScreenQuad
         _shader.LoadTexture(_shader.LocationNormalDepthTexture, 1, _fbo.NormalDepthTextureID);
         GL.BindVertexArray(_vao);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        GL.BindVertexArray(0);
         _shader.Stop();
+    }
+
+    public void CleanUp()
+    {
+        _fbo.CleanUp();
+        _shader.CleanUp();
+        GL.DeleteBuffer(_vbo);
+        GL.DeleteVertexArray(_vao);
     }
 
     public void AdjustToWindowSize(int screenWidth, int screenHeight)

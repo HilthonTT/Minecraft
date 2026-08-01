@@ -17,6 +17,10 @@ public sealed class WorldMetadata
     /// <summary>Seeds the noise fields and the per chunk decoration, and so fixes the terrain.</summary>
     public required int Seed { get; init; }
 
-    /// <summary>Time of day in seconds, carried over so a world reopens at the hour it was left at.</summary>
-    public float CurrentTime { get; set; }
+    /// <summary>
+    /// Time of day in seconds, carried over so a world reopens at the hour it was left at. A world that has
+    /// never been saved starts at midday rather than at zero, which would drop the player into the middle
+    /// of the night.
+    /// </summary>
+    public float CurrentTime { get; set; } = World.MiddayTimeSeconds;
 }

@@ -30,6 +30,12 @@ public class World
 
     private float _elapsedSecondsSinceLastTick;
 
+    /// <summary>Length of one full day and night cycle, in seconds.</summary>
+    public const int DayLengthSeconds = 2400;
+
+    /// <summary>Midday. A world that has never been saved starts here.</summary>
+    public const float MiddayTimeSeconds = DayLengthSeconds / 2F;
+
     public ObjectPool<Chunk> ChunkPool { get; } = new(128);
 
     public Game Game { get; }
@@ -65,9 +71,9 @@ public class World
         LoadedEntities = new ReadOnlyDictionary<int, Entity>(_loadedEntities);
         LoadedChunks = new ReadOnlyDictionary<Vector2, Chunk>(_loadedChunks);
 
-        Environment = new Environment(2400)
+        Environment = new Environment(DayLengthSeconds)
         {
-            CurrentTime = 1200,
+            CurrentTime = MiddayTimeSeconds,
             AmbientColor = new Vector3(0.075F, 0.075F, 0.095F),
         };
     }

@@ -14,6 +14,8 @@ public sealed class ArgsParser
           port=<1-65535>                    Defaults to 25565.
           world=<name>                      Save directory under saves/. Defaults to world.
           seed=<number>                     Seeds a new world. Ignored if the world already exists.
+          fresh=true|false                  Deletes the world first, so each launch generates new
+                                            terrain. Defaults to false.
           loglevel=packet|info|warn|error   Defaults to error.
         """;
 
@@ -28,7 +30,7 @@ public sealed class ArgsParser
 
     public const string DefaultWorldName = "world";
 
-    private static readonly string[] _knownKeys = ["mode", "ip", "port", "world", "seed", "loglevel"];
+    private static readonly string[] _knownKeys = ["mode", "ip", "port", "world", "seed", "fresh", "loglevel"];
 
     /// <summary>
     /// Parses <c>key=value</c> start arguments. Every argument is optional; anything left out falls back to
@@ -69,7 +71,23 @@ public sealed class ArgsParser
             LogLevel = GetLogLevel(parsedArgs),
             WorldName = GetWorldName(parsedArgs),
             Seed = GetSeed(parsedArgs),
+            FreshWorld = GetFreshWorld(parsedArgs),
         };
+    }
+
+    private static bool GetFreshWorld(Dictionary<string, string> startArgs)
+    {
+        if (!startArgs.TryGetValue("fresh", out string? value))
+        {
+            return false;
+        }
+
+        if (!bool.TryParse(value, out bool fresh))
+        {
+            throw new ArgumentException("Invalid fresh '" + value + "'. Expected true or false.");
+        }
+
+        return fresh;
     }
 
     private static RunMode GetRunMode(Dictionary<string, string> startArgs)

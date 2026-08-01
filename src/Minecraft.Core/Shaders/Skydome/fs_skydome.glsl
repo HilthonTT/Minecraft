@@ -73,5 +73,6 @@ void main()
 	fragmentColor = vec4(skyGradiant, 1.0F);
 
 	//Apply dithering to remove any possible color banding effects
-	fragmentColor += vec4(texture2D(ditherTexture, gl_FragCoord.xy / 8.0).r / 32.0 - (1.0 / 128.0));
+	//texture2D was removed in core profile GLSL, so the core 'texture' is used instead.
+	fragmentColor += vec4(texture(ditherTexture, gl_FragCoord.xy / 8.0).r / 32.0 - (1.0 / 128.0));
 }

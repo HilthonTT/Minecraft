@@ -15,4 +15,10 @@ public struct StartArgs
 
     /// <summary>Seeds a newly created world. Ignored when the world already exists.</summary>
     public int? Seed;
+
+    /// <summary>
+    /// Deletes the named world before loading it, so every launch generates new terrain. Combined with no
+    /// explicit <see cref="Seed"/> this gives a different random seed each time.
+    /// </summary>
+    public bool FreshWorld;
 }

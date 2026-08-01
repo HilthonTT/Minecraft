@@ -56,6 +56,13 @@ public sealed class Server
         _port = port;
 
         _storage = new WorldStorage(Assets.Path(SavesDirectoryName), _game.WorldName);
+
+        // Discarded before the world is read, so it is regenerated from a new seed rather than loaded.
+        if (_game.FreshWorld)
+        {
+            _storage.DeleteExistingWorld();
+        }
+
         World = new WorldServer(_game, _storage, _game.WorldSeed);
 
         _connectionsThread = new Thread(StartServerAndListenForConnections)

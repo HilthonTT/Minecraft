@@ -28,5 +28,6 @@ public sealed class WireframeShader : Shader
 
     protected override void BindAttributes()
     {
+        BindAttribute(0, "vertexPosition");
     }
 }

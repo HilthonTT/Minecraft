@@ -52,4 +52,10 @@ public sealed class Skydome
         GL.CullFace(TriangleFace.Back);
         GL.DepthMask(true);
     }
+
+    public void CleanUp()
+    {
+        _skydomeModel.CleanUp();
+        _skydomeShader.CleanUp();
+    }
 }

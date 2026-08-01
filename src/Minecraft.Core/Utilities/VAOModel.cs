@@ -112,12 +112,10 @@ public sealed class VAOModel
     private void CreateVBO<T>(int nrOfElementsInStructure, T[] data, int overrideLength = -1)
         where T : struct
     {
-        VertexAttribPointerType dataType = VertexAttribPointerType.Float;
-        if (typeof(T) == typeof(Light) || typeof(T) == typeof(uint))
-        {
-            //TODO This should be changed later to actually support multiple attribute types.
-            dataType = VertexAttribPointerType.Float;
-        }
+        // The packed light value is declared as 'in uint' by the shaders. An integer vertex attribute has
+        // to be described with the I variant: VertexAttribPointer leaves an integer input undefined, which
+        // shows up as black or garbage lighting depending on the driver.
+        bool isIntegerAttribute = typeof(T) == typeof(Light) || typeof(T) == typeof(uint);
 
         int vboID = GL.GenBuffer();
         GL.BindBuffer(BufferTarget.ArrayBuffer, vboID);
@@ -132,7 +130,14 @@ public sealed class VAOModel
         }
 
         int attribute = _nextAttribute++;
-        GL.VertexAttribPointer(attribute, nrOfElementsInStructure, dataType, false, 0, 0);
+        if (isIntegerAttribute)
+        {
+            GL.VertexAttribIPointer(attribute, nrOfElementsInStructure, VertexAttribIntegerType.UnsignedInt, 0, IntPtr.Zero);
+        }
+        else
+        {
+            GL.VertexAttribPointer(attribute, nrOfElementsInStructure, VertexAttribPointerType.Float, false, 0, 0);
+        }
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         GL.EnableVertexAttribArray(attribute);
         _buffers.Add(vboID);
