@@ -1,5 +1,5 @@
 ﻿using Minecraft.Core.Render;
-using Minecraft.Core.World.Lighting;
+using Minecraft.Core.Worlds.Lighting;
 using OpenTK.Graphics.OpenGL;
 using System.Runtime.InteropServices;
 
@@ -15,10 +15,10 @@ public sealed class VAOModel
     public int IndicesCount { get; private set; }
 
     public VAOModel(
-        float[] positions, 
-        float[] textureCoordinates, 
-        float[] lights, 
-        float[] normals, 
+        float[] positions,
+        float[] textureCoordinates,
+        float[] lights,
+        float[] normals,
         int indicesCount)
     {
         IndicesCount = indicesCount;
@@ -109,7 +109,7 @@ public sealed class VAOModel
     /// Creates a vertex bufffer object and buffers the given float values. The integer specifies the number of elements in the datastructure.
     /// A Vector3 would for example have this integer set to 3 (X, Y, Z)
     /// </summary>
-    private void CreateVBO<T>(int nrOfElementsInStructure, T[] data, int overrideLength = -1) 
+    private void CreateVBO<T>(int nrOfElementsInStructure, T[] data, int overrideLength = -1)
         where T : struct
     {
         VertexAttribPointerType dataType = VertexAttribPointerType.Float;

@@ -2,10 +2,10 @@
 
 public sealed class UIShader : Shader
 {
-    private const string VertexFile = "../../Shaders/UIShader/vs_uiShader.glsl";
-    private const string FragmentFile = "../../Shaders/UIShader/fs_uiShader.glsl";
+    private const string VertexFile = "Shaders/UIShader/vs_uiShader.glsl";
+    private const string FragmentFile = "Shaders/UIShader/fs_uiShader.glsl";
 
-    public UIShader() 
+    public UIShader()
         : base(VertexFile, FragmentFile)
     {
     }

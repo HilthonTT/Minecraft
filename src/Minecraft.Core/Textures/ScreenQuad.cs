@@ -10,7 +10,7 @@ public sealed class ScreenQuad
     private readonly PostRenderShader _shader;
 
     private readonly int _vao, _vbo;
-    private readonly float[] _quadVertices = 
+    private readonly float[] _quadVertices =
     [
         // positions   // texCoords
         -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,

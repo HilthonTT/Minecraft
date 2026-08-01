@@ -1,6 +1,7 @@
-using Minecraft.Core.World.Blocks;
+﻿using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Mathematics;
-using Vector3i = Minecraft.Core.Utilities.Vector.Vector3i;
+using Minecraft.Core.Worlds;
+using Minecraft.Core.Utilities.Vectors;
 
 namespace Minecraft.Core.Physics;
 
@@ -19,7 +20,7 @@ public struct Ray
         DistanceToIntersection = float.MaxValue;
     }
 
-    public RayTraceResult? TraceWorld(World.World world, int maxDist = 1, int stepsPerBlock = 50)
+    public RayTraceResult? TraceWorld(World world, int maxDist = 1, int stepsPerBlock = 50)
     {
         Vector3 position = Origin;
         int maxSteps = maxDist * stepsPerBlock;
@@ -32,9 +33,9 @@ public struct Ray
         {
             position += offset;
 
-            var steppedPos = new Vector3i(position);
+            var steppedPos = position.ToBlockPos();
             BlockState? state = world.GetBlockAt(steppedPos);
-            if (state is not null && state.GetBlock() != Blocks.Air)
+            if (state is not null && state.GetBlock() != BlockRegistry.Air)
             {
                 hitBlockState = state;
                 blockPos = steppedPos;

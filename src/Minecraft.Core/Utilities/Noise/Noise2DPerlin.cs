@@ -51,6 +51,14 @@ public static class Noise2DPerlin
     }
 
     /// <summary>
+    /// Samples the noise field remapped to [0, 1], the form usually wanted for height and climate maps.
+    /// </summary>
+    public static float Noise01(float x, float y)
+    {
+        return (Noise(x, y) + 1f) * 0.5f;
+    }
+
+    /// <summary>
     /// Generates a new permutation and gradient set from a non deterministic source.
     /// </summary>
     public static void Reseed()

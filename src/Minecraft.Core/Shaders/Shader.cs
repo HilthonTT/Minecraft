@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Logging;
+using Minecraft.Core.Utilities;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
@@ -90,8 +91,8 @@ public abstract class Shader
     }
 
     public void LoadTexture(
-        int uniformLocation, 
-        int textureUnitLayout, 
+        int uniformLocation,
+        int textureUnitLayout,
         int textureId,
         TextureTarget target = TextureTarget.Texture2D)
     {
@@ -100,9 +101,10 @@ public abstract class Shader
         GL.BindTexture(target, textureId);
     }
 
+    /// <summary> Loads and compiles a shader stage. The path is relative to the output directory. </summary>
     public static int LoadShader(string file, ShaderType type)
     {
-        string source = File.ReadAllText(file);
+        string source = File.ReadAllText(Assets.Path(file));
         int shaderId = GL.CreateShader(type);
 
         GL.ShaderSource(shaderId, source);

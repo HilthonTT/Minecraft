@@ -2,10 +2,10 @@
 
 public sealed class PostRenderShader : Shader
 {
-    private const string VertexFile = "../../Shaders/PostRenderShader/vs_postRender.glsl";
-    private const string FragmentFile = "../../Shaders/PostRenderShader/fs_postRender.glsl";
+    private const string VertexFile = "Shaders/PostRenderShader/vs_postRender.glsl";
+    private const string FragmentFile = "Shaders/PostRenderShader/fs_postRender.glsl";
 
-    public PostRenderShader() 
+    public PostRenderShader()
         : base(VertexFile, FragmentFile)
     {
     }

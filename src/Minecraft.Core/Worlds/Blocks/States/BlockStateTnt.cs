@@ -1,0 +1,51 @@
+using Minecraft.Core.IO;
+using Minecraft.Core.Worlds.Lighting;
+using OpenTK.Mathematics;
+
+namespace Minecraft.Core.Worlds.Blocks.States;
+
+public sealed class BlockStateTnt : BlockState, ILightSource
+{
+    private static readonly Random _random = new();
+
+    public Vector3i LightColor { get; private set; }
+
+    public float ElapsedSecondsSinceTrigger { get; set; }
+
+    public ExplosionTrigger Trigger { get; set; }
+
+    public Vector3i BlockPosition { get; set; }
+
+    public BlockStateTnt()
+    {
+        // Each block gets its own colour so that a field of TNT lights the world in a mix of colours.
+        LightColor = new Vector3i(_random.Next(15), _random.Next(15), _random.Next(15));
+    }
+
+    public override Block GetBlock()
+    {
+        return BlockRegistry.Tnt;
+    }
+
+    public override void ToStream(BufferedDataStream bufferedStream)
+    {
+        base.ToStream(bufferedStream);
+        bufferedStream.WriteFloat(ElapsedSecondsSinceTrigger);
+        bufferedStream.WriteByte((byte)Trigger);
+        bufferedStream.WriteVector3i(LightColor);
+    }
+
+    public override int PayloadSize() => sizeof(float) + sizeof(byte) + sizeof(int) * 3;
+
+    public override void ExtractFromByteStream(byte[] bytes, ref int head)
+    {
+        ElapsedSecondsSinceTrigger = DataConverter.BytesToFloat(bytes, ref head);
+        Trigger = DataConverter.BytesToByteStruct<ExplosionTrigger>(bytes, ref head);
+        LightColor = DataConverter.BytesToVector3i(bytes, ref head);
+    }
+
+    public override string ToString()
+    {
+        return base.ToString() + " dt_trigger=" + ElapsedSecondsSinceTrigger + " triggered=" + Trigger;
+    }
+}

@@ -1,4 +1,4 @@
-﻿using Vector3i = Minecraft.Core.Utilities.Vector.Vector3i;
+﻿using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Utilities;
 
@@ -21,7 +21,7 @@ public static class DirectionUtil
             Direction.Right => Direction.Left,
             Direction.Top => Direction.Bottom,
             Direction.Bottom => Direction.Top,
-            _ => throw new NotImplementedException(),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction)),
         };
     }
 
@@ -35,7 +35,7 @@ public static class DirectionUtil
             Direction.Right => Right,
             Direction.Top => Top,
             Direction.Bottom => Bottom,
-            _ => throw new NotImplementedException(),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction)),
         };
     }
 }

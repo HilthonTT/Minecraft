@@ -1,3 +1,6 @@
+﻿using Minecraft.Core.Logging;
+using System.Globalization;
+
 namespace Minecraft.Core.Utilities.Models;
 
 public static class OBJLoader
@@ -36,32 +39,25 @@ public static class OBJLoader
                 continue;
             }
 
+            // Only positions and triangular faces are consumed. Anything else a modelling package may
+            // have written is skipped rather than treated as an error, so that a richer file still loads.
             switch (parameters[0])
             {
-                case "p": // point
-                    throw new NotImplementedException();
-                case "v": // vertex
-                    float x = float.Parse(parameters[1]);
-                    float y = float.Parse(parameters[2]);
-                    float z = float.Parse(parameters[3]);
-                    vertices.Add(x);
-                    vertices.Add(y);
-                    vertices.Add(z);
+                case "v": // vertex position
+                    vertices.Add(float.Parse(parameters[1], CultureInfo.InvariantCulture));
+                    vertices.Add(float.Parse(parameters[2], CultureInfo.InvariantCulture));
+                    vertices.Add(float.Parse(parameters[3], CultureInfo.InvariantCulture));
                     break;
-                case "vt": // texCoord
-                    throw new NotImplementedException();
-                case "vn": // normal
-                    throw new NotImplementedException();
-                case "f":
-                    switch (parameters.Length)
+                case "f": // face
+                    if (parameters.Length == 4)
                     {
-                        case 4:
-                            ParseFace(parameters[1], vertices, indices);
-                            ParseFace(parameters[2], vertices, indices);
-                            ParseFace(parameters[3], vertices, indices);
-                            break;
-                        case 5:
-                            throw new NotImplementedException();
+                        ParseFace(parameters[1], vertices, indices);
+                        ParseFace(parameters[2], vertices, indices);
+                        ParseFace(parameters[3], vertices, indices);
+                    }
+                    else
+                    {
+                        Logger.Warn("Skipping a face with " + (parameters.Length - 1) + " vertices; only triangles are supported.");
                     }
                     break;
                 default:

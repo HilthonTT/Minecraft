@@ -1,6 +1,9 @@
-﻿using Minecraft.Core.Utilities.Vector;
+﻿using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Chunks;
 using System.Runtime.CompilerServices;
 using System.Text;
+using OpenTK.Mathematics;
+using Minecraft.Core.Worlds;
 
 namespace Minecraft.Core.IO;
 
@@ -68,5 +71,41 @@ public static class DataConverter
         int y = BytesToInt32(bytes, ref head);
         int z = BytesToInt32(bytes, ref head);
         return new Vector3i(x, y, z);
+    }
+
+    public static Chunk BytesToChunk(byte[] bytes, World world, ref int head)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+
+        int gridX = BytesToInt32(bytes, ref head);
+        int gridZ = BytesToInt32(bytes, ref head);
+
+        Chunk chunk = world.ChunkPool.GetObject();
+        chunk.ResetAndAssign(gridX, gridZ);
+
+        for (int i = 0; i < Constants.NUM_SECTIONS_IN_CHUNKS; i++)
+        {
+            bool doesSectionHaveBlocks = BytesToBool(bytes, ref head);
+            if (doesSectionHaveBlocks)
+            {
+                for (int x = 0; x < 16; x++)
+                {
+                    for (int y = 0; y < 16; y++)
+                    {
+                        for (int z = 0; z < 16; z++)
+                        {
+                            ushort blockId = BytesToUInt16(bytes, ref head);
+                            if (blockId != 0)
+                            {
+                                BlockState blockState = BlockRegistry.GetState(BlockRegistry.GetBlockFromIdentifier(blockId));
+                                blockState.ExtractFromByteStream(bytes, ref head);
+                                chunk.AddBlockAt(x, i * 16 + y, z, blockState);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return chunk;
     }
 }

@@ -6,7 +6,7 @@ public sealed class TextureAtlas : Texture
 {
     private readonly float _cellUVSize;
 
-    public TextureAtlas(int textureId, int atlasSizeInPixels, int atlasCellSizeInPixels) 
+    public TextureAtlas(int textureId, int atlasSizeInPixels, int atlasCellSizeInPixels)
         : base(textureId, atlasSizeInPixels, atlasSizeInPixels)
     {
         int cellsPerRow = atlasSizeInPixels / atlasCellSizeInPixels;

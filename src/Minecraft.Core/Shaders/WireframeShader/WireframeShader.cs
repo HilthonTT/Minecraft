@@ -2,10 +2,10 @@
 
 public sealed class WireframeShader : Shader
 {
-    private const string VertexFile = "../../Shaders/WireframeShader/vs_wireframe.glsl";
-    private const string FragmentFile = "../../Shaders/WireframeShader/fs_wireframe.glsl";
+    private const string VertexFile = "Shaders/WireframeShader/vs_wireframe.glsl";
+    private const string FragmentFile = "Shaders/WireframeShader/fs_wireframe.glsl";
 
-    public WireframeShader() 
+    public WireframeShader()
         : base(VertexFile, FragmentFile)
     {
     }

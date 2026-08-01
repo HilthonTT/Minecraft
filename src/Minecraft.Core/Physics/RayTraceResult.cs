@@ -1,6 +1,5 @@
-using Minecraft.Core.World.Blocks;
+using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Mathematics;
-using Vector3i = Minecraft.Core.Utilities.Vector.Vector3i;
 
 namespace Minecraft.Core.Physics;
 

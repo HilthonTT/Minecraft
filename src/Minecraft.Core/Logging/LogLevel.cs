@@ -2,7 +2,7 @@
 
 public enum LogLevel
 {
-    Packet, 
+    Packet,
     Info,
     Warn,
     Error,

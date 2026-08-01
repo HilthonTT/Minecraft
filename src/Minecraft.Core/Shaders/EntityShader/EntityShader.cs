@@ -2,8 +2,8 @@
 
 public sealed class EntityShader : Shader
 {
-    private const string VertexFile = "../../Shaders/EntityShader/vs_entityShader.glsl";
-    private const string FragmentFile = "../../Shaders/EntityShader/fs_entityShader.glsl";
+    private const string VertexFile = "Shaders/EntityShader/vs_entityShader.glsl";
+    private const string FragmentFile = "Shaders/EntityShader/fs_entityShader.glsl";
 
     public EntityShader()
         : base(VertexFile, FragmentFile)

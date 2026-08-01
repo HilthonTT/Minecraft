@@ -2,8 +2,8 @@
 
 public sealed class BasicShader : Shader
 {
-    private const string VertexFile = "../../Shaders/BasicShader/vertexShader.glsl";
-    private const string FragmentFile = "../../Shaders/BasicShader/fragmentShader.glsl";
+    private const string VertexFile = "Shaders/BasicShader/vertexShader.glsl";
+    private const string FragmentFile = "Shaders/BasicShader/fragmentShader.glsl";
 
     public BasicShader()
     : base(VertexFile, FragmentFile)

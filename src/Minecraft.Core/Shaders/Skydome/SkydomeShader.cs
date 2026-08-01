@@ -2,8 +2,8 @@
 
 public sealed class SkydomeShader : Shader
 {
-    private const string VertexFile = "../../Shaders/Skydome/vs_skydome.glsl";
-    private const string FragmentFile = "../../Shaders/Skydome/fs_skydome.glsl";
+    private const string VertexFile = "Shaders/Skydome/vs_skydome.glsl";
+    private const string FragmentFile = "Shaders/Skydome/fs_skydome.glsl";
 
     public SkydomeShader()
         : base(VertexFile, FragmentFile)
