@@ -31,6 +31,7 @@ public sealed class WorldGenerator
     private readonly int _seed;
     private readonly Biome[] _registeredBiomes;
     private readonly BiomeProvider _biomeProvider;
+    private readonly CaveCarver _caveCarver = new();
 
     private readonly Lock _generationLock = new();
     private readonly Dictionary<(World World, Vector2 GridPosition), List<GenerateChunkRequest>> _pendingRequests = [];
@@ -172,6 +173,11 @@ public sealed class WorldGenerator
         // unmodified chunk be regenerated instead of stored.
         var random = new Random(GetChunkSeed(_seed, chunkX, chunkZ));
 
+        // Kept for the passes after this one: caves need to know how deep each column is buried, and
+        // decoration needs to know what it is standing on.
+        var surfaceHeights = new int[chunkDim, chunkDim];
+        var surfaceBiomes = new Biome[chunkDim, chunkDim];
+
         for (int localX = 0; localX < chunkDim; localX++)
         {
             for (int localZ = 0; localZ < chunkDim; localZ++)
@@ -209,6 +215,9 @@ public sealed class WorldGenerator
                     GradientDepth + 1,
                     Constants.MAX_BUILD_HEIGHT - 2);
 
+                surfaceHeights[localX, localZ] = surfaceY;
+                surfaceBiomes[localX, localZ] = dominant.Biome;
+
                 chunk.AddBlockAt(localX, surfaceY, localZ, BlockRegistry.GetState(dominant.Biome.TopBlock));
 
                 for (int y = surfaceY - 1; y >= surfaceY - GradientDepth; y--)
@@ -220,9 +229,27 @@ public sealed class WorldGenerator
                 {
                     chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(BlockRegistry.Stone));
                 }
+            }
+        }
+
+        // Carved before anything is decorated, so that a tunnel breaking through the surface does not leave
+        // a tree or a flower hanging over the hole it opened.
+        _caveCarver.Carve(chunk, surfaceHeights);
+
+        for (int localX = 0; localX < chunkDim; localX++)
+        {
+            for (int localZ = 0; localZ < chunkDim; localZ++)
+            {
+                int surfaceY = surfaceHeights[localX, localZ];
+
+                // A cave mouth took the surface with it, so there is nothing left here to decorate.
+                if (chunk.GetBlockAt(localX, surfaceY, localZ).GetBlock() == BlockRegistry.Air)
+                {
+                    continue;
+                }
 
                 // Decoration sits on top of the surface block.
-                dominant.Biome.Decorator.Decorate(chunk, surfaceY + 1, localX, localZ, random);
+                surfaceBiomes[localX, localZ].Decorator.Decorate(chunk, surfaceY + 1, localX, localZ, random);
             }
         }
 
