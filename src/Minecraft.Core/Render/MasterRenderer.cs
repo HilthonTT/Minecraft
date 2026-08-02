@@ -205,11 +205,23 @@ public sealed class MasterRenderer
             }
 
             entityMeshModel.BindVAO();
-            _entityShader.LoadMatrix(
-                _entityShader.LocationTransformationMatrix,
-                Matrix4.CreateTranslation(entity.Position));
+            _entityShader.LoadMatrix(_entityShader.LocationTransformationMatrix, GetEntityTransformation(entity));
             GL.DrawArrays(PrimitiveType.Quads, 0, entityMeshModel.IndicesCount);
         }
+    }
+
+    /// <summary>
+    /// Places an entity's mesh in the world facing its yaw. Entity models are built from a corner rather
+    /// than around their middle, so the mesh is walked back onto its own vertical axis before being turned,
+    /// otherwise turning would swing it around a corner of its hitbox instead of spinning it on the spot.
+    /// </summary>
+    private static Matrix4 GetEntityTransformation(Entity entity)
+    {
+        var pivot = new Vector3(entity.Width / 2.0F, 0, entity.Length / 2.0F);
+
+        return Matrix4.CreateTranslation(-pivot) *
+               Matrix4.CreateRotationY(entity.Yaw) *
+               Matrix4.CreateTranslation(entity.Position + pivot);
     }
 
     public void RenderChunkBorders()

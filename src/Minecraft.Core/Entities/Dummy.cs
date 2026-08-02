@@ -9,10 +9,11 @@ public sealed class Dummy : Entity
 
     }
 
+    /// <summary>Matches <see cref="Shapes.DummyEntityModel"/>, so the hitbox lines up with what is drawn.</summary>
     protected override void SetInitialDimensions()
     {
-        _width = 1;
+        _width = 0.5F;
         _height = 2;
-        _length = 1;
+        _length = 0.5F;
     }
 }

@@ -94,14 +94,14 @@ public sealed class ClientPlayer : Player
 
         _realForward = Camera.Forward;
         // The movement basis ignores pitch, so looking up does not slow the player down.
-        _moveForward = new Vector3(MathF.Sin(Camera.Yaw), 0, MathF.Cos(Camera.Yaw));
-        _right = Camera.Right;
+        Yaw = Camera.Yaw;
+        UpdateMovementBasisFromYaw();
 
         _elapsedSecondsSinceLastPositionUpdate += deltaTime;
         if (_elapsedSecondsSinceLastPositionUpdate > SecondsPerPositionUpdate)
         {
             _elapsedSecondsSinceLastPositionUpdate = 0;
-            _game.Client.WritePacket(new PlayerDataPacket(ID, Position, Velocity));
+            _game.Client.WritePacket(new PlayerDataPacket(ID, Position, Velocity, Yaw));
         }
     }
 
@@ -197,7 +197,7 @@ public sealed class ClientPlayer : Player
         {
             if (_isFlying)
             {
-                MovePlayerVertically(-speedMultiplier);
+                MoveVertically(-speedMultiplier);
             }
             else
             {
@@ -209,7 +209,7 @@ public sealed class ClientPlayer : Player
         {
             if (_isFlying)
             {
-                MovePlayerVertically(speedMultiplier);
+                MoveVertically(speedMultiplier);
             }
             else
             {
@@ -224,22 +224,22 @@ public sealed class ClientPlayer : Player
 
         if (inputToMoveForward)
         {
-            MovePlayerHorizontally(0, speedMultiplier);
+            MoveHorizontally(0, speedMultiplier);
         }
 
         if (inputToMoveBack)
         {
-            MovePlayerHorizontally(0, -speedMultiplier);
+            MoveHorizontally(0, -speedMultiplier);
         }
 
         if (inputToMoveRight)
         {
-            MovePlayerHorizontally(-speedMultiplier, 0);
+            MoveHorizontally(-speedMultiplier, 0);
         }
 
         if (inputToMoveLeft)
         {
-            MovePlayerHorizontally(speedMultiplier, 0);
+            MoveHorizontally(speedMultiplier, 0);
         }
     }
 }

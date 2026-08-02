@@ -71,6 +71,7 @@ public sealed class ClientNetHandler : INetHandler
         }
         OtherClientPlayer otherPlayer = (OtherClientPlayer)player;
         otherPlayer.ServerPosition = playerDataPacket.Position;
+        otherPlayer.ServerYaw = playerDataPacket.Yaw;
     }
 
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)

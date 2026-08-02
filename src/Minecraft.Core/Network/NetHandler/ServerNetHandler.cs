@@ -53,6 +53,7 @@ public sealed class ServerNetHandler : INetHandler
 
         _session.Player.Position = playerDataPacket.Position;
         _session.Player.Velocity = playerDataPacket.Velocity;
+        _session.Player.Yaw = playerDataPacket.Yaw;
         _game.Server.BroadcastPacketExceptTo(_session, playerDataPacket);
     }
 

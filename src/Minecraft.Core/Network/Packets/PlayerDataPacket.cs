@@ -10,11 +10,15 @@ public sealed class PlayerDataPacket : Packet
     public Vector3 Position { get; private set; }
     public Vector3 Velocity { get; private set; }
 
-    public PlayerDataPacket(int entityId, Vector3 position, Vector3 velocity) : base(PacketType.EntityPosition)
+    /// <summary>Which way the entity faces, in radians around the Y axis.</summary>
+    public float Yaw { get; private set; }
+
+    public PlayerDataPacket(int entityId, Vector3 position, Vector3 velocity, float yaw) : base(PacketType.EntityPosition)
     {
         EntityID = entityId;
         Position = position;
         Velocity = velocity;
+        Yaw = yaw;
     }
 
     public override void Process(INetHandler netHandler)
@@ -27,5 +31,6 @@ public sealed class PlayerDataPacket : Packet
         bufferedStream.WriteInt32(EntityID);
         bufferedStream.WriteVector3(Position);
         bufferedStream.WriteVector3(Velocity);
+        bufferedStream.WriteFloat(Yaw);
     }
 }

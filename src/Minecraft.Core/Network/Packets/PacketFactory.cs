@@ -74,7 +74,8 @@ public sealed class PacketFactory
                     int entityId = reader.ReadInt32();
                     Vector3 position = ReadVector3(reader);
                     Vector3 velocity = ReadVector3(reader);
-                    return new PlayerDataPacket(entityId, position, velocity);
+                    float yaw = reader.ReadSingle();
+                    return new PlayerDataPacket(entityId, position, velocity, yaw);
                 }
             case PacketType.PlayerJoinRequest:
                 {
