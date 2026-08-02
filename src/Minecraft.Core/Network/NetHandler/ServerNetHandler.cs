@@ -43,18 +43,19 @@ public sealed class ServerNetHandler : INetHandler
         _game.Server.BroadcastPacket(chatPacket);
     }
 
-    public void ProcessPlayerDataPacket(PlayerDataPacket playerDataPacket)
+    public void ProcessEntityDataPacket(EntityDataPacket entityDataPacket)
     {
-        // Positional updates can arrive before the join handshake has assigned a player.
-        if (_session.Player is null)
+        // A client may only move the player it was given. Anything else is either one that has not finished
+        // joining and is still reporting the position it was built with, or one reaching for another entity.
+        if (_session.Player is null || entityDataPacket.EntityID != _session.Player.ID)
         {
             return;
         }
 
-        _session.Player.Position = playerDataPacket.Position;
-        _session.Player.Velocity = playerDataPacket.Velocity;
-        _session.Player.Yaw = playerDataPacket.Yaw;
-        _game.Server.BroadcastPacketExceptTo(_session, playerDataPacket);
+        _session.Player.Position = entityDataPacket.Position;
+        _session.Player.Velocity = entityDataPacket.Velocity;
+        _session.Player.Yaw = entityDataPacket.Yaw;
+        _game.Server.BroadcastPacketExceptTo(_session, entityDataPacket);
     }
 
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)
@@ -133,4 +134,10 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessJoinAcceptPacket(PlayerJoinAcceptPacket playerJoinAcceptPacket) =>
         throw new InvalidOperationException("A server does not receive join accepts.");
+
+    public void ProcessEntitySpawnPacket(EntitySpawnPacket entitySpawnPacket) =>
+        throw new InvalidOperationException("A server does not receive entity spawns.");
+
+    public void ProcessEntityDespawnPacket(EntityDespawnPacket entityDespawnPacket) =>
+        throw new InvalidOperationException("A server does not receive entity despawns.");
 }

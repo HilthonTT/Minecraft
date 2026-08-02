@@ -14,7 +14,11 @@ public interface INetHandler
 
     void ProcessChunkUnloadPacket(ChunkUnloadPacket unloadChunkPacket);
 
-    void ProcessPlayerDataPacket(PlayerDataPacket playerDataPacket);
+    void ProcessEntityDataPacket(EntityDataPacket entityDataPacket);
+
+    void ProcessEntitySpawnPacket(EntitySpawnPacket entitySpawnPacket);
+
+    void ProcessEntityDespawnPacket(EntityDespawnPacket entityDespawnPacket);
 
     void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket);
 

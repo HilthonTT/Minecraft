@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.IO;
+﻿using Minecraft.Core.Entities;
+using Minecraft.Core.IO;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
@@ -75,7 +76,19 @@ public sealed class PacketFactory
                     Vector3 position = ReadVector3(reader);
                     Vector3 velocity = ReadVector3(reader);
                     float yaw = reader.ReadSingle();
-                    return new PlayerDataPacket(entityId, position, velocity, yaw);
+                    return new EntityDataPacket(entityId, position, velocity, yaw);
+                }
+            case PacketType.EntitySpawn:
+                {
+                    var entityType = (EntityType)reader.ReadInt32();
+                    int entityId = reader.ReadInt32();
+                    Vector3 position = ReadVector3(reader);
+                    float yaw = reader.ReadSingle();
+                    return new EntitySpawnPacket(entityType, entityId, position, yaw);
+                }
+            case PacketType.EntityDespawn:
+                {
+                    return new EntityDespawnPacket(reader.ReadInt32());
                 }
             case PacketType.PlayerJoinRequest:
                 {

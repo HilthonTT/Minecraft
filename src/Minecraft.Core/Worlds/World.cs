@@ -161,6 +161,11 @@ public class World
         ChunkPool.ReturnObject(chunk);
     }
 
+    /// <summary>Called once per tick, after everything in the world has ticked.</summary>
+    protected virtual void OnTick(float deltaTime)
+    {
+    }
+
     public virtual void Update(float deltaTimeSeconds)
     {
         foreach (Entity entity in _loadedEntities.Values)
@@ -220,6 +225,8 @@ public class World
         {
             entity.Tick(_elapsedSecondsSinceLastTick, this);
         }
+
+        OnTick(_elapsedSecondsSinceLastTick);
 
         _elapsedSecondsSinceLastTick = 0;
     }

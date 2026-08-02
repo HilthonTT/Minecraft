@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Logging;
@@ -57,21 +58,60 @@ public sealed class ClientNetHandler : INetHandler
         }
     }
 
-    public void ProcessPlayerDataPacket(PlayerDataPacket playerDataPacket)
+    public void ProcessEntityDataPacket(EntityDataPacket entityDataPacket)
     {
-        if (!_game.World.LoadedEntities.TryGetValue(playerDataPacket.EntityID, out Entity? player))
+        if (!_game.World.LoadedEntities.TryGetValue(entityDataPacket.EntityID, out Entity? entity))
         {
-            Logger.Error("Received positional data for unregistered player " + playerDataPacket.EntityID);
+            Logger.Error("Received positional data for unregistered entity " + entityDataPacket.EntityID);
             return;
         }
-        if (!(player is OtherClientPlayer))
+
+        if (entity is not OtherClientPlayer && entity is not Mob)
         {
-            Logger.Error("Something else than other player stored in players map: " + player.GetType());
+            Logger.Error("Received positional data for an entity this side owns: " + entity.GetType());
             return;
         }
-        OtherClientPlayer otherPlayer = (OtherClientPlayer)player;
-        otherPlayer.ServerPosition = playerDataPacket.Position;
-        otherPlayer.ServerYaw = playerDataPacket.Yaw;
+
+        entity.ServerPosition = entityDataPacket.Position;
+        entity.ServerYaw = entityDataPacket.Yaw;
+    }
+
+    public void ProcessEntitySpawnPacket(EntitySpawnPacket entitySpawnPacket)
+    {
+        // The tracker on the server only sends a spawn for something it has not already told us about, but a
+        // duplicate would otherwise replace a live entity with a fresh one that has to interpolate in again.
+        if (_game.World.LoadedEntities.ContainsKey(entitySpawnPacket.EntityID))
+        {
+            return;
+        }
+
+        Mob? mob = MobFactory.Create(
+            entitySpawnPacket.EntityType,
+            entitySpawnPacket.EntityID,
+            _game.World,
+            entitySpawnPacket.Position);
+
+        if (mob is null)
+        {
+            Logger.Error("Server spawned an entity of type " + entitySpawnPacket.EntityType + ", which is not a mob.");
+            return;
+        }
+
+        mob.ServerPosition = entitySpawnPacket.Position;
+        mob.Yaw = entitySpawnPacket.Yaw;
+        mob.ServerYaw = entitySpawnPacket.Yaw;
+
+        _game.World.SpawnEntity(mob);
+    }
+
+    public void ProcessEntityDespawnPacket(EntityDespawnPacket entityDespawnPacket)
+    {
+        // Despawns for entities that were never tracked are not worth complaining about: a mob can leave
+        // range in the same update it would first have been sent in.
+        if (_game.World.LoadedEntities.ContainsKey(entityDespawnPacket.EntityID))
+        {
+            _game.World.DespawnEntity(entityDespawnPacket.EntityID);
+        }
     }
 
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)

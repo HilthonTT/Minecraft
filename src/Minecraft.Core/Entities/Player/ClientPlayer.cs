@@ -101,7 +101,7 @@ public sealed class ClientPlayer : Player
         if (_elapsedSecondsSinceLastPositionUpdate > SecondsPerPositionUpdate)
         {
             _elapsedSecondsSinceLastPositionUpdate = 0;
-            _game.Client.WritePacket(new PlayerDataPacket(ID, Position, Velocity, Yaw));
+            _game.Client.WritePacket(new EntityDataPacket(ID, Position, Velocity, Yaw));
         }
     }
 

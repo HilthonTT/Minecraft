@@ -1,4 +1,5 @@
 using Minecraft.Core.Physics;
+using Minecraft.Core.Utilities;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
@@ -29,6 +30,9 @@ public abstract class Entity
 
     private const float MovementFriction = -10.0F;
 
+    /// <summary>How quickly a client side entity closes the gap to the last state the server sent.</summary>
+    private const float ServerStateLerpSmoothFactor = 20;
+
     public int ID { get; set; }
 
     public EntityType EntityType { get; }
@@ -48,6 +52,15 @@ public abstract class Entity
     /// direction <see cref="Utilities.MathUtils.CreateLookAtVector"/> produces for a yaw of zero.
     /// </summary>
     public float Yaw { get; set; }
+
+    /// <summary>
+    /// The position last reported by the server. Only meaningful on a client, for the entities the server
+    /// owns and this side of the connection only draws.
+    /// </summary>
+    public Vector3 ServerPosition { get; set; }
+
+    /// <summary>The facing last reported by the server, alongside <see cref="ServerPosition"/>.</summary>
+    public float ServerYaw { get; set; }
 
     public AxisAlignedBox Hitbox { get; protected set; }
 
@@ -135,6 +148,16 @@ public abstract class Entity
     /// <summary>Called whenever a horizontal move was cut short by a block.</summary>
     protected virtual void OnHorizontalCollision()
     {
+    }
+
+    /// <summary>
+    /// Eases this entity towards the last state the server reported. Updates arrive an order of magnitude
+    /// less often than frames are drawn, so snapping to them would make everything move in steps.
+    /// </summary>
+    protected void InterpolateTowardsServerState(float deltaTime)
+    {
+        Position = MathUtils.Lerp(Position, ServerPosition, deltaTime * ServerStateLerpSmoothFactor);
+        Yaw = MathUtils.LerpAngle(Yaw, ServerYaw, deltaTime * ServerStateLerpSmoothFactor);
     }
 
     /// <summary>Points the movement basis along the current yaw.</summary>

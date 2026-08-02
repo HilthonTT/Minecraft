@@ -8,6 +8,12 @@ namespace Minecraft.Core.Worlds;
 /// </summary>
 public sealed class Environment
 {
+    /// <summary>The hour the sun comes up, on the 24 hour clock the day is measured against.</summary>
+    private const float SunriseHour = 6.0F;
+
+    /// <summary>The hour the sun goes down.</summary>
+    private const float SunsetHour = 18.0F;
+
     /// <summary>
     /// The current time in seconds.
     /// </summary>
@@ -58,6 +64,12 @@ public sealed class Environment
     /// Returns the current time scaled to earth time, so 24 hour long days
     /// </summary>
     private float GetCurrentEarthTime() => CurrentTime * 24.0F / TimeInDay;
+
+    /// <summary>The hour of a 24 hour day the world is currently at.</summary>
+    public float CurrentHourOfDay => GetCurrentEarthTime();
+
+    /// <summary>Whether the sun is below the horizon. It rises at 6 and sets at 18.</summary>
+    public bool IsNight => CurrentHourOfDay < SunriseHour || CurrentHourOfDay >= SunsetHour;
 
     public void Update(float deltaTimeSeconds)
     {

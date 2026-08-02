@@ -1,4 +1,4 @@
-﻿namespace Minecraft.Core.Network.Packets;
+namespace Minecraft.Core.Network.Packets;
 
 public enum PacketType
 {
@@ -8,6 +8,8 @@ public enum PacketType
     ChunkData,
     ChunkUnload,
     EntityPosition,
+    EntitySpawn,
+    EntityDespawn,
     PlayerJoinRequest,
     PlayerJoinAccept,
     PlayerJoin,

@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Network.Packets;
@@ -25,6 +26,7 @@ public sealed class WorldServer : World
     private const float AutoSaveIntervalSeconds = 60;
 
     private readonly IdTracker _entityIdTracker = new();
+    private readonly MobSpawner _mobSpawner = new();
     private readonly WorldGenerator _worldGenerator;
     private readonly WorldStorage _storage;
     private readonly WorldMetadata _metadata;
@@ -59,6 +61,15 @@ public sealed class WorldServer : World
             _elapsedSecondsSinceAutoSave = 0;
             Save();
         }
+    }
+
+    /// <summary>
+    /// Mobs live only as long as the server is running: nothing writes them to disk, so a world that is
+    /// reloaded is repopulated from scratch.
+    /// </summary>
+    protected override void OnTick(float deltaTime)
+    {
+        _mobSpawner.Tick(this);
     }
 
     /// <summary>
