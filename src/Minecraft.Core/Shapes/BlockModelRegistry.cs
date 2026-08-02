@@ -29,6 +29,8 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.OakLog.Id] = new BlockModelOakLog(textureAtlas);
         Models[BlockRegistry.OakLeaves.Id] = new BlockModelOakLeaves(textureAtlas);
         Models[BlockRegistry.Gravel.Id] = new BlockModelGravel(textureAtlas);
+        Models[BlockRegistry.Planks.Id] = new BlockModelPlanks(textureAtlas);
+        Models[BlockRegistry.Cobblestone.Id] = new BlockModelCobblestone(textureAtlas);
 
         // Air has no geometry, but the mesh generator still indexes the table by block id when it walks a
         // section, so the slot has to hold something that reports every side as see through.

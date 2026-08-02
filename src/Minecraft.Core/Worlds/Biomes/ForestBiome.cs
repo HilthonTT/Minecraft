@@ -1,6 +1,7 @@
 ﻿using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Decoration;
+using Minecraft.Core.Worlds.Structures;
 
 namespace Minecraft.Core.Worlds.Biomes;
 
@@ -23,6 +24,7 @@ public sealed class ForestBiome : Biome
         TopBlock = BlockRegistry.Grass;
         GradientBlock = BlockRegistry.Dirt;
         Decorator = new ForestDecorator();
+        SettlementPalette = StructurePalette.Oak;
     }
 
     public override double OffsetAt(int chunkX, int chunkZ, int localX, int localZ)

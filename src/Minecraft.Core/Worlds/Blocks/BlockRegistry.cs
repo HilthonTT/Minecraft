@@ -24,6 +24,8 @@ public static class BlockRegistry
     public static readonly Block OakLog = new BlockOakLog(14);
     public static readonly Block OakLeaves = new BlockOakLeaves(15);
     public static readonly Block Gravel = new BlockGravel(16);
+    public static readonly Block Planks = new BlockPlanks(17);
+    public static readonly Block Cobblestone = new BlockCobblestone(18);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -65,6 +67,8 @@ public static class BlockRegistry
             OakLog,
             OakLeaves,
             Gravel,
+            Planks,
+            Cobblestone,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

@@ -2,8 +2,9 @@
 
 A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https://opentk.net/).
 
-Infinite procedurally generated terrain, coloured block lighting with smooth per vertex ambient occlusion, a
-day/night cycle, and a client/server architecture that the singleplayer mode also runs through.
+Infinite procedurally generated terrain with caves and villages, coloured block lighting with smooth per
+vertex ambient occlusion, a day/night cycle, and a client/server architecture that the singleplayer mode also
+runs through.
 
 ![Forest terrain blending into stone highlands, with oak trees, grass and flowers under a daytime sky](Screenshots/sample-1.png)
 
@@ -70,6 +71,13 @@ That determinism is load bearing. If you add generation code, drive every random
 handed to `IDecorator.Decorate`, never from an unseeded one, or stored chunks will stop matching their
 regenerated neighbours.
 
+Structures are held to the same rule, and to a stricter one on top of it. A village is larger than a chunk,
+so every chunk it covers works out the whole layout from scratch and keeps only its own slice; two chunks
+that disagreed would leave a house cut in half along the border. An `IStructure` therefore has to be a pure
+function of the world seed and its position, and it reads the ground through `ITerrainSampler` — which
+recomputes terrain from the seed — rather than out of the world, since the neighbouring chunks it spans are
+not loaded while any one of them is being generated.
+
 Passing `seed` for a world that already exists is ignored, with a warning — its terrain is already fixed. To
 start over, delete the world directory or pick a different `world` name. A save whose `version` does not
 match the running build is refused rather than misread, and a corrupt chunk file is reported and regenerated
@@ -119,6 +127,7 @@ Inside `Minecraft.Core`:
 | `Textures/`            | Texture atlas and the offscreen framebuffer                              |
 | `Utilities/`           | Math, input, noise, OBJ loading, VAO wrapper, object pool                |
 | `Worlds/`              | Blocks, chunks, sections, biomes, terrain generation and lighting        |
+| `Worlds/Structures/`   | Villages and the framework that sites them and builds them across chunks |
 | `Worlds/Storage/`      | Reading and writing saved worlds                                         |
 
 ## How it fits together

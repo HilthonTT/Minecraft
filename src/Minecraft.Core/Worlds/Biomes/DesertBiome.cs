@@ -1,6 +1,7 @@
 ﻿using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Decoration;
+using Minecraft.Core.Worlds.Structures;
 
 namespace Minecraft.Core.Worlds.Biomes;
 
@@ -20,6 +21,7 @@ public sealed class DesertBiome : Biome
         TopBlock = BlockRegistry.Sand;
         GradientBlock = BlockRegistry.SandStone;
         Decorator = new BarrenDecorator();
+        SettlementPalette = StructurePalette.Sandstone;
     }
 
     public override double OffsetAt(int chunkX, int chunkZ, int localX, int localZ)

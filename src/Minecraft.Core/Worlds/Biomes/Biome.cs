@@ -1,5 +1,6 @@
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Decoration;
+using Minecraft.Core.Worlds.Structures;
 
 namespace Minecraft.Core.Worlds.Biomes;
 
@@ -15,6 +16,12 @@ public abstract class Biome
     public int BaseHeight { get; protected set; }
 
     public IDecorator Decorator { get; protected set; } = new EmptyDecorator();
+
+    /// <summary>
+    /// The blocks villages in this biome are built from. Null where the terrain is no place to settle, which
+    /// keeps villages out of that biome entirely.
+    /// </summary>
+    public StructurePalette? SettlementPalette { get; protected set; }
 
     /// <summary>Where this biome sits in climate space, in the same 0..1 range as the climate noise.</summary>
     public double Temperature { get; protected set; }

@@ -3,6 +3,7 @@ using Minecraft.Core.Worlds.Biomes;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using Minecraft.Core.Worlds.Storage;
+using Minecraft.Core.Worlds.Structures;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Generation;
@@ -13,16 +14,6 @@ namespace Minecraft.Core.Worlds.Generation;
 /// </summary>
 public sealed class WorldGenerator
 {
-    /// <summary>How quickly the climate varies across the world. Smaller means larger biomes.</summary>
-    private const double TemperatureDetail = 0.0075D;
-    private const double MoistureDetail = 0.0075D;
-
-    /// <summary>
-    /// Temperature and moisture come from the same shared noise field, so moisture is sampled from a distant
-    /// part of the domain to keep the two climate axes independent.
-    /// </summary>
-    private const float MoistureDomainOffset = 2555.5F;
-
     /// <summary>Layers of <see cref="Biome.GradientBlock"/> placed between the surface and the stone below.</summary>
     private const int GradientDepth = 3;
 
@@ -30,8 +21,9 @@ public sealed class WorldGenerator
     private readonly WorldStorage _storage;
     private readonly int _seed;
     private readonly Biome[] _registeredBiomes;
-    private readonly BiomeProvider _biomeProvider;
+    private readonly TerrainSampler _terrainSampler;
     private readonly CaveCarver _caveCarver = new();
+    private readonly StructureGenerator _structureGenerator;
 
     private readonly Lock _generationLock = new();
     private readonly Dictionary<(World World, Vector2 GridPosition), List<GenerateChunkRequest>> _pendingRequests = [];
@@ -57,7 +49,8 @@ public sealed class WorldGenerator
             new ForestBiome(),
         ];
 
-        _biomeProvider = new BiomeProvider(_registeredBiomes);
+        _terrainSampler = new TerrainSampler(_registeredBiomes, SeaLevel, GradientDepth + 1);
+        _structureGenerator = new StructureGenerator(seed);
 
         _terrainGeneratorThread = new Thread(RunChunkGeneration)
         {
@@ -185,44 +178,16 @@ public sealed class WorldGenerator
                 int worldX = chunkX * chunkDim + localX;
                 int worldZ = chunkZ * chunkDim + localZ;
 
-                double temperature = Noise2DPerlin.Noise01(
-                    (float)(worldZ * TemperatureDetail),
-                    (float)(worldX * TemperatureDetail));
-                double moisture = Noise2DPerlin.Noise01(
-                    (float)(worldZ * MoistureDetail) + MoistureDomainOffset,
-                    (float)(worldX * MoistureDetail) + MoistureDomainOffset);
-
-                BiomeMembership[] memberships = _biomeProvider.GetBiomeMemberships(temperature, moisture);
-
-                // The surface blocks come from whichever biome dominates, but the height is a blend of all
-                // of them so that the transition between two biomes is a slope rather than a cliff.
-                BiomeMembership dominant = memberships[0];
-                double heightOffset = 0;
-                foreach (BiomeMembership membership in memberships)
-                {
-                    if (dominant.Percentage < membership.Percentage)
-                    {
-                        dominant = membership;
-                    }
-
-                    heightOffset += membership.Percentage * membership.Biome.OffsetAt(chunkX, chunkZ, localX, localZ);
-                }
-
-                // Clamped so that neither the gradient layers below nor the decoration above can ever fall
-                // outside the build height.
-                int surfaceY = Math.Clamp(
-                    SeaLevel + (int)heightOffset,
-                    GradientDepth + 1,
-                    Constants.MAX_BUILD_HEIGHT - 2);
+                (int surfaceY, Biome biome) = _terrainSampler.SampleColumn(worldX, worldZ);
 
                 surfaceHeights[localX, localZ] = surfaceY;
-                surfaceBiomes[localX, localZ] = dominant.Biome;
+                surfaceBiomes[localX, localZ] = biome;
 
-                chunk.AddBlockAt(localX, surfaceY, localZ, BlockRegistry.GetState(dominant.Biome.TopBlock));
+                chunk.AddBlockAt(localX, surfaceY, localZ, BlockRegistry.GetState(biome.TopBlock));
 
                 for (int y = surfaceY - 1; y >= surfaceY - GradientDepth; y--)
                 {
-                    chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(dominant.Biome.GradientBlock));
+                    chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(biome.GradientBlock));
                 }
 
                 for (int y = surfaceY - GradientDepth - 1; y >= 0; y--)
@@ -252,6 +217,10 @@ public sealed class WorldGenerator
                 surfaceBiomes[localX, localZ].Decorator.Decorate(chunk, surfaceY + 1, localX, localZ, random);
             }
         }
+
+        // Last, so that a building clears away the trees and undergrowth standing where it goes up rather
+        // than being decorated over afterwards.
+        _structureGenerator.PlaceStructuresIn(chunk, _terrainSampler);
 
         // Freshly generated terrain matches what the generator would produce by definition, so there is
         // nothing here worth writing to disk yet.

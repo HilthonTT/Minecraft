@@ -30,6 +30,16 @@ public sealed class BlockModelGravel(TextureAtlas textureAtlas) : FullBlockModel
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(3, 1));
 }
 
+public sealed class BlockModelPlanks(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(4, 0));
+}
+
+public sealed class BlockModelCobblestone(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(0, 1));
+}
+
 public sealed class BlockModelTnt(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() =>
