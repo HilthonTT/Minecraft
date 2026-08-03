@@ -19,7 +19,30 @@ public sealed class BlockCactus : Block
 
     public override bool CanAddBlockAt(World world, Vector3i blockPos)
     {
-        return world.GetBlockAt(blockPos.Down()).GetBlock() == BlockRegistry.Sand;
+        // A cactus stands as a stack, the way it is generated, so a segment rests on either the sand the
+        // stack grows out of or on the segment below it.
+        Block blockDown = world.GetBlockAt(blockPos.Down()).GetBlock();
+        if (blockDown != BlockRegistry.Sand && blockDown != BlockRegistry.Cactus)
+        {
+            return false;
+        }
+
+        // Its sides have to stay clear, which is what keeps two cacti from being stood against each other
+        // while still allowing one to be stacked on top of another.
+        return !HasSolidBlockAt(world, blockPos.North()) &&
+               !HasSolidBlockAt(world, blockPos.South()) &&
+               !HasSolidBlockAt(world, blockPos.East()) &&
+               !HasSolidBlockAt(world, blockPos.West());
+    }
+
+    /// <summary>
+    /// Whether the block at the position is one a cactus cannot stand against. Anything a player would walk
+    /// into counts, as opposed to air and the plants that have no body of their own.
+    /// </summary>
+    private static bool HasSolidBlockAt(World world, Vector3i blockPos)
+    {
+        BlockState blockState = world.GetBlockAt(blockPos);
+        return blockState.GetBlock().GetCollisionBox(blockState, blockPos).Length > 0;
     }
 
     public override void OnNotify(
