@@ -9,9 +9,25 @@ namespace Minecraft.Core.Render.UI;
 /// <summary>A single textured quad on a canvas, positioned and sized in canvas pixels.</summary>
 public sealed class UIImage : UIComponent
 {
-    private readonly Vector2 _dimension;
+    private Vector2 _dimension;
 
     private Texture _texture;
+
+    /// <summary>The size of the quad in canvas pixels.</summary>
+    public Vector2 Dimension
+    {
+        get => _dimension;
+        set
+        {
+            if (_dimension == value)
+            {
+                return;
+            }
+
+            _dimension = value;
+            ParentCanvas.AddComponentToClean(this);
+        }
+    }
 
     public Texture Texture
     {

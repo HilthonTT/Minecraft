@@ -33,7 +33,9 @@ public sealed class CameraController
     {
         Camera.Update();
 
-        if (!_window.IsFocused)
+        // The cursor stays grabbed while the chat is open, but the view is left alone, so that writing a
+        // message does not also turn the player around.
+        if (!_window.IsFocused || _window.IsChatOpen)
         {
             return;
         }

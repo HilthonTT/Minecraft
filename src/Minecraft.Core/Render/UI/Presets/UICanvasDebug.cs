@@ -27,7 +27,7 @@ public sealed class UICanvasDebug : UICanvas
             this,
             FontRegistry.GetFont(FontType.Arial),
             new Vector2(0, 0),
-            new Vector2(0.4F, 0.4F),
+            new Vector2(0.2F, 0.2F),
             string.Empty);
         AddComponentToRender(_debugText);
     }

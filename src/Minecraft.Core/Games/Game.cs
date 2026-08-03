@@ -32,6 +32,12 @@ public sealed class Game
     public RunMode RunMode { get; }
     public float CurrentFPS { get; private set; }
 
+    /// <summary>
+    /// Whether the chat input line is open. While it is, keys belong to the chat rather than to the controls,
+    /// which is why more than the chat itself has to be able to ask.
+    /// </summary>
+    public bool IsChatOpen => MasterRenderer?.IngameCanvas.IsTyping ?? false;
+
     /// <summary>The world the server half of this process loads and saves.</summary>
     public string WorldName { get; }
 

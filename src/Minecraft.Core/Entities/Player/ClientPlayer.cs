@@ -81,7 +81,7 @@ public sealed class ClientPlayer : Player
     {
         Acceleration = Vector3.Zero;
 
-        if (!_game.MasterRenderer.IngameCanvas.IsTyping)
+        if (!_game.IsChatOpen)
         {
             UpdateKeyboardMovementInput();
         }
@@ -107,7 +107,8 @@ public sealed class ClientPlayer : Player
 
     private void UpdateMouseInput(World world)
     {
-        if (MouseOverObject is null || !_game.Window.IsFocused)
+        // A click while the chat is open belongs to the chat, not to the block being looked at.
+        if (MouseOverObject is null || !_game.Window.IsFocused || _game.IsChatOpen)
         {
             return;
         }

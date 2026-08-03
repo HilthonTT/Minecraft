@@ -9,8 +9,14 @@ public sealed class TextMeshBuilder
         int charCount = textComponent.Text.Count(c => c != '\n');
         float[] allVertices = new float[charCount * 6 * 3];
 
-        float xNdc = (textComponent.PixelPositionInCanvas.X / textComponent.ParentCanvas.PixelWidth) * 2 - 1;
-        float yNdc = 1 - (textComponent.PixelPositionInCanvas.Y / textComponent.ParentCanvas.PixelHeight) * 2;
+        // Normalised device coordinates run over two units across the canvas, so a canvas pixel is worth
+        // two of them divided by the canvas size. Everything below is laid out in canvas pixels and
+        // converted through this, which is what makes a scale of one draw the font at its authored size.
+        float pixelToNdcX = 2.0F / textComponent.ParentCanvas.PixelWidth;
+        float pixelToNdcY = 2.0F / textComponent.ParentCanvas.PixelHeight;
+
+        float xNdc = textComponent.PixelPositionInCanvas.X * pixelToNdcX - 1;
+        float yNdc = 1 - textComponent.PixelPositionInCanvas.Y * pixelToNdcY;
 
         int xPointer = 0;
         int yPointer = 0;
@@ -28,13 +34,13 @@ public sealed class TextMeshBuilder
 
             textComponent.Font.FontChars.TryGetValue(c, out Character charc);
 
-            float cxPointer = xNdc + (float)xPointer / textComponent.ParentCanvas.PixelWidth;
-            float cyPointer = yNdc + (float)yPointer / textComponent.ParentCanvas.PixelHeight;
+            float cxPointer = xNdc + (xPointer * pixelToNdcX);
+            float cyPointer = yNdc + (yPointer * pixelToNdcY);
 
-            float cwidth = (float)charc.Width / textComponent.ParentCanvas.PixelWidth * textComponent.Scale.X;
-            float cHeight = -(float)charc.Height / textComponent.ParentCanvas.PixelHeight * textComponent.Scale.Y;
-            float cxOffset = (float)charc.XOffset / textComponent.ParentCanvas.PixelWidth * textComponent.Scale.X;
-            float cyOffset = -(float)charc.YOffset / textComponent.ParentCanvas.PixelHeight * textComponent.Scale.Y;
+            float cwidth = charc.Width * textComponent.Scale.X * pixelToNdcX;
+            float cHeight = -charc.Height * textComponent.Scale.Y * pixelToNdcY;
+            float cxOffset = charc.XOffset * textComponent.Scale.X * pixelToNdcX;
+            float cyOffset = -charc.YOffset * textComponent.Scale.Y * pixelToNdcY;
             Vector3 topLeft = new(cxPointer + cxOffset, cyPointer + cyOffset, 0);
             Vector3 bottomLeft = new(cxPointer + cxOffset, cyPointer + cyOffset + cHeight, 0);
             Vector3 bottomRight = new(cxPointer + cxOffset + cwidth, cyPointer + cyOffset + cHeight, 0);

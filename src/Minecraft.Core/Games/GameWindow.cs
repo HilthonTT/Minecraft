@@ -12,6 +12,9 @@ public sealed class GameWindow : OpenTK.Windowing.Desktop.GameWindow
 {
     private readonly Game _game;
 
+    /// <summary>Whether the chat input line is open, which is when typing takes priority over the controls.</summary>
+    public bool IsChatOpen => _game.IsChatOpen;
+
     public GameWindow(StartArgs startArgs)
         : base(
             GameWindowSettings.Default,
@@ -54,7 +57,8 @@ public sealed class GameWindow : OpenTK.Windowing.Desktop.GameWindow
     {
         base.OnUpdateFrame(e);
 
-        if (KeyboardState.IsKeyPressed(Keys.Escape))
+        // Escape leaves the game, unless the chat is open, where it is what closes the input line again.
+        if (KeyboardState.IsKeyPressed(Keys.Escape) && !IsChatOpen)
         {
             Close();
             return;

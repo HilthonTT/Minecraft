@@ -31,7 +31,7 @@ public sealed class UICanvasEntityName : UICanvas
             this,
             FontRegistry.GetFont(FontType.Arial),
             new Vector2(0, 0),
-            Vector2.One,
+            new Vector2(0.5F, 0.5F),
             text);
         AddComponentToRender(playerName);
     }

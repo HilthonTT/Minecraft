@@ -20,7 +20,11 @@ public static class TextureLoader
         _textures.Clear();
     }
 
-    public static int LoadTexture(string filePath)
+    /// <param name="smooth">
+    /// Interpolates between texels instead of snapping to the nearest one. Block textures want the hard
+    /// pixels, but a font map that is drawn smaller than it was authored needs the filtering.
+    /// </param>
+    public static int LoadTexture(string filePath, bool smooth = false)
     {
         GL.GenTextures(1, out int texture);
         GL.BindTexture(TextureTarget.Texture2D, texture);
@@ -41,11 +45,39 @@ public static class TextureLoader
             image.UnlockBits(data);
         }
 
+        int filter = smooth ? (int)TextureMinFilter.Linear : (int)TextureMinFilter.Nearest;
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, filter);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, filter);
+        //GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)OpenTK.Graphics.OpenGL.ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, 1.0f);
+
+        _textures.Add(texture);
+        return texture;
+    }
+
+    /// <summary>
+    /// A single opaque white pixel. Drawn through the UI shader it takes on whatever colour and transparency
+    /// the component carries, which is all a flat panel behind text needs.
+    /// </summary>
+    public static int LoadSolidWhiteTexture()
+    {
+        byte[] pixel = [255, 255, 255, 255];
+
+        GL.GenTextures(1, out int texture);
+        GL.BindTexture(TextureTarget.Texture2D, texture);
+
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-        //GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)OpenTK.Graphics.OpenGL.ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, 1.0f);
+
+        IntPtr unmanagedPointer = Marshal.AllocHGlobal(pixel.Length);
+        Marshal.Copy(pixel, 0, unmanagedPointer, pixel.Length);
+        GL.TexImage2D(
+            TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, 1, 1, 0,
+            OpenTK.Graphics.OpenGL.PixelFormat.Rgba, PixelType.UnsignedByte, unmanagedPointer);
+        Marshal.FreeHGlobal(unmanagedPointer);
 
         _textures.Add(texture);
         return texture;

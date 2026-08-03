@@ -139,6 +139,7 @@ public sealed class ClientNetHandler : INetHandler
         UICanvasEntityName playerNameCanvas = new(_game, otherPlayer, playerJoinPacket.Name);
         _game.MasterRenderer.AddCanvas(playerNameCanvas);
         _game.World.SpawnEntity(otherPlayer);
+        _game.MasterRenderer.IngameCanvas.AddSystemMessage(playerJoinPacket.Name + " joined the game");
     }
 
     public void ProcessPlayerLeavePacket(PlayerLeavePacket playerLeavePacket)
@@ -151,6 +152,13 @@ public sealed class ClientNetHandler : INetHandler
         else
         {
             Logger.Info("Player " + playerLeavePacket.ID + " left for reason " + playerLeavePacket.Reason + " with message " + playerLeavePacket.Message);
+
+            // The name only lives on the entity, which is about to be despawned.
+            if (_game.World.LoadedEntities.TryGetValue(playerLeavePacket.ID, out Entity? leavingEntity) &&
+                leavingEntity is OtherClientPlayer leavingPlayer)
+            {
+                _game.MasterRenderer.IngameCanvas.AddSystemMessage(leavingPlayer.Name + " left the game");
+            }
         }
         _game.World.DespawnEntity(playerLeavePacket.ID);
     }

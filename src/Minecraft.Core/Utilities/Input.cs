@@ -24,6 +24,9 @@ public sealed class Input : IDisposable
     /// <summary>Characters typed since the last Update(), layout-correct.</summary>
     public IReadOnlyList<char> TypedCharacters => _typedThisFrame;
 
+    /// <summary>Whatever text the system clipboard holds, empty when it holds something that is not text.</summary>
+    public string ClipboardText => _window.ClipboardString ?? string.Empty;
+
     public void Update()
     {
         _typedThisFrame.Clear();

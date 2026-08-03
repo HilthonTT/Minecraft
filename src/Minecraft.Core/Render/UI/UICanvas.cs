@@ -1,4 +1,4 @@
-﻿using Minecraft.Core.Shaders.UIShader;
+using Minecraft.Core.Shaders.UIShader;
 using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 
@@ -6,14 +6,20 @@ namespace Minecraft.Core.Render.UI;
 
 public class UICanvas
 {
-    public RenderSpace RenderSpace { get; protected set; }
-    public int PixelWidth { get; private set; }
-    public int PixelHeight { get; private set; }
-    public Vector3 Position { get; protected set; }
-    public Vector3 Rotation { get; protected set; }
-
-    private readonly HashSet<UIComponent> _components = new();
+    // A list rather than a set, because components are drawn in the order they were added and one drawn
+    // later has to end up on top of the ones before it.
+    private readonly List<UIComponent> _components = [];
     private readonly HashSet<UIComponent> _toCleanComponents = new();
+
+    public RenderSpace RenderSpace { get; protected set; }
+
+    public int PixelWidth { get; private set; }
+
+    public int PixelHeight { get; private set; }
+
+    public Vector3 Position { get; protected set; }
+
+    public Vector3 Rotation { get; protected set; }
 
     public UICanvas(Vector3 position, Vector3 rotation, int pixelWidth, int pixelHeight, RenderSpace renderSpace)
     {
@@ -26,8 +32,22 @@ public class UICanvas
 
     public void SetDimensions(int pixelWidth, int pixelHeight)
     {
+        if (PixelWidth == pixelWidth && PixelHeight == pixelHeight)
+        {
+            return;
+        }
+
         PixelWidth = pixelWidth;
         PixelHeight = pixelHeight;
+
+        OnDimensionsChanged();
+
+        // Meshes are built in normalised device coordinates out of canvas pixels, so every one of them is
+        // now stale, whether or not the component itself moved.
+        foreach (UIComponent component in _components)
+        {
+            AddComponentToClean(component);
+        }
     }
 
     public void Render(UIShader uiShader)
@@ -41,7 +61,10 @@ public class UICanvas
 
         foreach (UIComponent component in _components)
         {
-            component.Render(uiShader);
+            if (component.IsVisible)
+            {
+                component.Render(uiShader);
+            }
         }
     }
 
@@ -78,4 +101,7 @@ public class UICanvas
     }
 
     public virtual void Update() { }
+
+    /// <summary>Called after the canvas was resized, for canvases that lay their components out in pixels.</summary>
+    protected virtual void OnDimensionsChanged() { }
 }

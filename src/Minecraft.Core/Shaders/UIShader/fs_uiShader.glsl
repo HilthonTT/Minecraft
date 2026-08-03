@@ -15,5 +15,6 @@ void main()
     {
         discard;
     }
-	fragmentColor = vec4(albedo.rgb * color, transparency);
+	// The texture's own alpha is kept, so the soft edges of a glyph blend instead of ending in a hard step.
+	fragmentColor = vec4(albedo.rgb * color, albedo.a * transparency);
 }
