@@ -228,8 +228,7 @@ gain per octave) and a starting `frequency`. Lower the frequency for larger feat
 
 ## Credits
 
-Based on [Ladadoos/3D-Voxel-Game-Engine](https://github.com/Ladadoos/3D-Voxel-Game-Engine/tree/master).
-Based on [Minecraft](https://www.minecraft.net/en-us).
+Based on [Ladadoos/3D-Voxel-Game-Engine](https://github.com/Ladadoos/3D-Voxel-Game-Engine/tree/master) and [Minecraft](https://www.minecraft.net/en-us).
 
 ## License
 
