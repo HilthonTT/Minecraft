@@ -6,7 +6,7 @@ Infinite procedurally generated terrain across six biomes, with ridged mountain 
 buried ore, caves and villages. Coloured block lighting with smooth per vertex ambient occlusion, a day/night
 cycle, mobs, and a client/server architecture that the singleplayer mode also runs through.
 
-![Forest terrain blending into stone highlands, with oak trees, grass and flowers under a daytime sky](Screenshots/sample-1.png)
+![Sheep grazing on a terraced meadow scattered with roses and dandelions, oak trees to either side and a bare stone mountain rising behind it under a clear sky](Screenshots/sample-1.png)
 
 ## Requirements
 
@@ -47,6 +47,47 @@ dotnet run --project src/Minecraft.App -- world=canyons seed=12345
 ```
 
 `server` runs headless. `client` connects to a server started separately.
+
+## World generation
+
+Which biome a column belongs to is read off a climate map — temperature and moisture, each its own noise
+field. The surface blocks come from whichever biome dominates, but the height is a blend of all of them, so
+a border comes out as a slope rather than as a step.
+
+| Biome       | Surface             | Character                                                    |
+| ----------- | ------------------- | ------------------------------------------------------------ |
+| Plains      | Grass over dirt     | Open and gentle, flowers through the grass, few trees         |
+| Forest      | Grass over dirt     | Rolling, thick with oak and birch, mushrooms in the shade     |
+| Savanna     | Grass over dirt     | Flat topped plateaus with a scramble between one and the next |
+| Desert      | Sand over sandstone | Dunes marching across a broad basin, cactus and dead bush     |
+| Mountain    | Bare stone          | Ridged spines and gullies, patched with gravel and moss       |
+| Snowy peaks | Snowy grass         | The highest ground there is, pine over its lower shoulders    |
+
+Above the snow line the ground goes under snow, with sheets of glacial ice across part of it. The line
+itself wanders, so it does not draw a contour around every summit at exactly the same height. Anywhere the
+ground drops three blocks or more from one column to the next is left as the bare rock of its biome, which
+is what puts faces on the cliffs and keeps soil off them.
+
+Underground, veins of coal, iron, gold, redstone and diamond are laid in bands by depth, along with pockets
+of dirt, gravel and clay, and the occasional seam of glowstone that lights a cave when one breaks into it. A
+vein belongs to the chunk its centre falls in but is laid down by every chunk it reaches into, so it comes
+out whole instead of sheared off at a border. Caves are carved after the veins, so a tunnel cutting through
+one leaves its face showing in the wall, and the floor of the world is bedrock.
+
+![An oak village of plank and log houses beside a fenced wheat field, with sheep among the buildings, pine covered outcrops behind and grey mountains on the horizon](Screenshots/sample-2.png)
+
+## Mobs
+
+Sheep graze by day and zombies come out after dark, both built as cuboid models wearing a Minecraft skin
+sheet. Only the server runs their behaviour and physics; every client eases each mob towards the last
+position and facing it was told about, the same way it does for other players.
+
+Passive and hostile mobs are counted against caps of their own rather than one shared total. Sharing a cap
+starves the animals out — a hostile mob follows the player and so never wanders far enough off to be
+despawned, while an animal drifts away and is cleared. Hostile mobs left over from the night are cleared at
+first light, unless somebody is stood close enough to watch it happen.
+
+![Zombies scattered across a dark meadow at night, one of them close to the camera](Screenshots/sample-3.png)
 
 ## Saved worlds
 
@@ -114,7 +155,7 @@ Inside `Minecraft.Core`:
 
 | Directory              | Contents                                                                |
 | ---------------------- | ----------------------------------------------------------------------- |
-| `Entities/`            | Camera, camera controller, and the player on both sides of a connection  |
+| `Entities/`            | Camera, the player on both sides of a connection, and the mobs           |
 | `Games/`               | Game loop, window, start argument parsing                                |
 | `IO/`                  | Buffered binary reader and writer for network packets                    |
 | `Logging/`             | Levelled console logger                                                  |
@@ -126,7 +167,10 @@ Inside `Minecraft.Core`:
 | `Shapes/`              | Block and entity model geometry, and the registries that hold it         |
 | `Textures/`            | Texture atlas and the offscreen framebuffer                              |
 | `Utilities/`           | Math, input, noise, OBJ loading, VAO wrapper, object pool                |
-| `Worlds/`              | Blocks, chunks, sections, biomes, terrain generation and lighting        |
+| `Worlds/`              | Blocks, chunks, sections and lighting                                    |
+| `Worlds/Biomes/`       | The biomes and the climate map that decides between them                 |
+| `Worlds/Generation/`   | The generator itself: terrain sampling, ore veins and cave carving       |
+| `Worlds/Decoration/`   | What each biome grows on its surface, and the trees it grows             |
 | `Worlds/Structures/`   | Villages and the framework that sites them and builds them across chunks |
 | `Worlds/Storage/`      | Reading and writing saved worlds                                         |
 
