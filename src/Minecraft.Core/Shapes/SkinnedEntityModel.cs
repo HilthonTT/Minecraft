@@ -74,7 +74,9 @@ public sealed class SkinnedEntityModel : EntityModel
 
     private void AddBoxFaces(List<BlockFace> faces, SkinBox box, float scale, Vector3 modelOrigin)
     {
-        Vector3 min = modelOrigin + box.Origin * scale;
+        // The origin names the corner the artwork was drawn at, so an inflated box grows back past it by as
+        // much as it grows forward at the far end, leaving the part centred where it was.
+        Vector3 min = modelOrigin + (box.Origin - new Vector3(box.Inflate)) * scale;
         Vector3 max = min + box.Size * scale;
 
         BoxNet net = BoxNet.For(box.TexOffset, box.TexSize);

@@ -78,6 +78,9 @@ public sealed class EntityModelRegistry
         new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-4, 0, -2)),
     ];
 
+    /// <summary>How far a sheep's fleece stands out from the body it grows on, in model units.</summary>
+    private const float SheepFleeceThickness = 1.75F;
+
     /// <summary>
     /// A sheep: a long body carried on four legs, with the head off the front of it. The body is the one part
     /// drawn lying down, since its net is unwrapped as though it were standing on end.
@@ -88,9 +91,16 @@ public sealed class EntityModelRegistry
     /// </summary>
     private static SkinBox[] BuildSheep() =>
     [
-        // Head, four units of it above the back and the rest set into the front of the body.
+        // Head, four units of it above the back and the rest set into the front of the fleece.
         new(new Vector2i(0, 0), new Vector3i(6, 6, 8), new Vector3(-3, 16, 6)),
-        new(new Vector2i(28, 8), new Vector3i(8, 16, 6), new Vector3(-4, 12, -8), SkinBoxPose.Lying),
+        // The body carries its own fleece rather than a second layer over it, since the sheet holds only the
+        // one woolly body to draw with. Grown all round, it hangs over the tops of the legs.
+        new(
+            new Vector2i(28, 8),
+            new Vector3i(8, 16, 6),
+            new Vector3(-4, 12, -8),
+            SkinBoxPose.Lying,
+            SheepFleeceThickness),
         // The two front legs, then the two back ones.
         new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(1, 0, 3)),
         new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, 3)),

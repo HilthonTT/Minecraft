@@ -120,31 +120,20 @@ public sealed class WorldServer : World
     /// </summary>
     public Vector3 GenerateAndGetValidSpawn()
     {
-        bool foundSpawn = false;
-        Vector3 spawnPosition = Vector3.Zero;
-
         //Check if there is a suitable position in the middle of the chunk at the origin of the world.
         const int x = 8;
         const int z = 8;
-        for (int y = _worldGenerator.SeaLevel; y < Constants.MAX_BUILD_HEIGHT - 3; y++)
-        {
-            int offset = 0;
-            while (GetBlockAt(new Vector3i(x, y + offset, z)).GetBlock() == BlockRegistry.Air && offset < 3)
-            {
-                offset++;
-            }
 
-            if (offset == 3)
-            {
-                foundSpawn = true;
-                spawnPosition = new Vector3(x, y, z);
-                break;
-            }
-        }
-
-        if (foundSpawn)
+        // Searched downwards from the sky rather than upwards from sea level. The first solid block met on
+        // the way down is the surface, and everything above it is open air, so the player always lands on
+        // top of the world. Coming up from below instead stops at the first gap tall enough to stand in,
+        // which underground is a cave.
+        for (int y = Constants.MAX_BUILD_HEIGHT - 4; y >= _worldGenerator.SeaLevel; y--)
         {
-            return spawnPosition;
+            if (HasSolidBlockAt(new Vector3i(x, y, z)))
+            {
+                return new Vector3(x, y + 1, z);
+            }
         }
 
         //Create a platform to spawn on
@@ -174,7 +163,15 @@ public sealed class WorldServer : World
         ClearBlockRemoveBuffer();
         ClearBlockAddBuffer();
 
-        return new Vector3(x, _worldGenerator.SeaLevel, z);
+        // On top of the platform that was just laid, not inside it.
+        return new Vector3(x, _worldGenerator.SeaLevel + 1, z);
+    }
+
+    /// <summary>Whether the block at the given position is one that can be stood on.</summary>
+    private bool HasSolidBlockAt(Vector3i blockPos)
+    {
+        BlockState blockState = GetBlockAt(blockPos);
+        return blockState.GetBlock().GetCollisionBox(blockState, blockPos).Length > 0;
     }
 
     public int GenerateEntityId() => _entityIdTracker.GenerateId();

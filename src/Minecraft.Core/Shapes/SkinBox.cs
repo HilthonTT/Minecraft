@@ -15,17 +15,23 @@ namespace Minecraft.Core.Shapes;
 /// Y up from its feet.
 /// </param>
 /// <param name="Pose">Which way up the box is placed, and with it which face of the net faces where.</param>
+/// <param name="Inflate">
+/// How far every face is pushed out from the box's middle, in model units, with the net stretched over the
+/// result. Used to give a part more bulk than the artwork was drawn at, the way a sheep's fleece stands out
+/// from the body underneath it.
+/// </param>
 public readonly record struct SkinBox(
     Vector2i TexOffset,
     Vector3i TexSize,
     Vector3 Origin,
-    SkinBoxPose Pose = SkinBoxPose.Upright)
+    SkinBoxPose Pose = SkinBoxPose.Upright,
+    float Inflate = 0)
 {
     /// <summary>
     /// The size of the box in model space, which is the size of its net with the axes swapped to match how
-    /// it is posed.
+    /// it is posed, grown by <see cref="Inflate"/> at both ends of every axis.
     /// </summary>
-    public Vector3 Size => Pose == SkinBoxPose.Upright
+    public Vector3 Size => (Pose == SkinBoxPose.Upright
         ? new Vector3(TexSize.X, TexSize.Y, TexSize.Z)
-        : new Vector3(TexSize.X, TexSize.Z, TexSize.Y);
+        : new Vector3(TexSize.X, TexSize.Z, TexSize.Y)) + new Vector3(Inflate * 2.0F);
 }
