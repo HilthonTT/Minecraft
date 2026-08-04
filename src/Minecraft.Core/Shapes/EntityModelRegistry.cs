@@ -17,8 +17,11 @@ public sealed class EntityModelRegistry
     /// <summary>A humanoid stands thirty two units tall, split eight head, twelve body and twelve leg.</summary>
     private const float HumanoidHeightInUnits = 32;
 
-    /// <summary>A sheep's back is eighteen units up: twelve of leg with a six deep body resting on them.</summary>
-    private const float SheepHeightInUnits = 18;
+    /// <summary>
+    /// A sheep's back is eighteen units up, twelve of leg with a six deep body resting on them, and the head
+    /// carried at the front reaches another four above that.
+    /// </summary>
+    private const float SheepHeightInUnits = 22;
 
     public ReadOnlyDictionary<EntityType, EntityModel> Models { get; }
 
@@ -76,16 +79,22 @@ public sealed class EntityModelRegistry
     ];
 
     /// <summary>
-    /// A sheep: a long body carried on four legs, with the head hanging off the front of it. The body is the
-    /// one part drawn lying down, since its net is unwrapped as though it were standing on end.
+    /// A sheep: a long body carried on four legs, with the head off the front of it. The body is the one part
+    /// drawn lying down, since its net is unwrapped as though it were standing on end.
+    /// <para>
+    /// The head is set high enough to meet the shoulder rather than hang below it, and a leg stands under each
+    /// corner of the sixteen long body, so the pairs sit a full body apart instead of bunched under its middle.
+    /// </para>
     /// </summary>
     private static SkinBox[] BuildSheep() =>
     [
-        new(new Vector2i(0, 0), new Vector3i(6, 6, 8), new Vector3(-3, 9, 5)),
+        // Head, four units of it above the back and the rest set into the front of the body.
+        new(new Vector2i(0, 0), new Vector3i(6, 6, 8), new Vector3(-3, 16, 6)),
         new(new Vector2i(28, 8), new Vector3i(8, 16, 6), new Vector3(-4, 12, -8), SkinBoxPose.Lying),
-        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(1, 0, 2)),
-        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, 2)),
-        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(1, 0, -6)),
-        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, -6)),
+        // The two front legs, then the two back ones.
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(1, 0, 3)),
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, 3)),
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(1, 0, -9)),
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, -9)),
     ];
 }
