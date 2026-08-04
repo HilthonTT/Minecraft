@@ -16,32 +16,35 @@ public sealed class EntityMeshGenerator
     private readonly List<float> _normals = [];
     private int _indicesCount;
 
+    /// <summary>
+    /// Which corners of a four sided face make up its two triangles, wound the same way round as the corners
+    /// themselves. Faces are emitted as triangles rather than as quads because quads were taken out of the
+    /// core profile, and a driver that holds to that draws nothing at all when handed one.
+    /// </summary>
+    private static readonly int[] _triangleCorners = [0, 1, 2, 0, 2, 3];
+
     public VAOModel GenerateMeshFor(EntityModel entityModel)
     {
         foreach (BlockFace face in entityModel.EntityFaces)
         {
-            foreach (Vector2 uv in face.TextureCoords)
+            foreach (int corner in _triangleCorners)
             {
+                Vector2 uv = face.TextureCoords[corner];
                 _textureUVs.Add(uv.X);
                 _textureUVs.Add(uv.Y);
-            }
 
-            foreach (Vector3 modelSpacePosition in face.Positions)
-            {
+                Vector3 modelSpacePosition = face.Positions[corner];
                 _vertexPositions.Add(modelSpacePosition.X);
                 _vertexPositions.Add(modelSpacePosition.Y);
                 _vertexPositions.Add(modelSpacePosition.Z);
-            }
 
-            for (int i = 0; i < face.Positions.Length; i++)
-            {
                 _illuminations.Add(1.0F);
                 _normals.Add(face.Normal.X);
                 _normals.Add(face.Normal.Y);
                 _normals.Add(face.Normal.Z);
             }
 
-            _indicesCount += face.Positions.Length;
+            _indicesCount += _triangleCorners.Length;
         }
 
         var model = new VAOModel(

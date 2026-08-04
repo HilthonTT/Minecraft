@@ -2,9 +2,9 @@
 
 A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https://opentk.net/).
 
-Infinite procedurally generated terrain with caves and villages, coloured block lighting with smooth per
-vertex ambient occlusion, a day/night cycle, and a client/server architecture that the singleplayer mode also
-runs through.
+Infinite procedurally generated terrain across six biomes, with ridged mountain ranges under snow and ice,
+buried ore, caves and villages. Coloured block lighting with smooth per vertex ambient occlusion, a day/night
+cycle, mobs, and a client/server architecture that the singleplayer mode also runs through.
 
 ![Forest terrain blending into stone highlands, with oak trees, grass and flowers under a daytime sky](Screenshots/sample-1.png)
 
@@ -148,7 +148,7 @@ occlusion.
 
 ## Noise
 
-Three generators live in `Minecraft.Core.Utilities.Noise`, all returning values in `[-1, 1]`, with `Noise01`
+Four generators live in `Minecraft.Core.Utilities.Noise`, all returning values in `[-1, 1]`, with `Noise01`
 for the `[0, 1]` range that height maps usually want. The single octave fields are zero on the integer
 lattice, so scale block coordinates down before sampling rather than feeding them in whole.
 
@@ -157,6 +157,12 @@ lattice, so scale block coordinates down before sampling rather than feeding the
 | `Noise2DPerlin`        | Single octave 2D gradient noise                                 |
 | `Noise2DPerlinOctave`  | Fractal brownian motion over the above, for terrain height maps |
 | `Noise3DPerlin`        | Improved 3D Perlin noise, for caves and ore distribution        |
+| `TerrainNoise`         | Ridges, terraces and distribution flattening built on the above |
+
+`TerrainNoise` is where the shapes that are not noise in themselves live. `Ridged01` folds a field about zero
+to turn its smooth valleys into the creases a mountain range is built from, `Terrace01` cuts a range into
+plateaus with an escarpment between them, and `Spread01` flattens the bell shaped distribution Perlin noise
+produces into an even one — without which a climate map puts nearly the whole world into a single biome.
 
 ```csharp
 using Minecraft.Core.Utilities.Noise;

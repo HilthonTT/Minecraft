@@ -1,4 +1,4 @@
-﻿using Minecraft.Core.Utilities.Noise;
+using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Biomes;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
@@ -17,12 +17,59 @@ public sealed class WorldGenerator
     /// <summary>Layers of <see cref="Biome.GradientBlock"/> placed between the surface and the stone below.</summary>
     private const int GradientDepth = 3;
 
+    /// <summary>
+    /// The layers of unbreakable floor at the bottom of the world. The lowest is solid; the ones above it are
+    /// scattered, so the floor has a rough underside rather than reading as a flat slab.
+    /// </summary>
+    private const int BedrockDepth = 4;
+
+    /// <summary>
+    /// How far the ground has to fall away from a column, over a single block, before nothing will settle on
+    /// it. Anything steeper is left as the bare rock of its biome.
+    /// </summary>
+    private const int CliffSlope = 3;
+
+    /// <summary>
+    /// The height above which the ground is left under snow. Set so that snow caps the peaks and the highest
+    /// shoulders below them rather than blanketing every hill that happens to be above average.
+    /// </summary>
+    private const int SnowLineY = 116;
+
+    /// <summary>
+    /// How far the snow line wanders up and down, and how quickly. Without it the snow would end at exactly
+    /// the same height on every mountain and leave a contour line drawn around the range.
+    /// </summary>
+    private const float SnowLineJitter = 7F;
+    private const float SnowLineDetail = 0.035F;
+
+    /// <summary>
+    /// How much of the ground above the snow line has been pressed into ice rather than left as snow, and
+    /// over what distance it changes. Broad and gentle, so a summit carries a sheet of it rather than a
+    /// speckle.
+    /// </summary>
+    private const float GlacierThreshold = 0.35F;
+    private const float GlacierDetail = 0.012F;
+
+    /// <summary>Kept away from the snow line's own field, which would otherwise draw ice along its edges.</summary>
+    private const float GlacierDomainOffset = 7717.3F;
+
+    /// <summary>Mixed into the seed so the bedrock floor is not the same pattern as anything else.</summary>
+    private const uint BedrockSalt = 0x4245_4452u;
+
+    /// <summary>
+    /// The columns of the chunk plus a one block skirt around it. The skirt is never built, only measured:
+    /// it is what lets a column on the very edge of a chunk see how far the ground drops away outside it, so
+    /// a cliff face is recognised as one from both of the chunks it falls between.
+    /// </summary>
+    private const int SampledColumnDim = 18;
+
     private readonly WorldServer _world;
     private readonly WorldStorage _storage;
     private readonly int _seed;
     private readonly Biome[] _registeredBiomes;
     private readonly TerrainSampler _terrainSampler;
     private readonly CaveCarver _caveCarver = new();
+    private readonly DepositGenerator _depositGenerator;
     private readonly StructureGenerator _structureGenerator;
 
     private readonly Lock _generationLock = new();
@@ -44,12 +91,16 @@ public sealed class WorldGenerator
 
         _registeredBiomes =
         [
-            new MountainBiome(),
-            new DesertBiome(),
+            new PlainsBiome(),
             new ForestBiome(),
+            new SavannaBiome(),
+            new DesertBiome(),
+            new MountainBiome(),
+            new SnowyPeaksBiome(),
         ];
 
-        _terrainSampler = new TerrainSampler(_registeredBiomes, SeaLevel, GradientDepth + 1);
+        _terrainSampler = new TerrainSampler(_registeredBiomes, SeaLevel, BedrockDepth + GradientDepth + 1);
+        _depositGenerator = new DepositGenerator(seed);
         _structureGenerator = new StructureGenerator(seed);
 
         _terrainGeneratorThread = new Thread(RunChunkGeneration)
@@ -166,6 +217,8 @@ public sealed class WorldGenerator
         // unmodified chunk be regenerated instead of stored.
         var random = new Random(GetChunkSeed(_seed, chunkX, chunkZ));
 
+        TerrainColumn[,] sampledColumns = SampleColumnsWithSkirt(chunkX, chunkZ);
+
         // Kept for the passes after this one: caves need to know how deep each column is buried, and
         // decoration needs to know what it is standing on.
         var surfaceHeights = new int[chunkDim, chunkDim];
@@ -175,27 +228,14 @@ public sealed class WorldGenerator
         {
             for (int localZ = 0; localZ < chunkDim; localZ++)
             {
-                int worldX = chunkX * chunkDim + localX;
-                int worldZ = chunkZ * chunkDim + localZ;
-
-                (int surfaceY, Biome biome) = _terrainSampler.SampleColumn(worldX, worldZ);
-
-                surfaceHeights[localX, localZ] = surfaceY;
-                surfaceBiomes[localX, localZ] = biome;
-
-                chunk.AddBlockAt(localX, surfaceY, localZ, BlockRegistry.GetState(biome.TopBlock));
-
-                for (int y = surfaceY - 1; y >= surfaceY - GradientDepth; y--)
-                {
-                    chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(biome.GradientBlock));
-                }
-
-                for (int y = surfaceY - GradientDepth - 1; y >= 0; y--)
-                {
-                    chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(BlockRegistry.Stone));
-                }
+                BuildColumn(chunk, sampledColumns, chunkX, chunkZ, localX, localZ, surfaceHeights, surfaceBiomes);
             }
         }
+
+        LayBedrockFloor(chunk);
+
+        // Before the caves, so that a tunnel cutting through a vein leaves its face showing in the wall.
+        _depositGenerator.PlaceDepositsIn(chunk);
 
         // Carved before anything is decorated, so that a tunnel breaking through the surface does not leave
         // a tree or a flower hanging over the hole it opened.
@@ -226,5 +266,161 @@ public sealed class WorldGenerator
         // nothing here worth writing to disk yet.
         chunk.MarkClean();
         return chunk;
+    }
+
+    /// <summary>
+    /// Samples the chunk's own columns along with a one block skirt around it, indexed so that the chunk's
+    /// column (0, 0) sits at (1, 1).
+    /// </summary>
+    private TerrainColumn[,] SampleColumnsWithSkirt(int chunkX, int chunkZ)
+    {
+        var columns = new TerrainColumn[SampledColumnDim, SampledColumnDim];
+
+        for (int x = 0; x < SampledColumnDim; x++)
+        {
+            for (int z = 0; z < SampledColumnDim; z++)
+            {
+                columns[x, z] = _terrainSampler.SampleColumn(
+                    (chunkX * 16) + x - 1,
+                    (chunkZ * 16) + z - 1);
+            }
+        }
+
+        return columns;
+    }
+
+    /// <summary>
+    /// Fills one column from the bottom of the world up to its surface, and records what the passes after
+    /// this one need to know about it.
+    /// </summary>
+    private static void BuildColumn(
+        Chunk chunk,
+        TerrainColumn[,] sampledColumns,
+        int chunkX,
+        int chunkZ,
+        int localX,
+        int localZ,
+        int[,] surfaceHeights,
+        Biome[,] surfaceBiomes)
+    {
+        (int surfaceY, Biome biome) = sampledColumns[localX + 1, localZ + 1];
+
+        surfaceHeights[localX, localZ] = surfaceY;
+        surfaceBiomes[localX, localZ] = biome;
+
+        int slope = GetSteepestDrop(sampledColumns, localX + 1, localZ + 1, surfaceY);
+
+        (Block top, Block gradient) = GetSurfaceBlocks(
+            biome,
+            surfaceY,
+            slope,
+            (chunkX * 16) + localX,
+            (chunkZ * 16) + localZ);
+
+        chunk.AddBlockAt(localX, surfaceY, localZ, BlockRegistry.GetState(top));
+
+        for (int y = surfaceY - 1; y >= surfaceY - GradientDepth; y--)
+        {
+            chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(gradient));
+        }
+
+        for (int y = surfaceY - GradientDepth - 1; y >= 0; y--)
+        {
+            chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(BlockRegistry.Stone));
+        }
+    }
+
+    /// <summary>
+    /// How far the ground falls away from a column to the lowest of its four neighbours. Only the drop is
+    /// measured and not the rise, since it is the face below a column that is exposed and has to be bare.
+    /// </summary>
+    private static int GetSteepestDrop(TerrainColumn[,] sampledColumns, int x, int z, int surfaceY)
+    {
+        int lowestNeighbour = Math.Min(
+            Math.Min(sampledColumns[x - 1, z].SurfaceY, sampledColumns[x + 1, z].SurfaceY),
+            Math.Min(sampledColumns[x, z - 1].SurfaceY, sampledColumns[x, z + 1].SurfaceY));
+
+        return surfaceY - lowestNeighbour;
+    }
+
+    /// <summary>
+    /// What a column wears on top and immediately underneath, which is its biome's own soil except where the
+    /// ground is too high or too steep to hold any.
+    /// </summary>
+    private static (Block Top, Block Gradient) GetSurfaceBlocks(
+        Biome biome,
+        int surfaceY,
+        int slope,
+        int worldX,
+        int worldZ)
+    {
+        // Nothing settles on a cliff face, so what shows is the rock the biome is cut into. Tested before the
+        // snow, because snow does not lie on a wall either.
+        if (slope >= CliffSlope)
+        {
+            return (biome.CliffBlock, biome.CliffBlock);
+        }
+
+        float jitter = Noise2DPerlin.Noise(worldX * SnowLineDetail, worldZ * SnowLineDetail) * SnowLineJitter;
+        if (surfaceY + jitter >= SnowLineY)
+        {
+            // Where the snow has lain long enough it has become a sheet of ice, which is what puts a glacier
+            // across part of a summit instead of the whole thing being the same white.
+            float glacier = Noise2DPerlin.Noise(
+                (worldX * GlacierDetail) + GlacierDomainOffset,
+                (worldZ * GlacierDetail) + GlacierDomainOffset);
+
+            Block cover = glacier > GlacierThreshold ? BlockRegistry.Ice : BlockRegistry.Snow;
+            return (cover, BlockRegistry.Stone);
+        }
+
+        return (biome.TopBlock, biome.GradientBlock);
+    }
+
+    /// <summary>
+    /// Lays the floor of the world. The bottom layer is solid and the ones above it thin out with height, so
+    /// what a player standing in a deep cave sees underfoot is a ragged crust rather than a flat plate.
+    /// </summary>
+    private void LayBedrockFloor(Chunk chunk)
+    {
+        BlockState bedrock = BlockRegistry.GetState(BlockRegistry.Bedrock);
+
+        for (int localX = 0; localX < 16; localX++)
+        {
+            for (int localZ = 0; localZ < 16; localZ++)
+            {
+                chunk.AddBlockAt(localX, 0, localZ, bedrock);
+
+                for (int y = 1; y < BedrockDepth; y++)
+                {
+                    // Thins from nearly solid just above the floor to nearly nothing at the top layer.
+                    uint threshold = (uint)((BedrockDepth - y) * (uint.MaxValue / BedrockDepth));
+
+                    if (GetBedrockNoiseAt(chunk.GridX * 16 + localX, y, chunk.GridZ * 16 + localZ) < threshold)
+                    {
+                        chunk.AddBlockAt(localX, y, localZ, bedrock);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A value spread evenly over the whole range of a <see cref="uint"/> for a world position, so that the
+    /// floor is scattered the same way every time the chunk is generated.
+    /// </summary>
+    private uint GetBedrockNoiseAt(int worldX, int y, int worldZ)
+    {
+        unchecked
+        {
+            uint hash = (uint)_seed ^ BedrockSalt;
+            hash = (hash ^ (uint)worldX) * 2654435761u;
+            hash = (hash ^ (uint)y) * 2246822519u;
+            hash = (hash ^ (uint)worldZ) * 3266489917u;
+            hash ^= hash >> 15;
+            hash *= 2246822519u;
+            hash ^= hash >> 13;
+            return hash;
+        }
     }
 }

@@ -25,6 +25,8 @@ public sealed class Zombie : Mob
     {
     }
 
+    public override bool IsHostile => true;
+
     protected override float MoveSpeed => 26F;
 
     protected override void SetInitialDimensions()

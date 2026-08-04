@@ -15,8 +15,21 @@ namespace Minecraft.Core.Worlds.Generation;
 public sealed class TerrainSampler : ITerrainSampler
 {
     /// <summary>How quickly the climate varies across the world. Smaller means larger biomes.</summary>
-    private const double TemperatureDetail = 0.0075D;
-    private const double MoistureDetail = 0.0075D;
+    private const double TemperatureDetail = 0.0021D;
+    private const double MoistureDetail = 0.0026D;
+
+    /// <summary>
+    /// How many octaves the climate is sampled over. Enough to give a biome border a ragged edge, but few
+    /// enough that the borders stay long and sweeping rather than dissolving into speckle.
+    /// </summary>
+    private const int ClimateOctaves = 3;
+
+    /// <summary>
+    /// How hard the climate samples are spread out over their range. Perlin noise bunches up around zero, and
+    /// read straight off it nearly the whole world would sit in the middle of climate space in a single
+    /// biome. Chosen to match the spread of the field it flattens; see <see cref="TerrainNoise.Spread01"/>.
+    /// </summary>
+    private const float ClimateSoftness = 0.09F;
 
     /// <summary>
     /// Temperature and moisture come from the same shared noise field, so moisture is sampled from a distant
@@ -40,12 +53,19 @@ public sealed class TerrainSampler : ITerrainSampler
 
     public TerrainColumn SampleColumn(int worldX, int worldZ)
     {
-        double temperature = Noise2DPerlin.Noise01(
-            (float)(worldZ * TemperatureDetail),
-            (float)(worldX * TemperatureDetail));
-        double moisture = Noise2DPerlin.Noise01(
-            (float)(worldZ * MoistureDetail) + MoistureDomainOffset,
-            (float)(worldX * MoistureDetail) + MoistureDomainOffset);
+        double temperature = TerrainNoise.Spread01(
+            Noise2DPerlinOctave.Noise(
+                (float)(worldZ * TemperatureDetail),
+                (float)(worldX * TemperatureDetail),
+                ClimateOctaves),
+            ClimateSoftness);
+
+        double moisture = TerrainNoise.Spread01(
+            Noise2DPerlinOctave.Noise(
+                (float)(worldZ * MoistureDetail) + MoistureDomainOffset,
+                (float)(worldX * MoistureDetail) + MoistureDomainOffset,
+                ClimateOctaves),
+            ClimateSoftness);
 
         BiomeMembership[] memberships = _biomeProvider.GetBiomeMemberships(temperature, moisture);
 
@@ -60,9 +80,7 @@ public sealed class TerrainSampler : ITerrainSampler
                 dominant = membership;
             }
 
-            // A biome's offset is a function of the world column alone, so the whole position can be handed
-            // over as the chunk local part of it.
-            heightOffset += membership.Percentage * membership.Biome.OffsetAt(0, 0, worldX, worldZ);
+            heightOffset += membership.Percentage * membership.Biome.OffsetAt(worldX, worldZ);
         }
 
         // Clamped so that neither the layers below the surface nor the decoration above it can ever fall

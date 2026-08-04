@@ -36,9 +36,6 @@ public sealed class MasterRenderer
     private const float ColorClearG = 0.01F;
     private const float ColorClearB = 0.03F;
 
-    private const int TextureAtlasSizeInPixels = 256;
-    private const int TextureAtlasCellSizeInPixels = 16;
-
     private readonly Game _game;
 
     private readonly BasicShader _basicShader;
@@ -85,11 +82,14 @@ public sealed class MasterRenderer
 
         SetActiveCamera(game.ClientPlayer.Camera);
 
-        int textureAtlasId = TextureLoader.LoadTexture(Assets.Path("Resources/texturePack.png"));
-        _textureAtlas = new TextureAtlas(textureAtlasId, TextureAtlasSizeInPixels, TextureAtlasCellSizeInPixels);
+        int textureAtlasId = TextureLoader.LoadBlockAtlas(
+            Assets.Path("Resources/texturePack.png"),
+            BlockAtlas.CutOutCells,
+            BlockAtlas.CellsPerRow);
+        _textureAtlas = new TextureAtlas(textureAtlasId, BlockAtlas.SizeInPixels, BlockAtlas.CellSizeInPixels);
         _blockModelRegistry = new BlockModelRegistry(_textureAtlas);
         _blocksMeshGenerator = new OpaqueMeshGenerator(_blockModelRegistry);
-        _entityMeshRegistry = new EntityMeshRegistry(_textureAtlas);
+        _entityMeshRegistry = new EntityMeshRegistry();
         _screenQuad = new ScreenQuad(game.Window);
         _wireframeRenderer = new WireframeRenderer(this);
         DebugHelper = new DebugHelper(game, _wireframeRenderer);
@@ -188,8 +188,11 @@ public sealed class MasterRenderer
     private void RenderEntities(World world)
     {
         _entityShader.Start();
-        _entityShader.LoadTexture(_entityShader.LocationTextureAtlas, 0, _textureAtlas.Id);
         _entityShader.LoadMatrix(_entityShader.LocationViewMatrix, _cameraController.Camera.CurrentViewMatrix);
+
+        // Every kind of entity wears its own skin, so the bound texture is tracked rather than set once. Mobs
+        // of the same kind come out of the collection together often enough for this to be worth it.
+        int boundSkinTextureId = -1;
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
@@ -199,14 +202,20 @@ public sealed class MasterRenderer
                 continue;
             }
 
-            if (!_entityMeshRegistry.Models.TryGetValue(entity.EntityType, out VAOModel? entityMeshModel))
+            if (!_entityMeshRegistry.Models.TryGetValue(entity.EntityType, out EntityMesh entityMesh))
             {
                 continue;
             }
 
-            entityMeshModel.BindVAO();
+            if (boundSkinTextureId != entityMesh.SkinTextureId)
+            {
+                _entityShader.LoadTexture(_entityShader.LocationSkinTexture, 0, entityMesh.SkinTextureId);
+                boundSkinTextureId = entityMesh.SkinTextureId;
+            }
+
+            entityMesh.Mesh.BindVAO();
             _entityShader.LoadMatrix(_entityShader.LocationTransformationMatrix, GetEntityTransformation(entity));
-            GL.DrawArrays(PrimitiveType.Quads, 0, entityMeshModel.IndicesCount);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, entityMesh.Mesh.IndicesCount);
         }
     }
 

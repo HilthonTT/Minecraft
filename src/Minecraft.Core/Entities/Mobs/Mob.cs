@@ -26,6 +26,17 @@ public abstract class Mob : Entity
     /// <summary>Whether the mob is currently on its way somewhere.</summary>
     protected bool HasTarget { get; private set; }
 
+    /// <summary>
+    /// Whether this is one of the mobs that comes out at night and goes for the player.
+    /// <para>
+    /// The spawner counts the hostile mobs and the peaceful ones against caps of their own. Sharing one cap
+    /// starves out the animals: a hostile mob follows the player and so never wanders far enough off to be
+    /// despawned, while an animal drifts away and is cleared, until after a night or two nothing is left but
+    /// what came out of it.
+    /// </para>
+    /// </summary>
+    public abstract bool IsHostile { get; }
+
     /// <summary>How hard the mob accelerates while walking.</summary>
     protected abstract float MoveSpeed { get; }
 

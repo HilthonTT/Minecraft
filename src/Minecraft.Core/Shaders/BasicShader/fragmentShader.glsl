@@ -23,7 +23,10 @@ float convertRange(float oldMin, float oldMax, float newMin, float newMax, float
 void main()
 {
    vec4 albedo = texture(textureAtlas, uv);
-   if(albedo.rgb == vec3(1.0F))
+
+   // The see through parts of the cut out cells are cleared to a zero alpha when the sheet is loaded. Testing
+   // the alpha rather than the colour is what lets snow and ice stay the near white they are drawn.
+   if(albedo.a < 0.5F)
    {
 		discard;
    }

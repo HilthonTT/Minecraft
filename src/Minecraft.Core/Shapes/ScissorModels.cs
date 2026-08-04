@@ -9,17 +9,32 @@ namespace Minecraft.Core.Shapes;
 
 public sealed class BlockModelFlower(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
 {
-    protected override void SetStandardUVs() => SetBladeUVs(new Vector2(12, 0));
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.Rose);
+}
+
+public sealed class BlockModelDandelion(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.Dandelion);
+}
+
+public sealed class BlockModelRedMushroom(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.RedMushroom);
+}
+
+public sealed class BlockModelBrownMushroom(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.BrownMushroom);
 }
 
 public sealed class BlockModelSugarCane(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
 {
-    protected override void SetStandardUVs() => SetBladeUVs(new Vector2(9, 4));
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.SugarCane);
 }
 
 public sealed class BlockModelDeadBush(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
 {
-    protected override void SetStandardUVs() => SetBladeUVs(new Vector2(7, 3));
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.DeadBush);
 }
 
 /// <summary>Wheat swaps its texture as the crop matures.</summary>
@@ -30,9 +45,9 @@ public sealed class BlockModelWheat(TextureAtlas textureAtlas) : ScissorModel(te
 
     protected override void SetStandardUVs()
     {
-        SetBladeUVs(new Vector2(8, 5));
-        _uvHalfMaturity = _textureAtlas.GetTextureCoords(new Vector2(11, 5));
-        _uvFullMaturity = _textureAtlas.GetTextureCoords(new Vector2(15, 5));
+        SetBladeUVs(BlockAtlas.WheatSeedling);
+        _uvHalfMaturity = _textureAtlas.GetTextureCoords(BlockAtlas.WheatGrowing);
+        _uvFullMaturity = _textureAtlas.GetTextureCoords(BlockAtlas.WheatRipe);
     }
 
     public override BlockFace[] GetAlwaysVisibleFaces(BlockState state, Vector3i blockPos)
@@ -62,7 +77,7 @@ public sealed class BlockModelGrassBlade(TextureAtlas textureAtlas) : ScissorMod
 {
     private const float NoiseDetail = 0.75F;
 
-    protected override void SetStandardUVs() => SetBladeUVs(new Vector2(7, 2));
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.TallGrass);
 
     public override BlockFace[] GetAlwaysVisibleFaces(BlockState state, Vector3i blockPos)
     {

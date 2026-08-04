@@ -31,6 +31,23 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.Gravel.Id] = new BlockModelGravel(textureAtlas);
         Models[BlockRegistry.Planks.Id] = new BlockModelPlanks(textureAtlas);
         Models[BlockRegistry.Cobblestone.Id] = new BlockModelCobblestone(textureAtlas);
+        Models[BlockRegistry.Bedrock.Id] = new BlockModelBedrock(textureAtlas);
+        Models[BlockRegistry.CoalOre.Id] = new BlockModelCoalOre(textureAtlas);
+        Models[BlockRegistry.IronOre.Id] = new BlockModelIronOre(textureAtlas);
+        Models[BlockRegistry.GoldOre.Id] = new BlockModelGoldOre(textureAtlas);
+        Models[BlockRegistry.RedstoneOre.Id] = new BlockModelRedstoneOre(textureAtlas);
+        Models[BlockRegistry.DiamondOre.Id] = new BlockModelDiamondOre(textureAtlas);
+        Models[BlockRegistry.Glowstone.Id] = new BlockModelGlowstone(textureAtlas);
+        Models[BlockRegistry.MossyCobblestone.Id] = new BlockModelMossyCobblestone(textureAtlas);
+        Models[BlockRegistry.Clay.Id] = new BlockModelClay(textureAtlas);
+        Models[BlockRegistry.Snow.Id] = new BlockModelSnow(textureAtlas);
+        Models[BlockRegistry.SnowyGrass.Id] = new BlockModelSnowyGrass(textureAtlas);
+        Models[BlockRegistry.Ice.Id] = new BlockModelIce(textureAtlas);
+        Models[BlockRegistry.BirchLog.Id] = new BlockModelBirchLog(textureAtlas);
+        Models[BlockRegistry.SpruceLog.Id] = new BlockModelSpruceLog(textureAtlas);
+        Models[BlockRegistry.Dandelion.Id] = new BlockModelDandelion(textureAtlas);
+        Models[BlockRegistry.RedMushroom.Id] = new BlockModelRedMushroom(textureAtlas);
+        Models[BlockRegistry.BrownMushroom.Id] = new BlockModelBrownMushroom(textureAtlas);
 
         // Air has no geometry, but the mesh generator still indexes the table by block id when it walks a
         // section, so the slot has to hold something that reports every side as see through.

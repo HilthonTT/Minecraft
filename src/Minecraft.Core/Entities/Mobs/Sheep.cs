@@ -7,7 +7,7 @@ namespace Minecraft.Core.Entities.Mobs;
 public sealed class Sheep : Mob
 {
     public const float BodyWidth = 0.9F;
-    public const float BodyHeight = 1.0F;
+    public const float BodyHeight = 1.3F;
     public const float BodyLength = 0.9F;
 
     /// <summary>How far away a sheep will pick its next spot.</summary>
@@ -22,6 +22,8 @@ public sealed class Sheep : Mob
     public Sheep(int id, World? world, Vector3 position) : base(id, world, position, EntityType.Sheep)
     {
     }
+
+    public override bool IsHostile => false;
 
     protected override float MoveSpeed => 18F;
 

@@ -1,4 +1,5 @@
 ﻿using OpenTK.Graphics.OpenGL;
+using OpenTK.Mathematics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -54,6 +55,86 @@ public static class TextureLoader
 
         _textures.Add(texture);
         return texture;
+    }
+
+    /// <summary>
+    /// Loads the block sheet, turning the white background of its cut out cells into real transparency.
+    /// <para>
+    /// The sheet has no alpha channel of its own and marks the see through parts of a plant in white. Doing
+    /// the conversion here, once, rather than testing for white while drawing means the rule applies to the
+    /// cells that were drawn that way and to no others, so a block that is legitimately white keeps its
+    /// colour. See <see cref="Shapes.BlockAtlas"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="cutOutCells">The cells whose white is a background rather than a colour.</param>
+    /// <param name="cellsPerRow">How many cells the sheet is divided into along each edge.</param>
+    public static int LoadBlockAtlas(string filePath, IReadOnlyList<Vector2> cutOutCells, int cellsPerRow)
+    {
+        GL.GenTextures(1, out int texture);
+        GL.BindTexture(TextureTarget.Texture2D, texture);
+
+        using var image = new Bitmap(filePath);
+
+        // Locked as 32 bit even though the file has no alpha, which gives every texel an opaque alpha byte
+        // for the cut out cells to punch through.
+        var data = image.LockBits(
+            new Rectangle(0, 0, image.Width, image.Height),
+            ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        try
+        {
+            PunchOutWhiteBackgrounds(data, cutOutCells, cellsPerRow);
+
+            // Format32bppArgb is laid out BGRA in memory, so the upload has to be told that.
+            GL.TexImage2D(
+                TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, data.Width, data.Height, 0,
+                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
+        }
+        finally
+        {
+            image.UnlockBits(data);
+        }
+
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+
+        _textures.Add(texture);
+        return texture;
+    }
+
+    /// <summary>Clears the alpha of every white texel inside the given cells, leaving the rest untouched.</summary>
+    private static void PunchOutWhiteBackgrounds(BitmapData data, IReadOnlyList<Vector2> cutOutCells, int cellsPerRow)
+    {
+        int cellWidth = data.Width / cellsPerRow;
+        int cellHeight = data.Height / cellsPerRow;
+
+        unsafe
+        {
+            var pixels = (byte*)data.Scan0;
+
+            foreach (Vector2 cell in cutOutCells)
+            {
+                int startX = (int)cell.X * cellWidth;
+                int startY = (int)cell.Y * cellHeight;
+
+                for (int y = startY; y < startY + cellHeight; y++)
+                {
+                    byte* row = pixels + (y * data.Stride);
+
+                    for (int x = startX; x < startX + cellWidth; x++)
+                    {
+                        byte* texel = row + (x * 4);
+
+                        // Laid out blue, green, red, alpha.
+                        if (texel[0] == 255 && texel[1] == 255 && texel[2] == 255)
+                        {
+                            texel[3] = 0;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

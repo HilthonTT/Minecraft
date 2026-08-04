@@ -40,6 +40,80 @@ public sealed class BlockModelCobblestone(TextureAtlas textureAtlas) : FullBlock
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(0, 1));
 }
 
+public sealed class BlockModelBedrock(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(1, 1));
+}
+
+public sealed class BlockModelCoalOre(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(2, 2));
+}
+
+public sealed class BlockModelIronOre(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(1, 2));
+}
+
+public sealed class BlockModelGoldOre(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(0, 2));
+}
+
+public sealed class BlockModelRedstoneOre(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(3, 3));
+}
+
+public sealed class BlockModelDiamondOre(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(2, 3));
+}
+
+public sealed class BlockModelGlowstone(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(9, 2));
+}
+
+public sealed class BlockModelMossyCobblestone(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(4, 2));
+}
+
+public sealed class BlockModelClay(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(8, 4));
+}
+
+public sealed class BlockModelSnow(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(2, 4));
+}
+
+public sealed class BlockModelIce(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(3, 4));
+}
+
+/// <summary>Grass under a covering of snow: white on top, and snow spilling over the top of its sides.</summary>
+public sealed class BlockModelSnowyGrass(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: new Vector2(4, 4), topCell: new Vector2(2, 4), bottomCell: new Vector2(2, 0));
+}
+
+public sealed class BlockModelBirchLog(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: new Vector2(5, 7), topCell: new Vector2(5, 1), bottomCell: new Vector2(5, 1));
+}
+
+public sealed class BlockModelSpruceLog(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: new Vector2(4, 7), topCell: new Vector2(5, 1), bottomCell: new Vector2(5, 1));
+}
+
 public sealed class BlockModelTnt(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() =>
@@ -108,5 +182,8 @@ public sealed class BlockModelCactus : FullBlockModel
     }
 
     protected override void SetStandardUVs() =>
-        SetUVs(sideCell: new Vector2(6, 4), topCell: new Vector2(5, 4), bottomCell: new Vector2(7, 4));
+        SetUVs(
+            sideCell: BlockAtlas.CactusSide,
+            topCell: BlockAtlas.CactusTop,
+            bottomCell: BlockAtlas.CactusBottom);
 }

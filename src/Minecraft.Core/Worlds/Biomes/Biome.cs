@@ -12,6 +12,12 @@ public abstract class Biome
     /// <summary>The block filling the few layers between the surface and the stone below it.</summary>
     public Block GradientBlock { get; protected set; } = BlockRegistry.Stone;
 
+    /// <summary>
+    /// What is left bare where the ground falls away too steeply for anything to settle on it. Soil slides off
+    /// a cliff face, so what shows there is the rock the biome is cut into rather than its surface block.
+    /// </summary>
+    public Block CliffBlock { get; protected set; } = BlockRegistry.Stone;
+
     /// <summary>Height offset from sea level before terrain noise is applied.</summary>
     public int BaseHeight { get; protected set; }
 
@@ -35,9 +41,9 @@ public abstract class Biome
     }
 
     /// <summary>
-    /// The terrain height offset this biome contributes at a chunk local column.
+    /// The terrain height offset this biome contributes at a world column, measured from sea level.
     /// </summary>
-    public abstract double OffsetAt(int chunkX, int chunkZ, int localX, int localZ);
+    public abstract double OffsetAt(int worldX, int worldZ);
 
     protected abstract void DefineProperties();
 }

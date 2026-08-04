@@ -22,8 +22,19 @@ public sealed class MobSpawner
     /// <summary>Positions tried per round. Most are rejected, so this is not how many mobs appear.</summary>
     private const int AttemptsPerRound = 12;
 
-    /// <summary>How many mobs may exist for each player online.</summary>
-    private const int MaxMobsPerPlayer = 10;
+    /// <summary>
+    /// How many mobs of each kind may exist for each player online. Counted apart rather than against one
+    /// shared total; see <see cref="Mob.IsHostile"/> for why sharing one starves the animals out.
+    /// </summary>
+    private const int MaxPassiveMobsPerPlayer = 8;
+    private const int MaxHostileMobsPerPlayer = 8;
+
+    /// <summary>
+    /// How near a player a hostile mob has to be to survive the sunrise. Ones further off are cleared at
+    /// first light, so a night's worth of them is not still standing about at noon; ones close enough to be
+    /// watched are left alone rather than blinking out in front of somebody.
+    /// </summary>
+    private const float DaylightDespawnDistance = 32F;
 
     /// <summary>Mobs never appear closer to a player than this, so nothing is seen popping into existence.</summary>
     private const float MinDistanceFromPlayer = 14F;
@@ -83,9 +94,18 @@ public sealed class MobSpawner
     {
         _toDespawn.Clear();
 
+        bool isDay = !world.Environment.IsNight;
+
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            if (entity is Mob mob && !IsAnyPlayerWithin(mob.Position, DespawnDistance))
+            if (entity is not Mob mob)
+            {
+                continue;
+            }
+
+            bool burnsOffAtDawn = isDay && mob.IsHostile && !IsAnyPlayerWithin(mob.Position, DaylightDespawnDistance);
+
+            if (burnsOffAtDawn || !IsAnyPlayerWithin(mob.Position, DespawnDistance))
             {
                 _toDespawn.Add(mob);
             }
@@ -100,8 +120,13 @@ public sealed class MobSpawner
 
     private void TrySpawnRound(WorldServer world)
     {
-        int mobCount = CountMobs(world);
-        int mobLimit = MaxMobsPerPlayer * _players.Count;
+        // The hour decides what comes out: animals by day, hostile mobs after dark.
+        bool spawnHostile = world.Environment.IsNight;
+
+        (int passive, int hostile) = CountMobs(world);
+
+        int mobCount = spawnHostile ? hostile : passive;
+        int mobLimit = (spawnHostile ? MaxHostileMobsPerPlayer : MaxPassiveMobsPerPlayer) * _players.Count;
 
         if (mobCount >= mobLimit)
         {
@@ -116,26 +141,36 @@ public sealed class MobSpawner
 
         for (int attempt = 0; attempt < AttemptsPerRound && mobCount < mobLimit; attempt++)
         {
-            if (TrySpawnOne(world))
+            if (TrySpawnOne(world, spawnHostile))
             {
                 mobCount++;
             }
         }
     }
 
-    private static int CountMobs(WorldServer world)
+    private static (int Passive, int Hostile) CountMobs(WorldServer world)
     {
-        int count = 0;
+        int passive = 0;
+        int hostile = 0;
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            if (entity is Mob)
+            if (entity is not Mob mob)
             {
-                count++;
+                continue;
+            }
+
+            if (mob.IsHostile)
+            {
+                hostile++;
+            }
+            else
+            {
+                passive++;
             }
         }
 
-        return count;
+        return (passive, hostile);
     }
 
     /// <summary>
@@ -164,7 +199,8 @@ public sealed class MobSpawner
         }
     }
 
-    private bool TrySpawnOne(WorldServer world)
+    /// <param name="hostile">Which kind of mob this attempt is for, decided by the hour.</param>
+    private bool TrySpawnOne(WorldServer world, bool hostile)
     {
         Chunk chunk = _spawnableChunks[Random.Shared.Next(_spawnableChunks.Count)];
         int localX = Random.Shared.Next(16);
@@ -185,7 +221,7 @@ public sealed class MobSpawner
 
         // Everything is checked before the mob is built, because building one takes an entity id that would
         // otherwise have to be handed back.
-        Mob mob = world.Environment.IsNight
+        Mob mob = hostile
             ? new Zombie(world.GenerateEntityId(), world, feet)
             : new Sheep(world.GenerateEntityId(), world, feet);
 

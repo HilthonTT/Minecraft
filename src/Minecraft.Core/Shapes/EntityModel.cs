@@ -8,12 +8,13 @@ namespace Minecraft.Core.Shapes;
 /// </summary>
 public abstract class EntityModel
 {
-    protected readonly TextureAtlas _textureAtlas;
+    /// <summary>The sheet this model's faces are cut from. Entities do not share the block atlas.</summary>
+    public Texture Texture { get; }
 
     public BlockFace[] EntityFaces { get; protected set; } = [];
 
-    protected EntityModel(TextureAtlas textureAtlas)
+    protected EntityModel(Texture texture)
     {
-        _textureAtlas = textureAtlas;
+        Texture = texture;
     }
 }

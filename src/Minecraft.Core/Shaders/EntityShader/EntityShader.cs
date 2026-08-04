@@ -10,7 +10,8 @@ public sealed class EntityShader : Shader
     {
     }
 
-    public int LocationTextureAtlas { get; private set; }
+    /// <summary>The skin sheet of whichever entity is being drawn, rebound as the kind of entity changes.</summary>
+    public int LocationSkinTexture { get; private set; }
 
     public int LocationTransformationMatrix { get; private set; }
 
@@ -28,7 +29,7 @@ public sealed class EntityShader : Shader
 
     protected override void GetAllUniformLocations()
     {
-        LocationTextureAtlas = GetUniformLocation("textureAtlas");
+        LocationSkinTexture = GetUniformLocation("skinTexture");
         LocationTransformationMatrix = GetUniformLocation("transformationMatrix");
         LocationViewMatrix = GetUniformLocation("viewMatrix");
         LocationProjectionMatrix = GetUniformLocation("projectionMatrix");

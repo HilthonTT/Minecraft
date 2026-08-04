@@ -26,6 +26,23 @@ public static class BlockRegistry
     public static readonly Block Gravel = new BlockGravel(16);
     public static readonly Block Planks = new BlockPlanks(17);
     public static readonly Block Cobblestone = new BlockCobblestone(18);
+    public static readonly Block Bedrock = new BlockSolid(19);
+    public static readonly Block CoalOre = new BlockSolid(20);
+    public static readonly Block IronOre = new BlockSolid(21);
+    public static readonly Block GoldOre = new BlockSolid(22);
+    public static readonly Block RedstoneOre = new BlockSolid(23);
+    public static readonly Block DiamondOre = new BlockSolid(24);
+    public static readonly Block Glowstone = new BlockGlowstone(25);
+    public static readonly Block MossyCobblestone = new BlockSolid(26);
+    public static readonly Block Clay = new BlockSolid(27);
+    public static readonly Block Snow = new BlockSolid(28);
+    public static readonly Block SnowyGrass = new BlockSolid(29);
+    public static readonly Block Ice = new BlockSolid(30);
+    public static readonly Block BirchLog = new BlockSolid(31);
+    public static readonly Block SpruceLog = new BlockSolid(32);
+    public static readonly Block Dandelion = new BlockPlant(33, () => [Dirt, Grass, SnowyGrass]);
+    public static readonly Block RedMushroom = new BlockPlant(34, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
+    public static readonly Block BrownMushroom = new BlockPlant(35, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -69,6 +86,23 @@ public static class BlockRegistry
             Gravel,
             Planks,
             Cobblestone,
+            Bedrock,
+            CoalOre,
+            IronOre,
+            GoldOre,
+            RedstoneOre,
+            DiamondOre,
+            Glowstone,
+            MossyCobblestone,
+            Clay,
+            Snow,
+            SnowyGrass,
+            Ice,
+            BirchLog,
+            SpruceLog,
+            Dandelion,
+            RedMushroom,
+            BrownMushroom,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];
