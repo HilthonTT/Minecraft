@@ -14,8 +14,15 @@ public sealed class UIButton
 
     private const float LabelScale = 0.38F;
 
+    /// <summary>How much clear space is kept either side of the label.</summary>
+    private const float LabelPaddingPixels = 10;
+
+    private const string Ellipsis = "...";
+
     private static readonly Vector3 _idleColor = new(0.24F, 0.26F, 0.31F);
     private static readonly Vector3 _hoverColor = new(0.36F, 0.41F, 0.48F);
+    private static readonly Vector3 _destructiveIdleColor = new(0.38F, 0.16F, 0.16F);
+    private static readonly Vector3 _destructiveHoverColor = new(0.56F, 0.22F, 0.22F);
     private static readonly Vector3 _disabledColor = new(0.16F, 0.17F, 0.19F);
     private static readonly Vector3 _labelColor = new(0.95F, 0.95F, 0.95F);
     private static readonly Vector3 _disabledLabelColor = new(0.55F, 0.55F, 0.55F);
@@ -27,8 +34,17 @@ public sealed class UIButton
     private Vector2 _position;
     private Vector2 _size;
 
+    /// <summary>The label as it was given. What is drawn may be a trimmed version of it.</summary>
+    private string _text;
+
     /// <summary>Whether the button reacts to the mouse. A disabled one is drawn greyed out.</summary>
     public bool IsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether pressing this button does something that cannot be undone, which is drawn in a colour that
+    /// says so rather than left looking like every other button on the screen.
+    /// </summary>
+    public bool IsDestructive { get; set; }
 
     public bool IsVisible
     {
@@ -42,16 +58,26 @@ public sealed class UIButton
 
     public string Text
     {
-        get => _label.Text;
+        get => _text;
         set
         {
-            _label.Text = value;
+            _text = value;
             LayoutLabel();
         }
     }
 
+    /// <summary>
+    /// How wide a button has to be to show the given label whole. Lets a row that has to hold fixed labels
+    /// size itself against the font rather than against a guess that a different font would break.
+    /// </summary>
+    public static float MeasureRequiredWidth(Font font, string text)
+    {
+        return font.MeasureWidth(text, LabelScale) + (2 * LabelPaddingPixels);
+    }
+
     public UIButton(UICanvas canvas, string text)
     {
+        _text = text;
         _font = FontRegistry.GetFont(FontType.Arial);
 
         // Panel first and label second, since a canvas draws its components in the order it was given them.
@@ -91,7 +117,13 @@ public sealed class UIButton
         }
 
         bool isHovered = Contains(mousePosition);
-        _panel.Color = isHovered ? _hoverColor : _idleColor;
+        _panel.Color = (isHovered, IsDestructive) switch
+        {
+            (true, true) => _destructiveHoverColor,
+            (true, false) => _hoverColor,
+            (false, true) => _destructiveIdleColor,
+            (false, false) => _idleColor,
+        };
         _label.Color = _labelColor;
 
         return isHovered && mousePressed && IsVisible;
@@ -103,8 +135,35 @@ public sealed class UIButton
                point.Y >= _position.Y && point.Y <= _position.Y + _size.Y;
     }
 
+    /// <summary>
+    /// Trims a label the button cannot hold, marking the cut. A world name can easily be longer than the row
+    /// it is offered on, and text running out past the edges of its button reads worse than an obvious cut.
+    /// </summary>
+    private string FitLabel(string text)
+    {
+        float available = _size.X - (2 * LabelPaddingPixels);
+
+        // Before the button has been given a size there is nothing to fit the label to yet.
+        if (available <= 0 || _font.MeasureWidth(text, LabelScale) <= available)
+        {
+            return text;
+        }
+
+        float ellipsisWidth = _font.MeasureWidth(Ellipsis, LabelScale);
+
+        int fitting = text.Length;
+        while (fitting > 0 && _font.MeasureWidth(text[..fitting], LabelScale) + ellipsisWidth > available)
+        {
+            fitting--;
+        }
+
+        return fitting == 0 ? Ellipsis : text[..fitting] + Ellipsis;
+    }
+
     private void LayoutLabel()
     {
+        _label.Text = FitLabel(_text);
+
         float labelWidth = _font.MeasureWidth(_label.Text, LabelScale);
         (float glyphTop, float glyphBottom) = _font.MeasureVerticalBounds(_label.Text, LabelScale);
 

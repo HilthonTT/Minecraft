@@ -32,15 +32,19 @@ you save and leave a world or quit. In Visual Studio, pick a profile from the la
 
 ### Worlds and seeds
 
-`Singleplayer` opens on a world name and a seed. The name is offered as one nothing is saved under yet, so
-pressing play generates a world; type the name of a world you already have and it is carried on instead. The
-screen keeps saying which of the two it would do, and the button says the same, because a seed only ever
-decides a world that does not exist yet — an existing one keeps the seed it was made with.
+`Singleplayer` opens the list of saved worlds, most recently played first. A row plays its world, and
+carries the two things that can be done to it without opening it: `Rename`, and `Delete` behind a
+confirmation that names what is about to go. `Create New World` leads to the screen that names a world and
+picks its seed.
+
+The name offered there is one nothing is saved under yet, so pressing play generates a world; type the name
+of a world you already have and it is carried on instead. The screen keeps saying which of the two it would
+do, and the button says the same, because a seed only ever decides a world that does not exist yet — an
+existing one keeps the seed it was made with.
 
 The seed box takes a number, or any words, which are hashed into one. Leave it empty for a random seed;
 `Random` fills one in so you can read it off first. Either way the seed is repeated in the chat on the way
-in, so a world worth revisiting can be written down. Nothing on this screen ever deletes a world: to
-regenerate one, either give it a new name or use `fresh=true` from the start arguments.
+in, so a world worth revisiting can be written down.
 
 ### Playing together
 
@@ -120,7 +124,8 @@ first light, unless somebody is stood close enough to watch it happen.
 Worlds live in `saves/<name>/` next to the executable and are written by whichever side runs the server, so
 singleplayer and a dedicated server save identically. A world is saved when a chunk unloads, every 60
 seconds, and on a clean exit. Leave through the pause menu or by closing the window rather than killing the
-process, or anything since the last autosave is lost.
+process, or anything since the last autosave is lost. Renaming a world moves its directory and deleting one
+removes it outright, both only ever from the main menu, where nothing is loaded to be moved out from under.
 
 ```
 saves/world/

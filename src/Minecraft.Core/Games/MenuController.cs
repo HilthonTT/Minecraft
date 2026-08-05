@@ -16,10 +16,14 @@ public sealed class MenuController
     private enum Screen
     {
         /// <summary>No menu at all, which is what being in a world looks like.</summary>
+        /// <summary>No menu at all, which is what being in a world looks like.</summary>
         None,
         Main,
         Multiplayer,
+        WorldList,
         WorldSetup,
+        RenameWorld,
+        DeleteWorld,
         Pause,
     }
 
@@ -29,13 +33,16 @@ public sealed class MenuController
 
     private readonly UICanvasMainMenu _mainMenu;
     private readonly UICanvasMultiplayer _multiplayerMenu;
+    private readonly UICanvasWorldList _worldList;
     private readonly UICanvasWorldSetup _worldSetup;
+    private readonly UICanvasRenameWorld _renameWorld;
+    private readonly UICanvasDeleteWorld _deleteWorld;
     private readonly UICanvasPauseMenu _pauseMenu;
 
     private Screen _screen = Screen.None;
 
-    /// <summary>Which screen the world setup was opened from, and so where backing out of it goes.</summary>
-    private Screen _worldSetupOpenedFrom = Screen.Main;
+    /// <summary>Which screen the world list was opened from, and so where backing out of it goes.</summary>
+    private Screen _worldListOpenedFrom = Screen.Main;
 
     public MenuController(Game game, string defaultServerAddress, int hostPort, string defaultWorldName)
     {
@@ -48,14 +55,20 @@ public sealed class MenuController
             game,
             defaultServerAddress,
             NetworkAddresses.LocalAddress + ":" + hostPort);
+        _worldList = new UICanvasWorldList(game);
         _worldSetup = new UICanvasWorldSetup(game, _savesRoot);
+        _renameWorld = new UICanvasRenameWorld(game);
+        _deleteWorld = new UICanvasDeleteWorld(game);
         _pauseMenu = new UICanvasPauseMenu(game);
 
         // Registered once and left there. Which of them is drawn is decided by the canvas being enabled,
         // so switching screens does not rebuild anything.
         game.MasterRenderer.AddCanvas(_mainMenu);
         game.MasterRenderer.AddCanvas(_multiplayerMenu);
+        game.MasterRenderer.AddCanvas(_worldList);
         game.MasterRenderer.AddCanvas(_worldSetup);
+        game.MasterRenderer.AddCanvas(_renameWorld);
+        game.MasterRenderer.AddCanvas(_deleteWorld);
         game.MasterRenderer.AddCanvas(_pauseMenu);
     }
 
@@ -68,7 +81,7 @@ public sealed class MenuController
     /// <summary>Escape steps back out of a screen that was opened from another one.</summary>
     public void OnEscape()
     {
-        if (_screen is Screen.Multiplayer or Screen.WorldSetup)
+        if (_screen is not (Screen.None or Screen.Main))
         {
             GoBack();
         }
@@ -95,7 +108,7 @@ public sealed class MenuController
         switch (action)
         {
             case MenuAction.Singleplayer:
-                OpenWorldSetup(Screen.Main, "Singleplayer");
+                OpenWorldList(Screen.Main, "Singleplayer");
                 break;
 
             case MenuAction.Multiplayer:
@@ -103,11 +116,35 @@ public sealed class MenuController
                 break;
 
             case MenuAction.Host:
-                OpenWorldSetup(Screen.Multiplayer, "Host Game");
+                OpenWorldList(Screen.Multiplayer, "Host Game");
+                break;
+
+            case MenuAction.PlaySelected:
+                Play(_worldList.SelectedWorld, seed: null);
+                break;
+
+            case MenuAction.CreateWorld:
+                _worldSetup.SetTitle(_worldList.Title);
+                _worldSetup.Prepare(WorldStorage.SuggestUnusedWorldName(_savesRoot, _defaultWorldName));
+                SetScreen(Screen.WorldSetup);
                 break;
 
             case MenuAction.Play:
-                Play();
+                Play(_worldSetup.WorldName, SeedParser.Parse(_worldSetup.SeedText));
+                break;
+
+            case MenuAction.RenameSelected:
+                _renameWorld.Prepare(_worldList.SelectedWorld);
+                SetScreen(Screen.RenameWorld);
+                break;
+
+            case MenuAction.DeleteSelected:
+                _deleteWorld.Prepare(_worldList.SelectedWorld);
+                SetScreen(Screen.DeleteWorld);
+                break;
+
+            case MenuAction.Confirm:
+                Confirm();
                 break;
 
             case MenuAction.Connect:
@@ -133,47 +170,112 @@ public sealed class MenuController
     }
 
     /// <summary>
-    /// Opens the screen that names the world and picks its seed. It is the same screen either way round: a
-    /// hosted world always accepts other players, so singleplayer and hosting are the same thing seen from
-    /// different sides, and only the heading says which side that was.
+    /// Opens the list of saved worlds. It is the same list either way round: a hosted world always accepts
+    /// other players, so singleplayer and hosting are the same thing seen from different sides, and only the
+    /// heading says which side that was.
     /// </summary>
-    private void OpenWorldSetup(Screen openedFrom, string title)
+    private void OpenWorldList(Screen openedFrom, string title)
     {
-        _worldSetupOpenedFrom = openedFrom;
-
-        _worldSetup.SetTitle(title);
-
-        // Offered a name nothing is saved under, so that arriving here and pressing play generates a world
-        // from the chosen seed instead of quietly reopening the last one, where a seed decides nothing.
-        _worldSetup.Prepare(WorldStorage.SuggestUnusedWorldName(_savesRoot, _defaultWorldName));
-
-        SetScreen(Screen.WorldSetup);
+        _worldListOpenedFrom = openedFrom;
+        _worldList.SetTitle(title);
+        SetScreen(Screen.WorldList);
     }
 
-    private void Play()
+    private void Play(string worldName, int? seed)
     {
-        string worldName = _worldSetup.WorldName.Trim();
-        if (worldName.Length == 0)
+        string trimmed = worldName.Trim();
+        if (trimmed.Length == 0)
         {
             _worldSetup.SetStatus("Give the world a name before playing it.", isError: true);
             return;
         }
 
-        if (_game.StartHostedGame(worldName, SeedParser.Parse(_worldSetup.SeedText)))
+        if (_game.StartHostedGame(trimmed, seed))
         {
             SetScreen(Screen.None);
             return;
         }
 
-        _worldSetup.SetStatus(
+        GetCanvas(_screen)?.SetStatus(
             "Could not open the world. Is another copy of the game already running?",
             isError: true);
     }
 
-    private void GoBack()
+    /// <summary>Goes through with whatever the screen that is up was asking about.</summary>
+    private void Confirm()
     {
-        SetScreen(_screen == Screen.WorldSetup ? _worldSetupOpenedFrom : Screen.Main);
+        switch (_screen)
+        {
+            case Screen.RenameWorld:
+                Rename();
+                break;
+
+            case Screen.DeleteWorld:
+                Delete();
+                break;
+        }
     }
+
+    private void Rename()
+    {
+        string newName = _renameWorld.NewName.Trim();
+        if (newName.Length == 0)
+        {
+            _renameWorld.SetStatus("Give the world a name.", isError: true);
+            return;
+        }
+
+        string oldName = _renameWorld.CurrentName;
+        WorldRenameResult result = WorldStorage.TryRenameWorld(_savesRoot, oldName, newName);
+
+        switch (result)
+        {
+            case WorldRenameResult.NameTaken:
+                _renameWorld.SetStatus("A world called '" + newName + "' already exists.", isError: true);
+                return;
+
+            case WorldRenameResult.SourceMissing:
+                _renameWorld.SetStatus("'" + oldName + "' is no longer there.", isError: true);
+                return;
+
+            case WorldRenameResult.Failed:
+                _renameWorld.SetStatus("Could not rename it. Something else may have it open.", isError: true);
+                return;
+        }
+
+        SetScreen(Screen.WorldList);
+
+        if (result == WorldRenameResult.Renamed)
+        {
+            _worldList.SetStatus("Renamed '" + oldName + "'.");
+        }
+    }
+
+    private void Delete()
+    {
+        string worldName = _deleteWorld.WorldName;
+
+        if (!WorldStorage.TryDeleteWorld(_savesRoot, worldName))
+        {
+            _deleteWorld.SetStatus("Could not delete it. Something else may have it open.", isError: true);
+            return;
+        }
+
+        SetScreen(Screen.WorldList);
+        _worldList.SetStatus("Deleted '" + worldName + "'.");
+    }
+
+    private void GoBack() => SetScreen(ParentOf(_screen));
+
+    /// <summary>The screen that backing out of the given one returns to.</summary>
+    private Screen ParentOf(Screen screen) => screen switch
+    {
+        Screen.WorldList => _worldListOpenedFrom,
+        Screen.WorldSetup => Screen.WorldList,
+        Screen.RenameWorld => Screen.WorldList,
+        Screen.DeleteWorld => Screen.WorldList,
+        _ => Screen.Main,
+    };
 
     private void Connect()
     {
@@ -233,8 +335,18 @@ public sealed class MenuController
 
         _mainMenu.IsEnabled = screen == Screen.Main;
         _multiplayerMenu.IsEnabled = screen == Screen.Multiplayer;
+        _worldList.IsEnabled = screen == Screen.WorldList;
         _worldSetup.IsEnabled = screen == Screen.WorldSetup;
+        _renameWorld.IsEnabled = screen == Screen.RenameWorld;
+        _deleteWorld.IsEnabled = screen == Screen.DeleteWorld;
         _pauseMenu.IsEnabled = screen == Screen.Pause;
+
+        // Read again every time it is shown, since a world may have been created, renamed or deleted since
+        // the last look, and by the screens this one leads to at that.
+        if (screen == Screen.WorldList)
+        {
+            _worldList.SetWorlds(WorldStorage.ListWorlds(_savesRoot));
+        }
 
         GetCanvas(screen)?.OnShown();
     }
@@ -243,7 +355,10 @@ public sealed class MenuController
     {
         Screen.Main => _mainMenu,
         Screen.Multiplayer => _multiplayerMenu,
+        Screen.WorldList => _worldList,
         Screen.WorldSetup => _worldSetup,
+        Screen.RenameWorld => _renameWorld,
+        Screen.DeleteWorld => _deleteWorld,
         Screen.Pause => _pauseMenu,
         _ => null,
     };

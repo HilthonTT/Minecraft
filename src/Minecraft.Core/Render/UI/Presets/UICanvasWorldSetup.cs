@@ -19,7 +19,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
 
     private const float LabelScale = 0.34F;
     private const float PreviewScale = 0.28F;
-    private const int RandomButtonWidth = 120;
+    private const string RandomLabel = "Random";
     private const int LabelToFieldGap = 6;
     private const int SectionGap = 16;
 
@@ -56,7 +56,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
 
         _seedLabel = AddText("Seed", LabelScale, _labelColor);
         _seedField = new UITextField(this, MaxSeedLength);
-        _randomSeedButton = new UIButton(this, "Random");
+        _randomSeedButton = new UIButton(this, RandomLabel);
 
         _preview = AddText(string.Empty, PreviewScale, _previewColor);
 
@@ -217,8 +217,9 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         _seedLabel.PixelPositionInCanvas = new Vector2(RowLeft, top);
         top += labelHeight + LabelToFieldGap;
 
-        // The seed box gives up its right hand end to the button that fills it in.
-        float randomWidth = Math.Min(RandomButtonWidth, RowWidth / 3.0F);
+        // The seed box gives up its right hand end to the button that fills it in, which is measured from
+        // the font so its label is never trimmed by a few pixels.
+        float randomWidth = Math.Min(UIButton.MeasureRequiredWidth(Font, RandomLabel), RowWidth / 2.5F);
         float seedWidth = RowWidth - randomWidth - UIButton.Gap;
 
         _seedField.SetBounds(new Vector2(RowLeft, top), new Vector2(seedWidth, UITextField.Height));

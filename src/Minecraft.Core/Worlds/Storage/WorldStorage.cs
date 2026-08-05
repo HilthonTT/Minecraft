@@ -97,6 +97,110 @@ public sealed class WorldStorage : IDisposable
     }
 
     /// <summary>
+    /// Every world saved under the given directory, the most recently played first. A directory without
+    /// metadata in it is not a world, so anything else that ended up in there is passed over.
+    /// </summary>
+    public static List<string> ListWorlds(string savesRoot)
+    {
+        if (!System.IO.Directory.Exists(savesRoot))
+        {
+            return [];
+        }
+
+        try
+        {
+            return System.IO.Directory.EnumerateDirectories(savesRoot)
+                .Where(directory => File.Exists(Path.Combine(directory, MetadataFileName)))
+                .OrderByDescending(System.IO.Directory.GetLastWriteTimeUtc)
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .ToList();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // A saves directory that cannot be read leaves nothing to offer, which the menu shows as having
+            // no worlds rather than as a failure to start.
+            Logger.Error("Could not read the saves directory at " + savesRoot + ": " + e.Message);
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Renames a saved world. Only ever moves one directory within the saves directory, both ends of which
+    /// <see cref="SanitiseWorldName"/> has confined there. Call with no world loaded.
+    /// </summary>
+    public static WorldRenameResult TryRenameWorld(string savesRoot, string fromName, string toName)
+    {
+        string source = GetWorldDirectory(savesRoot, fromName);
+        string destination = GetWorldDirectory(savesRoot, toName);
+
+        if (!System.IO.Directory.Exists(source))
+        {
+            return WorldRenameResult.SourceMissing;
+        }
+
+        if (source == destination)
+        {
+            return WorldRenameResult.Unchanged;
+        }
+
+        bool differsOnlyByCase = string.Equals(source, destination, StringComparison.OrdinalIgnoreCase);
+        if (!differsOnlyByCase && System.IO.Directory.Exists(destination))
+        {
+            return WorldRenameResult.NameTaken;
+        }
+
+        try
+        {
+            if (differsOnlyByCase)
+            {
+                // A file system that does not tell capitalisation apart considers the move a no-op and
+                // refuses it, so the world is stepped through a name that is unambiguously different.
+                string staging = destination + ".renaming";
+                System.IO.Directory.Move(source, staging);
+                System.IO.Directory.Move(staging, destination);
+            }
+            else
+            {
+                System.IO.Directory.Move(source, destination);
+            }
+
+            Logger.Info("Renamed world '" + Path.GetFileName(source) + "' to '" + Path.GetFileName(destination) + "'.");
+            return WorldRenameResult.Renamed;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Logger.Error("Could not rename the world at " + source + ": " + e.Message);
+            return WorldRenameResult.Failed;
+        }
+    }
+
+    /// <summary>
+    /// Deletes a saved world for good. Only ever touches one directory inside the saves directory, which
+    /// <see cref="SanitiseWorldName"/> has already confined it to. Call with no world loaded.
+    /// </summary>
+    public static bool TryDeleteWorld(string savesRoot, string worldName)
+    {
+        string directory = GetWorldDirectory(savesRoot, worldName);
+        if (!System.IO.Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            System.IO.Directory.Delete(directory, recursive: true);
+            Logger.Info("Deleted the world at " + directory + ".");
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Logger.Error("Could not delete the world at " + directory + ": " + e.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Strips anything that cannot appear in a directory name, so a world name coming from a start argument
     /// or typed into the menu cannot escape the saves directory or produce an unopenable path.
     /// </summary>

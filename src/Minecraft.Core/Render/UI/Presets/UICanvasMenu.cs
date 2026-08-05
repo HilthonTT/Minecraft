@@ -12,8 +12,7 @@ public abstract class UICanvasMenu : UICanvas
     private const float TitleScale = 0.7F;
     private const float StatusScale = 0.32F;
 
-    /// <summary>How wide a row of the menu is at most, and how much space is left either side of one.</summary>
-    private const int MaxRowWidth = 400;
+    /// <summary>How much space is left either side of a row.</summary>
     private const int SideMarginPixels = 40;
 
     private static readonly Vector3 _titleColor = new(0.95F, 0.95F, 0.95F);
@@ -28,6 +27,11 @@ public abstract class UICanvasMenu : UICanvas
     private float _statusTop;
 
     protected Font Font { get; }
+
+    /// <summary>
+    /// How wide a row of this screen may grow to. Widened by screens whose rows carry more than one thing.
+    /// </summary>
+    protected virtual float MaxRowWidth => 400;
 
     /// <summary>How wide a row of the menu is, kept inside the canvas on a narrow window.</summary>
     protected float RowWidth => Math.Min(MaxRowWidth, Math.Max(1, PixelWidth - (2 * SideMarginPixels)));
@@ -77,6 +81,9 @@ public abstract class UICanvasMenu : UICanvas
     }
 
     public void ClearStatus() => SetStatus(string.Empty);
+
+    /// <summary>The heading this screen currently carries.</summary>
+    public string Title => _title.Text;
 
     /// <summary>Renames the screen, for one that is reached from more than one place.</summary>
     public void SetTitle(string title)

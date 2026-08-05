@@ -23,6 +23,21 @@ public enum MenuAction
     /// <summary>Open the world the setup screen has been pointed at, creating it if it is new.</summary>
     Play,
 
+    /// <summary>Open the world whose row was pressed in the list.</summary>
+    PlaySelected,
+
+    /// <summary>Leave the list for the screen that names and seeds a new world.</summary>
+    CreateWorld,
+
+    /// <summary>Ask for a new name for the world whose row was pressed.</summary>
+    RenameSelected,
+
+    /// <summary>Ask whether the world whose row was pressed should be deleted.</summary>
+    DeleteSelected,
+
+    /// <summary>Go through with whatever the screen was asking about.</summary>
+    Confirm,
+
     /// <summary>Step back to the screen this one was opened from.</summary>
     Back,
 
