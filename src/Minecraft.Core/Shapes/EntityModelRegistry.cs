@@ -23,6 +23,18 @@ public sealed class EntityModelRegistry
     /// </summary>
     private const float SheepHeightInUnits = 22;
 
+    /// <summary>
+    /// A pig is the squattest of the animals: six units of leg under an eight deep body, with the head held
+    /// two units clear of the back so it reads as a head rather than as more of the same block.
+    /// </summary>
+    private const float PigHeightInUnits = 16;
+
+    /// <summary>
+    /// A cow's back is twenty two units up, twelve of leg with a ten deep body on them. The head is carried
+    /// above the shoulder and the horns reach another unit past the top of it.
+    /// </summary>
+    private const float CowHeightInUnits = 25;
+
     public ReadOnlyDictionary<EntityType, EntityModel> Models { get; }
 
     public EntityModelRegistry()
@@ -30,6 +42,8 @@ public sealed class EntityModelRegistry
         var playerSkin = new Texture(Assets.Path("Resources/steve.png"), 64, 32);
         var zombieSkin = new Texture(Assets.Path("Resources/zombie.png"), 64, 64);
         var sheepSkin = new Texture(Assets.Path("Resources/sheep.png"), 64, 32);
+        var pigSkin = new Texture(Assets.Path("Resources/pig.png"), 64, 32);
+        var cowSkin = new Texture(Assets.Path("Resources/cow.png"), 64, 32);
 
         var player = new SkinnedEntityModel(
             playerSkin,
@@ -60,6 +74,22 @@ public sealed class EntityModelRegistry
                     BuildSheep(),
                     SheepHeightInUnits,
                     new Vector3(Sheep.BodyWidth, Sheep.BodyHeight, Sheep.BodyLength))
+            },
+            {
+                EntityType.Pig,
+                new SkinnedEntityModel(
+                    pigSkin,
+                    BuildPig(),
+                    PigHeightInUnits,
+                    new Vector3(Pig.BodyWidth, Pig.BodyHeight, Pig.BodyLength))
+            },
+            {
+                EntityType.Cow,
+                new SkinnedEntityModel(
+                    cowSkin,
+                    BuildCow(),
+                    CowHeightInUnits,
+                    new Vector3(Cow.BodyWidth, Cow.BodyHeight, Cow.BodyLength))
             },
         });
     }
@@ -106,5 +136,46 @@ public sealed class EntityModelRegistry
         new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, 3)),
         new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(1, 0, -9)),
         new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-5, 0, -9)),
+    ];
+
+    /// <summary>
+    /// A pig: a body slung low on four short legs, with the head out in front of it and the snout off the
+    /// front of that. Like the sheep, the body is the one part drawn lying down.
+    /// </summary>
+    private static SkinBox[] BuildPig() =>
+    [
+        // Head, carried two units above the back and dropping two below it, so the shoulder has a step in it
+        // instead of head and body running together into one long block.
+        new(new Vector2i(0, 0), new Vector3i(8, 8, 8), new Vector3(-4, 8, 6)),
+        // The snout, set into the lower half of the face and standing a single unit proud of it.
+        new(new Vector2i(16, 16), new Vector3i(4, 3, 1), new Vector3(-2, 9, 14)),
+        new(new Vector2i(28, 8), new Vector3i(10, 16, 8), new Vector3(-5, 6, -8), SkinBoxPose.Lying),
+        // The two front legs, then the two back ones, one under each corner of the sixteen long body.
+        new(new Vector2i(0, 16), new Vector3i(4, 6, 4), new Vector3(1, 0, 3)),
+        new(new Vector2i(0, 16), new Vector3i(4, 6, 4), new Vector3(-5, 0, 3)),
+        new(new Vector2i(0, 16), new Vector3i(4, 6, 4), new Vector3(1, 0, -9)),
+        new(new Vector2i(0, 16), new Vector3i(4, 6, 4), new Vector3(-5, 0, -9)),
+    ];
+
+    /// <summary>
+    /// A cow: the largest of the animals, an eighteen long body on tall legs with a horned head carried off
+    /// the front of it, and the udder hung under the back half of the belly.
+    /// </summary>
+    private static SkinBox[] BuildCow() =>
+    [
+        // Head, carried above the shoulder rather than level with it, so the neck has a step in it.
+        new(new Vector2i(0, 0), new Vector3i(8, 8, 6), new Vector3(-4, 16, 9)),
+        // A horn on each side of the crown, drawn from the one horn the sheet carries.
+        new(new Vector2i(22, 0), new Vector3i(1, 3, 1), new Vector3(4, 22, 12)),
+        new(new Vector2i(22, 0), new Vector3i(1, 3, 1), new Vector3(-5, 22, 12)),
+        new(new Vector2i(18, 4), new Vector3i(12, 18, 10), new Vector3(-6, 12, -9), SkinBoxPose.Lying),
+        // The udder, hung under the back of the belly. Lying with the body it belongs to, so its net is
+        // unwrapped the same way round as the body's is.
+        new(new Vector2i(52, 0), new Vector3i(4, 6, 1), new Vector3(-2, 11, -9), SkinBoxPose.Lying),
+        // The two front legs, then the two back ones.
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(2, 0, 5)),
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-6, 0, 5)),
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(2, 0, -8)),
+        new(new Vector2i(0, 16), new Vector3i(4, 12, 4), new Vector3(-6, 0, -8)),
     ];
 }

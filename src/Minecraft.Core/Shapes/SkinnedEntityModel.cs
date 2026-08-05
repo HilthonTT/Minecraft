@@ -81,11 +81,17 @@ public sealed class SkinnedEntityModel : EntityModel
 
         BoxNet net = BoxNet.For(box.TexOffset, box.TexSize);
 
-        // Tipping the box onto its front carries the front of the net up to the top and the caps around to
-        // the front and back, while the two sides stay where they are.
+        // Tipping the box onto its back brings the back of the net up to the top, drops the front of it onto
+        // the underside, and swings the two caps round to face front and rear. It is the back rather than the
+        // front that ends up on top: a quadruped's body is unwrapped as though the animal were reared up on
+        // its hind legs, so the face drawn towards the bottom of the sheet is its belly.
         (Vector4 top, Vector4 bottom, Vector4 front, Vector4 back) = box.Pose == SkinBoxPose.Upright
             ? (net.Top, net.Bottom, net.Front, net.Back)
-            : (net.Front, net.Back, net.Top, net.Bottom);
+            : (net.Back, net.Front, net.Bottom, net.Top);
+
+        // The two sides keep their own rectangles wherever the box is pointed, but a tipped box carries them
+        // round with it, so they go on a quarter turn from the way they were drawn.
+        bool turnSides = box.Pose == SkinBoxPose.Lying;
 
         // Wound counter clockwise seen from outside the box, so back face culling keeps the outside.
         faces.Add(new BlockFace(
@@ -94,7 +100,7 @@ public sealed class SkinnedEntityModel : EntityModel
 
         faces.Add(new BlockFace(
             [new(max.X, min.Y, max.Z), new(max.X, min.Y, min.Z), new(max.X, max.Y, min.Z), new(max.X, max.Y, max.Z)],
-            ToUVs(net.Right)));
+            ToUVs(net.Right, turnSides)));
 
         faces.Add(new BlockFace(
             [new(min.X, min.Y, max.Z), new(max.X, min.Y, max.Z), new(max.X, max.Y, max.Z), new(min.X, max.Y, max.Z)],
@@ -102,7 +108,7 @@ public sealed class SkinnedEntityModel : EntityModel
 
         faces.Add(new BlockFace(
             [new(min.X, min.Y, min.Z), new(min.X, min.Y, max.Z), new(min.X, max.Y, max.Z), new(min.X, max.Y, min.Z)],
-            ToUVs(net.Left)));
+            ToUVs(net.Left, turnSides)));
 
         faces.Add(new BlockFace(
             [new(min.X, max.Y, max.Z), new(max.X, max.Y, max.Z), new(max.X, max.Y, min.Z), new(min.X, max.Y, min.Z)],
@@ -118,7 +124,12 @@ public sealed class SkinnedEntityModel : EntityModel
     /// faces above are wound in.
     /// </summary>
     /// <param name="rectangle">Left, top, width and height, in texels.</param>
-    private Vector2[] ToUVs(Vector4 rectangle)
+    /// <param name="quarterTurn">
+    /// Whether the rectangle goes on a quarter turn from the way it was drawn. Needed by the sides of a box
+    /// that has been tipped over: the artwork was drawn for it standing up, so its long axis runs across the
+    /// part rather than along it until it is turned to follow.
+    /// </param>
+    private Vector2[] ToUVs(Vector4 rectangle, bool quarterTurn = false)
     {
         // Pulled a hair inside the rectangle. Texels are sampled at their centre, and without the inset a
         // face landing exactly on the boundary can pick up the neighbouring part of the sheet along its edge.
@@ -129,12 +140,22 @@ public sealed class SkinnedEntityModel : EntityModel
         float uMax = (rectangle.X + rectangle.Z - Inset) / Texture.PixelWidth;
         float vMax = (rectangle.Y + rectangle.W - Inset) / Texture.PixelHeight;
 
-        return
-        [
-            new Vector2(uMax, vMax),
-            new Vector2(uMin, vMax),
-            new Vector2(uMin, vMin),
-            new Vector2(uMax, vMin),
-        ];
+        // The corners of the rectangle walked round in the order the faces above are wound in. Turning the
+        // artwork a quarter is the same as handing every vertex the corner its neighbour would have had.
+        return quarterTurn
+            ?
+            [
+                new Vector2(uMax, vMin),
+                new Vector2(uMax, vMax),
+                new Vector2(uMin, vMax),
+                new Vector2(uMin, vMin),
+            ]
+            :
+            [
+                new Vector2(uMax, vMax),
+                new Vector2(uMin, vMax),
+                new Vector2(uMin, vMin),
+                new Vector2(uMax, vMin),
+            ];
     }
 }

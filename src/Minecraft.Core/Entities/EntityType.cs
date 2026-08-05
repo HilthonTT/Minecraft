@@ -9,5 +9,7 @@ public enum EntityType
     Player,
     Dummy,
     Sheep,
-    Zombie
+    Zombie,
+    Pig,
+    Cow
 }
