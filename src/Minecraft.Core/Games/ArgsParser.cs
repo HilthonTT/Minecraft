@@ -16,6 +16,8 @@ public sealed class ArgsParser
           seed=<number>                     Seeds a new world. Ignored if the world already exists.
           fresh=true|false                  Deletes the world first, so each launch generates new
                                             terrain. Defaults to false.
+          menu=true|false                   Open on the main menu. Turn it off to start playing
+                                            straight away with the settings above. Defaults to true.
           loglevel=packet|info|warn|error   Defaults to error.
         """;
 
@@ -30,7 +32,7 @@ public sealed class ArgsParser
 
     public const string DefaultWorldName = "world";
 
-    private static readonly string[] _knownKeys = ["mode", "ip", "port", "world", "seed", "fresh", "loglevel"];
+    private static readonly string[] _knownKeys = ["mode", "ip", "port", "world", "seed", "fresh", "menu", "loglevel"];
 
     /// <summary>
     /// Parses <c>key=value</c> start arguments. Every argument is optional; anything left out falls back to
@@ -72,7 +74,23 @@ public sealed class ArgsParser
             WorldName = GetWorldName(parsedArgs),
             Seed = GetSeed(parsedArgs),
             FreshWorld = GetFreshWorld(parsedArgs),
+            ShowMenu = GetShowMenu(parsedArgs),
         };
+    }
+
+    private static bool GetShowMenu(Dictionary<string, string> startArgs)
+    {
+        if (!startArgs.TryGetValue("menu", out string? value))
+        {
+            return true;
+        }
+
+        if (!bool.TryParse(value, out bool showMenu))
+        {
+            throw new ArgumentException("Invalid menu '" + value + "'. Expected true or false.");
+        }
+
+        return showMenu;
     }
 
     private static bool GetFreshWorld(Dictionary<string, string> startArgs)

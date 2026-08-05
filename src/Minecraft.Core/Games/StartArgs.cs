@@ -21,4 +21,11 @@ public struct StartArgs
     /// explicit <see cref="Seed"/> this gives a different random seed each time.
     /// </summary>
     public bool FreshWorld;
+
+    /// <summary>
+    /// Whether the game opens on the main menu. Turning it off starts a session straight away using the
+    /// run mode and address given here, which is what a scripted launch wants. Ignored by a dedicated
+    /// server, which never shows a menu.
+    /// </summary>
+    public bool ShowMenu;
 }

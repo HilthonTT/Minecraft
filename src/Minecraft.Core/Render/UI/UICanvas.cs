@@ -13,6 +13,12 @@ public class UICanvas
 
     public RenderSpace RenderSpace { get; protected set; }
 
+    /// <summary>
+    /// Whether the canvas takes part in updating and drawing. A switched off canvas keeps its meshes, and is
+    /// still cleaned, so turning it back on costs nothing and shows it exactly as it was left.
+    /// </summary>
+    public bool IsEnabled { get; set; } = true;
+
     public int PixelWidth { get; private set; }
 
     public int PixelHeight { get; private set; }

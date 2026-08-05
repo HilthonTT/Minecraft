@@ -104,6 +104,22 @@ public abstract class Player : Entity
         OnToggleCrouchingHandler?.Invoke(_isCrouching);
     }
 
+    /// <summary>
+    /// Puts the movement state back to standing still on the ground. Goes through the same calls the
+    /// controls do, so that whatever reacts to running or crouching - the field of view, for one - is told
+    /// about it rather than left showing the last world's state.
+    /// </summary>
+    protected void ResetMovementState()
+    {
+        TryStopRunning();
+        TryStopCrouching();
+
+        _isFlying = false;
+        _isInAir = true;
+        _verticalSpeed = 0;
+        _jumpStopWatch.Restart();
+    }
+
     protected void AttemptToJump()
     {
         if (_isInAir)

@@ -29,14 +29,19 @@ public sealed class LightDebugRenderer
 
     public void RenderLightArea()
     {
-        if (Game.Input.OnKeyPress(Keys.Down) && DesiredLightLevel > MinLightLevel)
+        // The arrow keys only pick the level while the player has the controls; a menu on top of the world
+        // has its own use for them.
+        if (_game.IsGameplayInputEnabled)
         {
-            DesiredLightLevel--;
-        }
+            if (Game.Input.OnKeyPress(Keys.Down) && DesiredLightLevel > MinLightLevel)
+            {
+                DesiredLightLevel--;
+            }
 
-        if (Game.Input.OnKeyPress(Keys.Up) && DesiredLightLevel < MaxLightLevel)
-        {
-            DesiredLightLevel++;
+            if (Game.Input.OnKeyPress(Keys.Up) && DesiredLightLevel < MaxLightLevel)
+            {
+                DesiredLightLevel++;
+            }
         }
 
         Vector2 chunkPos = World.GetChunkPosition(_game.ClientPlayer.Position.X, _game.ClientPlayer.Position.Z);

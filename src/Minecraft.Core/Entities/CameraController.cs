@@ -4,8 +4,8 @@ using OpenTK.Mathematics;
 namespace Minecraft.Core.Entities;
 
 /// <summary>
-/// Turns mouse movement into camera pitch and yaw. The cursor is held grabbed while the window has focus,
-/// so the mouse reports a raw delta and never runs into the edge of the screen.
+/// Turns mouse movement into camera pitch and yaw. The cursor is held grabbed while the game has the
+/// controls, so the mouse reports a raw delta and never runs into the edge of the screen.
 /// </summary>
 public sealed class CameraController
 {
@@ -14,13 +14,21 @@ public sealed class CameraController
     /// </summary>
     private const float MaxPitchRadians = MathF.PI / 2.0F - 0.1F;
 
-    private readonly GameWindow _window;
+    /// <summary>
+    /// How many frames of mouse movement are dropped after the cursor is grabbed again. Grabbing warps the
+    /// cursor, and the delta that leaves behind is not something the player did.
+    /// </summary>
+    private const int FramesIgnoredAfterGrab = 2;
+
+    private readonly Game _game;
+
+    private int _framesToIgnore;
 
     public Camera Camera { get; private set; }
 
-    public CameraController(GameWindow window, Camera camera)
+    public CameraController(Game game, Camera camera)
     {
-        _window = window;
+        _game = game;
         Camera = camera;
     }
 
@@ -29,14 +37,24 @@ public sealed class CameraController
         Camera = camera;
     }
 
+    /// <summary>Drops the mouse movement of the next few frames, for when the cursor was just grabbed.</summary>
+    public void DiscardPendingMouseLook() => _framesToIgnore = FramesIgnoredAfterGrab;
+
     public void Update()
     {
         Camera.Update();
 
         // The cursor stays grabbed while the chat is open, but the view is left alone, so that writing a
-        // message does not also turn the player around.
-        if (!_window.IsFocused || _window.IsChatOpen)
+        // message does not also turn the player around. A menu is the same: it has the controls, not the
+        // player.
+        if (!_game.Window.IsFocused || !_game.IsGameplayInputEnabled)
         {
+            return;
+        }
+
+        if (_framesToIgnore > 0)
+        {
+            _framesToIgnore--;
             return;
         }
 
@@ -45,7 +63,7 @@ public sealed class CameraController
 
     private void UpdateCameraPitchAndYaw()
     {
-        Vector2 delta = -_window.MouseState.Delta * Constants.PLAYER_MOUSE_SENSIVITY;
+        Vector2 delta = -_game.Window.MouseState.Delta * Constants.PLAYER_MOUSE_SENSIVITY;
 
         float newYaw = (Camera.Yaw + delta.X) % (MathF.PI * 2.0F);
         float newPitch = Math.Clamp(Camera.Pitch + delta.Y, -MaxPitchRadians, MaxPitchRadians);

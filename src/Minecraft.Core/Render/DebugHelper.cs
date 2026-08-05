@@ -60,8 +60,38 @@ public sealed class DebugHelper
         Render();
     }
 
+    /// <summary>
+    /// Closes down the tools that read from the world, since the world they were pointed at is being left.
+    /// </summary>
+    public void OnWorldUnloaded()
+    {
+        if (_debugCanvas is not null)
+        {
+            _game.MasterRenderer.RemoveCanvas(_debugCanvas);
+            _debugCanvas = null;
+        }
+
+        if (!_renderFromPlayerCamera)
+        {
+            _game.MasterRenderer.SetActiveCamera(_game.ClientPlayer.Camera);
+        }
+
+        _renderFromPlayerCamera = true;
+        _displayDebugInfo = false;
+        _renderHitboxes = false;
+        _renderChunkBorders = false;
+        RenderBlockLightAreas = false;
+    }
+
     private void HandleInput()
     {
+        // The function keys edit and look into the world, so they belong to the player rather than to
+        // whatever menu is covering it.
+        if (!_game.IsGameplayInputEnabled)
+        {
+            return;
+        }
+
         if (Game.Input.OnKeyPress(Keys.F1))
         {
             _renderHitboxes = !_renderHitboxes;

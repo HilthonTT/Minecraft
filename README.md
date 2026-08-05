@@ -24,9 +24,19 @@ dotnet build
 dotnet run --project src/Minecraft.App
 ```
 
-That starts a singleplayer game. In Visual Studio, pick a profile from the launch dropdown — `Singleplayer`,
+That opens the main menu, where `Singleplayer` starts a world straight away and `Multiplayer` either joins
+somebody else's or hosts one of your own. `Escape` during a game opens the pause menu, which is where you
+save and leave a world or quit. In Visual Studio, pick a profile from the launch dropdown — `Singleplayer`,
 `Dedicated server` and `Client (connect to localhost)` are defined in
-`src/Minecraft.App/Properties/launchSettings.json`.
+`src/Minecraft.App/Properties/launchSettings.json` and go straight into a game without the menu.
+
+### Playing together
+
+A hosted world listens on every network interface, so the singleplayer world and the one friends join are
+the same thing. Start a game, and the chat says which address to give them; they pick `Multiplayer`, type it
+in and connect. `Host Game` on the multiplayer screen does exactly what `Singleplayer` does, and is there so
+that hosting is findable from the screen where it is wanted. For a world with nobody playing on the machine
+that runs it, use a dedicated server instead.
 
 ### Start arguments
 
@@ -39,6 +49,7 @@ Every argument is optional; anything left out uses its default.
 | `port`     | `1`–`65535`                         | `25565`        |                                     |
 | `world`    | Save directory name                 | `world`        | Which world to load or create       |
 | `seed`     | Any whole number                    | random         | Only used when creating a new world |
+| `menu`     | `true`, `false`                     | `true`         | `false` skips the main menu         |
 | `loglevel` | `packet`, `info`, `warn`, `error`   | `error`        | `packet` traces network traffic     |
 
 ```sh
@@ -93,8 +104,8 @@ first light, unless somebody is stood close enough to watch it happen.
 
 Worlds live in `saves/<name>/` next to the executable and are written by whichever side runs the server, so
 singleplayer and a dedicated server save identically. A world is saved when a chunk unloads, every 60
-seconds, and on a clean exit. Quit with `Escape` or by closing the window rather than killing the process,
-or anything since the last autosave is lost.
+seconds, and on a clean exit. Leave through the pause menu or by closing the window rather than killing the
+process, or anything since the last autosave is lost.
 
 ```
 saves/world/
@@ -138,7 +149,7 @@ instead of taking the world down with it.
 | Right click          | Place block, or interact (TNT)                    |
 | Middle click         | Pick the block being looked at                    |
 | `Enter`              | Open and send chat                                |
-| `Escape`             | Quit                                              |
+| `Escape`             | Open the pause menu, or close the chat            |
 
 Function keys drive the debug tools: `F1` hitboxes, `F2` debug readout, `F3` collect garbage, `F4` clear
 blocks around the player, `F5` chunk borders, `F6` detached overhead camera, `F7` light level overlay
@@ -156,12 +167,12 @@ Inside `Minecraft.Core`:
 | Directory              | Contents                                                                |
 | ---------------------- | ----------------------------------------------------------------------- |
 | `Entities/`            | Camera, the player on both sides of a connection, and the mobs           |
-| `Games/`               | Game loop, window, start argument parsing                                |
+| `Games/`               | Game loop, window, game state, menu flow, start argument parsing         |
 | `IO/`                  | Buffered binary reader and writer for network packets                    |
 | `Logging/`             | Levelled console logger                                                  |
 | `Network/`             | Client, server, sessions, packets and their handlers                     |
 | `Physics/`             | Axis aligned boxes and ray tracing                                       |
-| `Render/`              | Master renderer, chunk meshing, debug overlays, UI                       |
+| `Render/`              | Master renderer, chunk meshing, debug overlays, UI and the menu screens  |
 | `Resources/`           | Textures, fonts and models, copied to the output directory on build      |
 | `Shaders/`             | GLSL programs and their typed wrappers                                   |
 | `Shapes/`              | Block and entity model geometry, and the registries that hold it         |

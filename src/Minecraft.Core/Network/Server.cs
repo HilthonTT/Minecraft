@@ -43,6 +43,9 @@ public sealed class Server
     /// <summary>Whether the server accepts connections from anyone other than the host.</summary>
     public bool IsOpenToPublic { get; }
 
+    /// <summary>The port the server is listening on.</summary>
+    public int Port => _port;
+
     public Server(Game game, bool isOpenToPublic)
     {
         _game = game;
@@ -51,9 +54,28 @@ public sealed class Server
 
     public bool IsHost(Session.Session session) => session == _host;
 
-    public void Start(string address, int port)
+    /// <summary>
+    /// Opens the world and starts listening. Reports whether that worked, since the port being taken is
+    /// something the player has to be told about rather than a crash.
+    /// </summary>
+    public bool Start(string address, int port)
     {
         _port = port;
+
+        // Bound before the world is loaded, and on this thread rather than the listener's, so that a client
+        // connecting the moment this returns - which is what starting a singleplayer world does - cannot
+        // arrive before there is a socket to arrive at.
+        try
+        {
+            _tcpServer = new TcpListener(IPAddress.Any, _port);
+            _tcpServer.Start();
+        }
+        catch (SocketException e)
+        {
+            Logger.Error("Failed to listen on port " + _port + " -> " + e.Message);
+            _tcpServer = null;
+            return false;
+        }
 
         _storage = new WorldStorage(Assets.Path(SavesDirectoryName), _game.WorldName);
 
@@ -65,18 +87,22 @@ public sealed class Server
 
         World = new WorldServer(_game, _storage, _game.WorldSeed);
 
-        _connectionsThread = new Thread(StartServerAndListenForConnections)
+        _isRunning = true;
+        _connectionsThread = new Thread(ListenForConnections)
         {
             IsBackground = true,
             Name = "Server connection listener",
         };
         _connectionsThread.Start();
+
+        return true;
     }
 
     public void Stop()
     {
         _isRunning = false;
         _tcpServer?.Stop();
+        _tcpServer = null;
 
         // Saved before the storage is torn down, so the last minute of play is not lost.
         World?.SaveAndFlush();
@@ -84,19 +110,19 @@ public sealed class Server
         _storage = null;
     }
 
-    private void StartServerAndListenForConnections()
+    private void ListenForConnections()
     {
-        _tcpServer = new TcpListener(IPAddress.Any, _port);
-        _tcpServer.Start();
         Logger.Info("Started listening for connections on port " + _port);
 
-        _isRunning = true;
+        // Held onto here, since the field is let go of once the server is stopped.
+        TcpListener tcpServer = _tcpServer!;
+
         while (_isRunning)
         {
             TcpClient client;
             try
             {
-                client = _tcpServer.AcceptTcpClient();
+                client = tcpServer.AcceptTcpClient();
             }
             catch (SocketException)
             {
@@ -114,7 +140,7 @@ public sealed class Server
 
         Logger.Warn("Server is closing down. Closing connections to all clients.");
         ConnectedClients.ForEach(client => client.Close());
-        _tcpServer.Stop();
+        tcpServer.Stop();
         Logger.Info("Server closed.");
     }
 

@@ -39,6 +39,12 @@ public sealed class UICanvasIngame : UICanvas
 
     public void AddSystemMessage(string message) => _chat.AddSystemMessage(message);
 
+    /// <summary>
+    /// Clears what was said in the world that is being left, so the next one does not open on somebody
+    /// else's conversation.
+    /// </summary>
+    public void OnWorldUnloaded() => _chat.Clear();
+
     public override void Update() => _chat.Update();
 
     protected override void OnDimensionsChanged()

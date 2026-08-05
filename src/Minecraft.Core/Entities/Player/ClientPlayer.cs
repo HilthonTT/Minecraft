@@ -44,6 +44,33 @@ public sealed class ClientPlayer : Player
         OnToggleCrouchingHandler += OnCrouchingToggle;
     }
 
+    /// <summary>
+    /// Puts the player back to how it was before it ever joined a world. The instance itself is kept, since
+    /// the camera and everything the renderer holds are built around this one, so the next world starts from
+    /// a clean state rather than inheriting where the last one was left.
+    /// </summary>
+    public void ResetForNewSession()
+    {
+        // The identity the server hands out on joining. Until then this is not an entity any world knows.
+        ID = -1;
+        Name = string.Empty;
+        World = null;
+
+        Position = new Vector3(-1, -1, -1);
+        Velocity = Vector3.Zero;
+        Acceleration = Vector3.Zero;
+        ServerPosition = Position;
+        Yaw = 0;
+        ServerYaw = 0;
+
+        MouseOverObject = null;
+        _elapsedSecondsSinceLastPositionUpdate = 0;
+
+        ResetMovementState();
+        ForgetCurrentChunk();
+        UpdateAxisAlignedBox();
+    }
+
     private void OnRunningToggle(bool isRunning)
     {
         if (isRunning)
@@ -81,7 +108,7 @@ public sealed class ClientPlayer : Player
     {
         Acceleration = Vector3.Zero;
 
-        if (!_game.IsChatOpen)
+        if (_game.IsGameplayInputEnabled)
         {
             UpdateKeyboardMovementInput();
         }
@@ -107,8 +134,8 @@ public sealed class ClientPlayer : Player
 
     private void UpdateMouseInput(World world)
     {
-        // A click while the chat is open belongs to the chat, not to the block being looked at.
-        if (MouseOverObject is null || !_game.Window.IsFocused || _game.IsChatOpen)
+        // A click while the chat or a menu is open belongs to it, not to the block being looked at.
+        if (MouseOverObject is null || !_game.Window.IsFocused || !_game.IsGameplayInputEnabled)
         {
             return;
         }

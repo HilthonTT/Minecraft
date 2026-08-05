@@ -149,9 +149,20 @@ public sealed class UIChat
     /// <summary>Adds a message from the game itself, told apart from what players say by its colour.</summary>
     public void AddSystemMessage(string message) => AddLine(message, _systemColor);
 
+    /// <summary>Forgets every message, leaving the input line and the recall history as they were.</summary>
+    public void Clear()
+    {
+        _messages.Clear();
+        _lines.Clear();
+        _scrollOffset = 0;
+    }
+
     public void Update()
     {
-        if (_game.Window.IsFocused)
+        // A menu on top of the world has the keyboard, so nothing typed into it reaches the chat. The test
+        // is on the state rather than on the controls being free, since an open chat is itself what takes
+        // them, and it still has to be able to see the keys that close it again.
+        if (_game.Window.IsFocused && _game.IsPlaying)
         {
             UpdateInput();
         }
@@ -613,40 +624,4 @@ public sealed class UIChat
     }
 
     private readonly record struct ChatLine(string Text, Vector3 Color, DateTime ReceivedAt);
-
-    /// <summary>
-    /// A key that fires once when it goes down and then keeps firing while it is held, the way a text field
-    /// is expected to behave when backspace is held down.
-    /// </summary>
-    private sealed class HeldKey
-    {
-        private const float SecondsBeforeRepeating = 0.4F;
-        private const float SecondsBetweenRepeats = 0.04F;
-
-        private readonly Keys _key;
-
-        private DateTime _nextRepeatAt;
-
-        public HeldKey(Keys key)
-        {
-            _key = key;
-        }
-
-        public bool HasFired()
-        {
-            if (Game.Input.OnKeyPress(_key))
-            {
-                _nextRepeatAt = DateTime.Now.AddSeconds(SecondsBeforeRepeating);
-                return true;
-            }
-
-            if (!Game.Input.OnKeyDown(_key) || DateTime.Now < _nextRepeatAt)
-            {
-                return false;
-            }
-
-            _nextRepeatAt = DateTime.Now.AddSeconds(SecondsBetweenRepeats);
-            return true;
-        }
-    }
 }

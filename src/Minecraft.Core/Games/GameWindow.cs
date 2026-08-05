@@ -4,16 +4,12 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Games;
 
 public sealed class GameWindow : OpenTK.Windowing.Desktop.GameWindow
 {
     private readonly Game _game;
-
-    /// <summary>Whether the chat input line is open, which is when typing takes priority over the controls.</summary>
-    public bool IsChatOpen => _game.IsChatOpen;
 
     public GameWindow(StartArgs startArgs)
         : base(
@@ -56,13 +52,6 @@ public sealed class GameWindow : OpenTK.Windowing.Desktop.GameWindow
     protected override void OnUpdateFrame(FrameEventArgs e)
     {
         base.OnUpdateFrame(e);
-
-        // Escape leaves the game, unless the chat is open, where it is what closes the input line again.
-        if (KeyboardState.IsKeyPressed(Keys.Escape) && !IsChatOpen)
-        {
-            Close();
-            return;
-        }
 
         _game.OnUpdateGame(e.Time);
     }

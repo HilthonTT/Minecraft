@@ -58,6 +58,18 @@ public sealed class UIRenderer
         spaceCanvasses.Remove(canvas);
     }
 
+    /// <summary>
+    /// Drops every canvas drawn in the given space. Used when a world is left, since the canvases that live
+    /// in it belong to entities that are gone with it.
+    /// </summary>
+    public void RemoveCanvassesIn(RenderSpace renderSpace)
+    {
+        if (_canvasses.TryGetValue(renderSpace, out List<UICanvas>? spaceCanvasses))
+        {
+            spaceCanvasses.Clear();
+        }
+    }
+
     public void Render()
     {
         foreach (KeyValuePair<RenderSpace, List<UICanvas>> spaceCanvasses in _canvasses)
@@ -66,7 +78,14 @@ public sealed class UIRenderer
             for (int i = spaceCanvasses.Value.Count - 1; i >= 0; i--)
             {
                 UICanvas canvas = spaceCanvasses.Value[i];
-                canvas.Update();
+
+                // A switched off canvas is still cleaned, so that a resize it sat through does not leave it
+                // with meshes built for the wrong canvas size once it comes back.
+                if (canvas.IsEnabled)
+                {
+                    canvas.Update();
+                }
+
                 canvas.Clean();
             }
         }
@@ -88,7 +107,10 @@ public sealed class UIRenderer
 
             foreach (UICanvas canvas in spaceCanvasses.Value)
             {
-                canvas.Render(_uiShader);
+                if (canvas.IsEnabled)
+                {
+                    canvas.Render(_uiShader);
+                }
             }
         }
 

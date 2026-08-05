@@ -115,6 +115,16 @@ public abstract class Entity
 
     public void RaiseOnDespawned() => OnDespawnedHandler?.Invoke();
 
+    /// <summary>
+    /// Forgets which chunk the entity was last in, so the next tick looks it up again. Needed by an entity
+    /// that outlives the world it was in, since the chunk it remembers has been recycled by then.
+    /// </summary>
+    protected void ForgetCurrentChunk()
+    {
+        Chunk = null;
+        _previousChunkPos = new Vector2(float.MaxValue, float.MaxValue);
+    }
+
     protected abstract void SetInitialDimensions();
 
     protected void UpdateAxisAlignedBox()

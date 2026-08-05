@@ -31,6 +31,7 @@ public sealed class Client
 
     private ClientSession? _session;
     private float _elapsedSecondsSinceKeepAlive;
+    private volatile bool _isRunning = true;
 
     public Client(Game game)
     {
@@ -84,12 +85,20 @@ public sealed class Client
 
     private void HandlePacketCommunication()
     {
-        while (_session is null || _session.State == SessionState.Started)
+        // A client that is stopped before it ever connected has no session to wait on, so the flag is what
+        // lets this thread go rather than leaving it waiting for one that will never arrive.
+        while (_isRunning && (_session is null || _session.State == SessionState.Started))
         {
             Thread.Sleep(5);
         }
 
-        while (_session.State != SessionState.Closed)
+        if (!_isRunning || _session is null)
+        {
+            Logger.Info("Client packet communication thread terminated before connecting.");
+            return;
+        }
+
+        while (_isRunning && _session.State != SessionState.Closed)
         {
             Thread.Sleep(5);
 
@@ -173,6 +182,8 @@ public sealed class Client
 
     public void Stop()
     {
+        _isRunning = false;
+
         if (_session is not null)
         {
             _session.State = SessionState.Closed;

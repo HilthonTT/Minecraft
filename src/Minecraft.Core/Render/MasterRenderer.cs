@@ -65,6 +65,12 @@ public sealed class MasterRenderer
     private ChunkRemeshLayout _availableChunkMesh;
     private bool _chunkAvailableToRemesh;
 
+    /// <summary>
+    /// Counts the worlds that have been loaded. A mesh is built against the chunks of one of them, so one
+    /// that comes back after its world was left is dropped rather than drawn over the next world.
+    /// </summary>
+    private int _worldGeneration;
+
     private readonly Lock _meshLock = new();
     private readonly Thread _meshGenerationThread;
     private volatile bool _isRunning = true;
@@ -78,7 +84,7 @@ public sealed class MasterRenderer
         _game = game;
         _basicShader = new BasicShader();
         _entityShader = new EntityShader();
-        _cameraController = new CameraController(game.Window, game.ClientPlayer.Camera);
+        _cameraController = new CameraController(game, game.ClientPlayer.Camera);
 
         SetActiveCamera(game.ClientPlayer.Camera);
 
@@ -155,6 +161,65 @@ public sealed class MasterRenderer
         _screenQuad.Unbind();
         _screenQuad.RenderToScreen();
     }
+
+    /// <summary>
+    /// Draws the interface on its own, over a cleared screen. This is what the main menu looks like, where
+    /// there is no world loaded to draw behind it.
+    /// </summary>
+    public void RenderInterfaceOnly()
+    {
+        _screenQuad.Bind();
+        GL.ClearColor(ColorClearR, ColorClearG, ColorClearB, 1.0F);
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        GL.Enable(EnableCap.Blend);
+        GL.Disable(EnableCap.CullFace);
+        GL.Disable(EnableCap.DepthTest);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        _uiRenderer.Render();
+        GL.Disable(EnableCap.Blend);
+        GL.Enable(EnableCap.CullFace);
+
+        _screenQuad.Unbind();
+        _screenQuad.RenderToScreen();
+    }
+
+    /// <summary>
+    /// Drops everything that belonged to the world that was just left, so that the next one starts from an
+    /// empty renderer rather than showing what is left of the last.
+    /// </summary>
+    public void UnloadWorld()
+    {
+        lock (_meshLock)
+        {
+            _toRemeshChunksQueue.Clear();
+            _toRemeshChunksSet.Clear();
+            _chunkAvailableToRemesh = false;
+
+            // Anything the meshing thread is part way through belongs to the world being left, and is
+            // thrown away rather than uploaded once it comes back.
+            _worldGeneration++;
+        }
+
+        foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
+        {
+            chunkToRender.Value.CleanUp();
+        }
+
+        _toRenderChunks.Clear();
+
+        // World space canvases are the name tags above other players, who are gone with the world.
+        _uiRenderer.RemoveCanvassesIn(RenderSpace.World);
+
+        IngameCanvas.OnWorldUnloaded();
+        DebugHelper.OnWorldUnloaded();
+    }
+
+    /// <summary>
+    /// Throws away the mouse movement built up since the cursor was last grabbed. Called when the controls
+    /// are handed back to the player, so that closing a menu does not also spin the camera.
+    /// </summary>
+    public void DiscardPendingMouseLook() => _cameraController.DiscardPendingMouseLook();
 
     private void RenderChunks(World world)
     {
@@ -255,10 +320,14 @@ public sealed class MasterRenderer
             Thread.Sleep(5);
 
             Chunk chunk;
+            int generation;
+            World world;
             lock (_meshLock)
             {
                 // Hold off while a finished mesh is still waiting, since there is only one slot for it.
-                if (_toRemeshChunksQueue.First is null || _chunkAvailableToRemesh)
+                // The world is read under the lock as well, since it is taken away on the frame one is left
+                // and meshing against nothing would take this thread down with it.
+                if (_toRemeshChunksQueue.First is null || _chunkAvailableToRemesh || _game.World is null)
                 {
                     continue;
                 }
@@ -266,12 +335,21 @@ public sealed class MasterRenderer
                 chunk = _toRemeshChunksQueue.First.Value;
                 _toRemeshChunksQueue.RemoveFirst();
                 _toRemeshChunksSet.Remove(chunk);
+                generation = _worldGeneration;
+                world = _game.World;
             }
 
-            ChunkBufferLayout layout = _blocksMeshGenerator.GenerateMeshFor(_game.World, chunk);
+            ChunkBufferLayout layout = _blocksMeshGenerator.GenerateMeshFor(world, chunk);
 
             lock (_meshLock)
             {
+                // The world this chunk belongs to may have been left while its mesh was being built, which
+                // leaves nothing for it to be drawn as part of.
+                if (generation != _worldGeneration)
+                {
+                    continue;
+                }
+
                 _availableChunkMesh = new ChunkRemeshLayout
                 {
                     ChunkGridPosition = new Vector2(chunk.GridX, chunk.GridZ),

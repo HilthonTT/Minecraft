@@ -2,7 +2,6 @@ using Minecraft.Core.Entities;
 using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Worlds;
-using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Network.Session;
 

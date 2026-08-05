@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Entities.Player;
+using Minecraft.Core.Entities.Player;
+using Minecraft.Core.Logging;
 using Minecraft.Core.Network;
 using Minecraft.Core.Render;
 using Minecraft.Core.Render.UI;
@@ -7,12 +8,14 @@ using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Games;
 
 /// <summary>
 /// Owns everything the game is made of and drives it from the window's callbacks. Which of the pieces exist
-/// depends on the run mode: a dedicated server has no renderer or local player, a pure client has no server.
+/// depends on the run mode and on <see cref="State"/>: a dedicated server has no renderer or local player, a
+/// pure client has no server, and while the main menu is up there is no world at all.
 /// </summary>
 public sealed class Game
 {
@@ -27,9 +30,20 @@ public sealed class Game
     public Client Client { get; private set; } = null!;
     public WorldClient World { get; private set; } = null!;
     public Server Server { get; private set; } = null!;
+    public MenuController Menu { get; private set; } = null!;
 
-    public bool IsServer { get; }
-    public RunMode RunMode { get; }
+    /// <summary>Whether this process is running a world of its own, rather than only joining somebody else's.</summary>
+    public bool IsServer => RunMode is RunMode.ClientServer or RunMode.Server;
+
+    /// <summary>
+    /// How the current session is set up. Started from the run mode the game was launched with, and set
+    /// again whenever a session is started from the menu, since that is what decides between hosting and
+    /// joining.
+    /// </summary>
+    public RunMode RunMode { get; private set; }
+
+    public GameState State { get; private set; } = GameState.MainMenu;
+
     public float CurrentFPS { get; private set; }
 
     /// <summary>
@@ -37,6 +51,12 @@ public sealed class Game
     /// which is why more than the chat itself has to be able to ask.
     /// </summary>
     public bool IsChatOpen => MasterRenderer?.IngameCanvas.IsTyping ?? false;
+
+    /// <summary>Whether a world is loaded and nothing is covering it, which is when the chat may be opened.</summary>
+    public bool IsPlaying => State == GameState.Playing;
+
+    /// <summary>Whether the keyboard and mouse belong to the player rather than to a menu or the chat.</summary>
+    public bool IsGameplayInputEnabled => State == GameState.Playing && !IsChatOpen;
 
     /// <summary>The world the server half of this process loads and saves.</summary>
     public string WorldName { get; }
@@ -51,7 +71,6 @@ public sealed class Game
     {
         _startArgs = startArgs;
         RunMode = startArgs.RunMode;
-        IsServer = RunMode is RunMode.ClientServer or RunMode.Server;
         WorldName = startArgs.WorldName;
         WorldSeed = startArgs.Seed;
         FreshWorld = startArgs.FreshWorld;
@@ -68,45 +87,94 @@ public sealed class Game
 
         AverageFPSCounter = new FPSCounter();
 
-        if (RunMode != RunMode.Server)
+        // A dedicated server has nobody at the keyboard to pick anything from a menu, so it goes straight
+        // into hosting the world it was pointed at.
+        if (RunMode == RunMode.Server)
         {
-            // The cursor is grabbed so mouse look gets a raw delta and never leaves the window.
-            window.CursorState = CursorState.Grabbed;
+            if (!StartSession(_startArgs.IP, _startArgs.Port))
+            {
+                Logger.Error("Failed to start the server. Closing.");
+                window.Close();
+            }
 
-            FontRegistry.Initialize();
-
-            ClientPlayer = new ClientPlayer(this);
-            MasterRenderer = new MasterRenderer(this);
+            return;
         }
 
-        if (IsServer)
+        FontRegistry.Initialize();
+
+        ClientPlayer = new ClientPlayer(this);
+        MasterRenderer = new MasterRenderer(this);
+        Menu = new MenuController(this, _startArgs.IP + ":" + _startArgs.Port, _startArgs.Port);
+
+        // Launching straight into a game is what the launch profiles and any scripted run expect, so the
+        // menu can be skipped from the start arguments.
+        if (!_startArgs.ShowMenu && StartSession(_startArgs.IP, _startArgs.Port))
         {
-            Server = new Server(this, true);
-            Server.Start(_startArgs.IP, _startArgs.Port);
+            return;
         }
 
-        if (RunMode != RunMode.Server)
-        {
-            World = new WorldClient(this);
-            ClientPlayer.World = World;
+        EnterState(GameState.MainMenu);
+        Menu.ShowMainMenu();
+    }
 
-            Client = new Client(this);
-            Client.ConnectWith(_startArgs.IP, _startArgs.Port);
+    /// <summary>
+    /// Hosts a world in this process and joins it. The server it starts listens on every interface, so the
+    /// same world is both the singleplayer game and one other players can join. Reports whether that worked.
+    /// </summary>
+    public bool StartHostedGame()
+    {
+        RunMode = RunMode.ClientServer;
+        return StartSession(_startArgs.IP, _startArgs.Port);
+    }
+
+    /// <summary>Joins a world somebody else is hosting. Reports whether the server could be reached.</summary>
+    public bool StartMultiplayer(string host, int port)
+    {
+        RunMode = RunMode.Client;
+        return StartSession(host, port);
+    }
+
+    /// <summary>Opens the pause menu, which is what Escape does while a world is loaded.</summary>
+    public void Pause()
+    {
+        if (State != GameState.Playing)
+        {
+            return;
         }
+
+        EnterState(GameState.Paused);
+        Menu.ShowPauseMenu();
+    }
+
+    /// <summary>Closes the pause menu and hands the controls back to the player.</summary>
+    public void Resume()
+    {
+        if (State != GameState.Paused)
+        {
+            return;
+        }
+
+        Menu.Hide();
+        EnterState(GameState.Playing);
+    }
+
+    /// <summary>Leaves the world, saving it on the way out, and returns to the main menu.</summary>
+    public void QuitToTitle()
+    {
+        EndSession();
+        EnterState(GameState.MainMenu);
+        Menu.ShowMainMenu();
     }
 
     public void OnCloseGame()
     {
+        EndSession();
+
         if (RunMode != RunMode.Server)
         {
             MasterRenderer.CleanUp();
             Input.Dispose();
         }
-
-        // The client goes first: stopping the server closes the sockets underneath it, and a read already
-        // in flight would then fail on a disposed stream.
-        Client?.Stop();
-        Server?.Stop();
     }
 
     public void OnUpdateGame(double deltaTimeSeconds)
@@ -124,6 +192,32 @@ public sealed class Game
         // simulated over.
         elapsedSeconds = MathF.Min(elapsedSeconds, Constants.MAX_FRAME_TIME_SECONDS);
 
+        if (RunMode != RunMode.Server)
+        {
+            HandleEscape();
+
+            if (State != GameState.Playing)
+            {
+                Menu.Update();
+            }
+        }
+
+        // The world keeps running while the pause menu is up. Stopping it would also stop the connection it
+        // is fed by, and a server hearing nothing from a client eventually drops it.
+        if (State != GameState.MainMenu)
+        {
+            UpdateSession(elapsedSeconds);
+        }
+
+        if (RunMode != RunMode.Server)
+        {
+            // Updated last so that a press is visible for the whole frame that observed it.
+            Input.Update();
+        }
+    }
+
+    private void UpdateSession(float elapsedSeconds)
+    {
         if (IsServer)
         {
             Server.World.Update(elapsedSeconds);
@@ -138,20 +232,24 @@ public sealed class Game
         Client.Update(elapsedSeconds);
         World.Update(elapsedSeconds);
         MasterRenderer.EndFrameUpdate(World);
-
-        // Updated last so that a press is visible for the whole frame that observed it.
-        Input.Update();
     }
 
     public void OnRenderGame()
     {
-        if (RunMode != RunMode.Server)
+        if (RunMode == RunMode.Server)
         {
-            MasterRenderer.Render(World);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             return;
         }
 
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        // With no world loaded there is nothing to draw behind the menu, so only the interface is.
+        if (State == GameState.MainMenu)
+        {
+            MasterRenderer.RenderInterfaceOnly();
+            return;
+        }
+
+        MasterRenderer.Render(World);
     }
 
     public void OnWindowResize(int newWidth, int newHeight)
@@ -159,6 +257,109 @@ public sealed class Game
         if (RunMode != RunMode.Server && ClientPlayer is not null)
         {
             ClientPlayer.Camera.SetWindowSize(newWidth, newHeight);
+        }
+    }
+
+    /// <summary>
+    /// Escape opens the pause menu while playing and closes it again while paused. An open chat swallows it
+    /// first, since there it is what closes the input line.
+    /// </summary>
+    private void HandleEscape()
+    {
+        if (!Input.OnKeyPress(Keys.Escape) || IsChatOpen)
+        {
+            return;
+        }
+
+        switch (State)
+        {
+            case GameState.Playing:
+                Pause();
+                break;
+
+            case GameState.Paused:
+                Resume();
+                break;
+
+            default:
+                Menu.OnEscape();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Brings up a world: the server half if this process hosts one, then the client half that joins it.
+    /// Anything that was built is torn down again if the connection cannot be made, so a failed attempt
+    /// leaves the game exactly as it was.
+    /// </summary>
+    private bool StartSession(string ip, int port)
+    {
+        if (IsServer)
+        {
+            Server = new Server(this, true);
+            if (!Server.Start(ip, port))
+            {
+                EndSession();
+                return false;
+            }
+        }
+
+        if (RunMode != RunMode.Server)
+        {
+            World = new WorldClient(this);
+            ClientPlayer.World = World;
+
+            Client = new Client(this);
+            if (!Client.ConnectWith(ip, port))
+            {
+                EndSession();
+                return false;
+            }
+        }
+
+        EnterState(GameState.Playing);
+        return true;
+    }
+
+    /// <summary>Tears the current world down, if there is one, and leaves the game ready to start another.</summary>
+    private void EndSession()
+    {
+        // The client goes first: stopping the server closes the sockets underneath it, and a read already
+        // in flight would then fail on a disposed stream.
+        Client?.Stop();
+        Server?.Stop();
+        Client = null!;
+        Server = null!;
+
+        World = null!;
+
+        if (RunMode != RunMode.Server)
+        {
+            MasterRenderer?.UnloadWorld();
+            ClientPlayer?.ResetForNewSession();
+        }
+    }
+
+    private void EnterState(GameState state)
+    {
+        State = state;
+
+        if (RunMode == RunMode.Server)
+        {
+            return;
+        }
+
+        // The cursor is grabbed while playing so mouse look gets a raw delta and never leaves the window,
+        // and released again for anything that has to be clicked on.
+        Window.CursorState = state == GameState.Playing ? CursorState.Grabbed : CursorState.Normal;
+
+        MasterRenderer.IngameCanvas.IsEnabled = state != GameState.MainMenu;
+
+        if (state == GameState.Playing)
+        {
+            // Grabbing the cursor recentres it, and the jump that leaves in the mouse delta would otherwise
+            // spin the camera on the first frame back.
+            MasterRenderer.DiscardPendingMouseLook();
         }
     }
 }
