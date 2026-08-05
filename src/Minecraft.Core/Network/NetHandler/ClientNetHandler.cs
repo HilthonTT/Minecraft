@@ -132,10 +132,14 @@ public sealed class ClientNetHandler : INetHandler
 
         _game.World.SpawnEntity(_game.ClientPlayer);
 
-        // A world hosted here is open to other players, which is not something the game shows anywhere
-        // else, so the address they would use is said once on the way in.
+        // Neither the seed nor the fact that a hosted world is open to other players is shown anywhere else,
+        // and both are worth knowing, so they are said once on the way in. The seed comes from the world
+        // rather than from what was asked for, since an existing world keeps its own.
         if (_game.IsServer)
         {
+            _game.MasterRenderer.IngameCanvas.AddSystemMessage(
+                "World '" + _game.WorldName + "', seed " + _game.Server.World.Seed);
+
             _game.MasterRenderer.IngameCanvas.AddSystemMessage(
                 "Hosting this world. Others can join at " +
                 NetworkAddresses.LocalAddress + ":" + _game.Server.Port);

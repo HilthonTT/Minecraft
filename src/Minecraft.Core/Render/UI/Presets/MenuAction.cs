@@ -20,6 +20,9 @@ public enum MenuAction
     /// <summary>Start a world in this process for other players to join.</summary>
     Host,
 
+    /// <summary>Open the world the setup screen has been pointed at, creating it if it is new.</summary>
+    Play,
+
     /// <summary>Step back to the screen this one was opened from.</summary>
     Back,
 

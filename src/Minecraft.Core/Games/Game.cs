@@ -59,13 +59,13 @@ public sealed class Game
     public bool IsGameplayInputEnabled => State == GameState.Playing && !IsChatOpen;
 
     /// <summary>The world the server half of this process loads and saves.</summary>
-    public string WorldName { get; }
+    public string WorldName { get; private set; }
 
     /// <summary>Seed for a newly created world, or null to pick one at random.</summary>
-    public int? WorldSeed { get; }
+    public int? WorldSeed { get; private set; }
 
     /// <summary>Whether the world is discarded and regenerated when the server starts.</summary>
-    public bool FreshWorld { get; }
+    public bool FreshWorld { get; private set; }
 
     public Game(StartArgs startArgs)
     {
@@ -104,7 +104,11 @@ public sealed class Game
 
         ClientPlayer = new ClientPlayer(this);
         MasterRenderer = new MasterRenderer(this);
-        Menu = new MenuController(this, _startArgs.IP + ":" + _startArgs.Port, _startArgs.Port);
+        Menu = new MenuController(
+            this,
+            _startArgs.IP + ":" + _startArgs.Port,
+            _startArgs.Port,
+            _startArgs.WorldName);
 
         // Launching straight into a game is what the launch profiles and any scripted run expect, so the
         // menu can be skipped from the start arguments.
@@ -118,11 +122,20 @@ public sealed class Game
     }
 
     /// <summary>
-    /// Hosts a world in this process and joins it. The server it starts listens on every interface, so the
-    /// same world is both the singleplayer game and one other players can join. Reports whether that worked.
+    /// Hosts the named world in this process and joins it, creating it from the given seed if nothing is
+    /// saved under that name. The server it starts listens on every interface, so the same world is both the
+    /// singleplayer game and one other players can join. Reports whether that worked.
     /// </summary>
-    public bool StartHostedGame()
+    /// <param name="seed">Seeds a world being created. Null leaves it to be picked at random.</param>
+    public bool StartHostedGame(string worldName, int? seed)
     {
+        WorldName = worldName;
+        WorldSeed = seed;
+
+        // A world started from the menu is never discarded first. The menu offers a name nothing is saved
+        // under when a new world is what is wanted, so deleting one here could only ever lose a game.
+        FreshWorld = false;
+
         RunMode = RunMode.ClientServer;
         return StartSession(_startArgs.IP, _startArgs.Port);
     }

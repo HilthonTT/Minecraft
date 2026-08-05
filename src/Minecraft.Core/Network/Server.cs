@@ -19,8 +19,10 @@ namespace Minecraft.Core.Network;
 /// </summary>
 public sealed class Server
 {
-    /// <summary>Worlds live under this directory, next to the executable.</summary>
     private const string SavesDirectoryName = "saves";
+
+    /// <summary>Worlds live under this directory, next to the executable.</summary>
+    public static string SavesDirectory => Assets.Path(SavesDirectoryName);
 
     private readonly Game _game;
 
@@ -77,7 +79,7 @@ public sealed class Server
             return false;
         }
 
-        _storage = new WorldStorage(Assets.Path(SavesDirectoryName), _game.WorldName);
+        _storage = new WorldStorage(SavesDirectory, _game.WorldName);
 
         // Discarded before the world is read, so it is regenerated from a new seed rather than loaded.
         if (_game.FreshWorld)

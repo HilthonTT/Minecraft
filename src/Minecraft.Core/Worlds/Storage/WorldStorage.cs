@@ -56,11 +56,51 @@ public sealed class WorldStorage : IDisposable
         _writerThread.Start();
     }
 
+    /// <summary>The directory a world of the given name is stored in, whether or not it exists yet.</summary>
+    public static string GetWorldDirectory(string savesRoot, string worldName)
+    {
+        return Path.Combine(savesRoot, SanitiseWorldName(worldName));
+    }
+
+    /// <summary>
+    /// Whether a world of that name has been saved before. Asked by the menu, so it can say whether playing
+    /// would carry on somebody's game or start a new one, since a seed only ever decides the latter.
+    /// </summary>
+    public static bool WorldExists(string savesRoot, string worldName)
+    {
+        return File.Exists(Path.Combine(GetWorldDirectory(savesRoot, worldName), MetadataFileName));
+    }
+
+    /// <summary>
+    /// The preferred name if nothing is saved under it, or the first numbered variation that is free. Offers
+    /// a name that will really create a new world, rather than quietly reopening the last one and leaving a
+    /// chosen seed with nothing to decide.
+    /// </summary>
+    public static string SuggestUnusedWorldName(string savesRoot, string preferred)
+    {
+        if (!WorldExists(savesRoot, preferred))
+        {
+            return preferred;
+        }
+
+        // Bounded, since a machine with a thousand worlds on it is past the point where guessing helps.
+        for (int suffix = 2; suffix < 1000; suffix++)
+        {
+            string candidate = preferred + suffix;
+            if (!WorldExists(savesRoot, candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return preferred;
+    }
+
     /// <summary>
     /// Strips anything that cannot appear in a directory name, so a world name coming from a start argument
-    /// cannot escape the saves directory or produce an unopenable path.
+    /// or typed into the menu cannot escape the saves directory or produce an unopenable path.
     /// </summary>
-    private static string SanitiseWorldName(string worldName)
+    public static string SanitiseWorldName(string worldName)
     {
         string trimmed = worldName.Trim();
         if (trimmed.Length == 0)

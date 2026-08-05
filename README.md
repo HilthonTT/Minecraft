@@ -24,11 +24,23 @@ dotnet build
 dotnet run --project src/Minecraft.App
 ```
 
-That opens the main menu, where `Singleplayer` starts a world straight away and `Multiplayer` either joins
-somebody else's or hosts one of your own. `Escape` during a game opens the pause menu, which is where you
-save and leave a world or quit. In Visual Studio, pick a profile from the launch dropdown — `Singleplayer`,
-`Dedicated server` and `Client (connect to localhost)` are defined in
+That opens the main menu, where `Singleplayer` names a world and picks its seed and `Multiplayer` either
+joins somebody else's or hosts one of your own. `Escape` during a game opens the pause menu, which is where
+you save and leave a world or quit. In Visual Studio, pick a profile from the launch dropdown —
+`Singleplayer`, `Dedicated server` and `Client (connect to localhost)` are defined in
 `src/Minecraft.App/Properties/launchSettings.json` and go straight into a game without the menu.
+
+### Worlds and seeds
+
+`Singleplayer` opens on a world name and a seed. The name is offered as one nothing is saved under yet, so
+pressing play generates a world; type the name of a world you already have and it is carried on instead. The
+screen keeps saying which of the two it would do, and the button says the same, because a seed only ever
+decides a world that does not exist yet — an existing one keeps the seed it was made with.
+
+The seed box takes a number, or any words, which are hashed into one. Leave it empty for a random seed;
+`Random` fills one in so you can read it off first. Either way the seed is repeated in the chat on the way
+in, so a world worth revisiting can be written down. Nothing on this screen ever deletes a world: to
+regenerate one, either give it a new name or use `fresh=true` from the start arguments.
 
 ### Playing together
 
@@ -50,6 +62,7 @@ Every argument is optional; anything left out uses its default.
 | `world`    | Save directory name                 | `world`        | Which world to load or create       |
 | `seed`     | Any whole number                    | random         | Only used when creating a new world |
 | `menu`     | `true`, `false`                     | `true`         | `false` skips the main menu         |
+| `fresh`    | `true`, `false`                     | `false`        | Deletes `world` first, then regenerates |
 | `loglevel` | `packet`, `info`, `warn`, `error`   | `error`        | `packet` traces network traffic     |
 
 ```sh
@@ -57,7 +70,9 @@ dotnet run --project src/Minecraft.App -- mode=server ip=0.0.0.0 port=25565 logl
 dotnet run --project src/Minecraft.App -- world=canyons seed=12345
 ```
 
-`server` runs headless. `client` connects to a server started separately.
+`server` runs headless. `client` connects to a server started separately. `world`, `seed` and `fresh`
+describe the world a game started from the arguments opens; a game started from the menu takes its name and
+seed from the menu instead, and never deletes anything.
 
 ## World generation
 

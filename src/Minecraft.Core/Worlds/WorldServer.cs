@@ -33,6 +33,12 @@ public sealed class WorldServer : World
 
     private float _elapsedSecondsSinceAutoSave;
 
+    /// <summary>
+    /// The seed the terrain came out of. Read back rather than taken from what was asked for, since a world
+    /// that already existed keeps its own and one left to choose picked its own.
+    /// </summary>
+    public int Seed => _metadata.Seed;
+
     public WorldServer(Game game, WorldStorage storage, int? seed) : base(game)
     {
         OnBlockPlacedHandler += OnBlockPlacedServer;

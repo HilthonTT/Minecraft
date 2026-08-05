@@ -1,5 +1,7 @@
 using Minecraft.Core.Network;
 using Minecraft.Core.Render.UI.Presets;
+using Minecraft.Core.Worlds.Generation;
+using Minecraft.Core.Worlds.Storage;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
@@ -17,31 +19,43 @@ public sealed class MenuController
         None,
         Main,
         Multiplayer,
+        WorldSetup,
         Pause,
     }
 
     private readonly Game _game;
+    private readonly string _savesRoot;
+    private readonly string _defaultWorldName;
+
     private readonly UICanvasMainMenu _mainMenu;
     private readonly UICanvasMultiplayer _multiplayerMenu;
+    private readonly UICanvasWorldSetup _worldSetup;
     private readonly UICanvasPauseMenu _pauseMenu;
 
     private Screen _screen = Screen.None;
 
-    public MenuController(Game game, string defaultServerAddress, int hostPort)
+    /// <summary>Which screen the world setup was opened from, and so where backing out of it goes.</summary>
+    private Screen _worldSetupOpenedFrom = Screen.Main;
+
+    public MenuController(Game game, string defaultServerAddress, int hostPort, string defaultWorldName)
     {
         _game = game;
+        _savesRoot = Server.SavesDirectory;
+        _defaultWorldName = defaultWorldName;
 
         _mainMenu = new UICanvasMainMenu(game);
         _multiplayerMenu = new UICanvasMultiplayer(
             game,
             defaultServerAddress,
             NetworkAddresses.LocalAddress + ":" + hostPort);
+        _worldSetup = new UICanvasWorldSetup(game, _savesRoot);
         _pauseMenu = new UICanvasPauseMenu(game);
 
         // Registered once and left there. Which of them is drawn is decided by the canvas being enabled,
         // so switching screens does not rebuild anything.
         game.MasterRenderer.AddCanvas(_mainMenu);
         game.MasterRenderer.AddCanvas(_multiplayerMenu);
+        game.MasterRenderer.AddCanvas(_worldSetup);
         game.MasterRenderer.AddCanvas(_pauseMenu);
     }
 
@@ -54,9 +68,9 @@ public sealed class MenuController
     /// <summary>Escape steps back out of a screen that was opened from another one.</summary>
     public void OnEscape()
     {
-        if (_screen == Screen.Multiplayer)
+        if (_screen is Screen.Multiplayer or Screen.WorldSetup)
         {
-            SetScreen(Screen.Main);
+            GoBack();
         }
     }
 
@@ -81,7 +95,7 @@ public sealed class MenuController
         switch (action)
         {
             case MenuAction.Singleplayer:
-                Host(_mainMenu);
+                OpenWorldSetup(Screen.Main, "Singleplayer");
                 break;
 
             case MenuAction.Multiplayer:
@@ -89,7 +103,11 @@ public sealed class MenuController
                 break;
 
             case MenuAction.Host:
-                Host(_multiplayerMenu);
+                OpenWorldSetup(Screen.Multiplayer, "Host Game");
+                break;
+
+            case MenuAction.Play:
+                Play();
                 break;
 
             case MenuAction.Connect:
@@ -97,7 +115,7 @@ public sealed class MenuController
                 break;
 
             case MenuAction.Back:
-                SetScreen(Screen.Main);
+                GoBack();
                 break;
 
             case MenuAction.Resume:
@@ -115,19 +133,46 @@ public sealed class MenuController
     }
 
     /// <summary>
-    /// Starts a world hosted by this process. It is the same world whether it was asked for from the main
-    /// menu or from the multiplayer screen: a hosted world always accepts other players, so singleplayer
-    /// and hosting are the same thing seen from different sides.
+    /// Opens the screen that names the world and picks its seed. It is the same screen either way round: a
+    /// hosted world always accepts other players, so singleplayer and hosting are the same thing seen from
+    /// different sides, and only the heading says which side that was.
     /// </summary>
-    private void Host(UICanvasMenu askedFrom)
+    private void OpenWorldSetup(Screen openedFrom, string title)
     {
-        if (_game.StartHostedGame())
+        _worldSetupOpenedFrom = openedFrom;
+
+        _worldSetup.SetTitle(title);
+
+        // Offered a name nothing is saved under, so that arriving here and pressing play generates a world
+        // from the chosen seed instead of quietly reopening the last one, where a seed decides nothing.
+        _worldSetup.Prepare(WorldStorage.SuggestUnusedWorldName(_savesRoot, _defaultWorldName));
+
+        SetScreen(Screen.WorldSetup);
+    }
+
+    private void Play()
+    {
+        string worldName = _worldSetup.WorldName.Trim();
+        if (worldName.Length == 0)
+        {
+            _worldSetup.SetStatus("Give the world a name before playing it.", isError: true);
+            return;
+        }
+
+        if (_game.StartHostedGame(worldName, SeedParser.Parse(_worldSetup.SeedText)))
         {
             SetScreen(Screen.None);
             return;
         }
 
-        askedFrom.SetStatus("Could not open the world. Is another copy of the game already running?", isError: true);
+        _worldSetup.SetStatus(
+            "Could not open the world. Is another copy of the game already running?",
+            isError: true);
+    }
+
+    private void GoBack()
+    {
+        SetScreen(_screen == Screen.WorldSetup ? _worldSetupOpenedFrom : Screen.Main);
     }
 
     private void Connect()
@@ -188,6 +233,7 @@ public sealed class MenuController
 
         _mainMenu.IsEnabled = screen == Screen.Main;
         _multiplayerMenu.IsEnabled = screen == Screen.Multiplayer;
+        _worldSetup.IsEnabled = screen == Screen.WorldSetup;
         _pauseMenu.IsEnabled = screen == Screen.Pause;
 
         GetCanvas(screen)?.OnShown();
@@ -197,6 +243,7 @@ public sealed class MenuController
     {
         Screen.Main => _mainMenu,
         Screen.Multiplayer => _multiplayerMenu,
+        Screen.WorldSetup => _worldSetup,
         Screen.Pause => _pauseMenu,
         _ => null,
     };

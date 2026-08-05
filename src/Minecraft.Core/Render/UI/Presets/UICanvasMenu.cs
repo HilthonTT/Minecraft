@@ -78,6 +78,18 @@ public abstract class UICanvasMenu : UICanvas
 
     public void ClearStatus() => SetStatus(string.Empty);
 
+    /// <summary>Renames the screen, for one that is reached from more than one place.</summary>
+    public void SetTitle(string title)
+    {
+        if (_title.Text == title)
+        {
+            return;
+        }
+
+        _title.Text = title;
+        Layout();
+    }
+
     /// <summary>Called when the screen is opened, so it can start from a clean state.</summary>
     public virtual void OnShown() => ClearStatus();
 
