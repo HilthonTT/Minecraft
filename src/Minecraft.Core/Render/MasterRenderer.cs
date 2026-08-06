@@ -221,6 +221,13 @@ public sealed class MasterRenderer
     /// </summary>
     public void DiscardPendingMouseLook() => _cameraController.DiscardPendingMouseLook();
 
+    /// <summary>
+    /// The distance the fog is taken over, in blocks. Held against the view distance so that it always
+    /// closes over exactly where the loaded world runs out, however far that is set to.
+    /// </summary>
+    private const float FogStartDistance = Constants.VIEW_DISTANCE_BLOCKS * Constants.FOG_START_FRACTION;
+    private const float FogEndDistance = Constants.VIEW_DISTANCE_BLOCKS * Constants.FOG_END_FRACTION;
+
     private void RenderChunks(World world)
     {
         _basicShader.Start();
@@ -228,6 +235,13 @@ public sealed class MasterRenderer
         _basicShader.LoadMatrix(_basicShader.LocationViewMatrix, _cameraController.Camera.CurrentViewMatrix);
         _basicShader.LoadVector(_basicShader.LocationSunColor, world.Environment.GetCurrentSunColor());
         _basicShader.LoadVector(_basicShader.LocationAmbientColor, world.Environment.AmbientColor);
+
+        // The active camera rather than the player's, so that the detached overhead camera sees the world
+        // fog from where it is actually looking at it from.
+        _basicShader.LoadVector(_basicShader.LocationCameraPosition, _cameraController.Camera.Position);
+        _basicShader.LoadVector(_basicShader.LocationFogColor, world.Environment.GetCurrentFogColor());
+        _basicShader.LoadFloat(_basicShader.LocationFogStart, FogStartDistance);
+        _basicShader.LoadFloat(_basicShader.LocationFogEnd, FogEndDistance);
 
         foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
         {
@@ -254,6 +268,11 @@ public sealed class MasterRenderer
     {
         _entityShader.Start();
         _entityShader.LoadMatrix(_entityShader.LocationViewMatrix, _cameraController.Camera.CurrentViewMatrix);
+
+        _entityShader.LoadVector(_entityShader.LocationCameraPosition, _cameraController.Camera.Position);
+        _entityShader.LoadVector(_entityShader.LocationFogColor, world.Environment.GetCurrentFogColor());
+        _entityShader.LoadFloat(_entityShader.LocationFogStart, FogStartDistance);
+        _entityShader.LoadFloat(_entityShader.LocationFogEnd, FogEndDistance);
 
         // Every kind of entity wears its own skin, so the bound texture is tracked rather than set once. Mobs
         // of the same kind come out of the collection together often enough for this to be worth it.

@@ -226,6 +226,14 @@ block. Placing or breaking a block repairs only the affected region rather than 
 `SmoothLighting` averages the neighbouring cells at mesh time to get per vertex gradients and ambient
 occlusion.
 
+Distance is hazed over with fog, in the horizon colour of whatever hour the world is at, so that it turns
+orange at sunset and near black at night along with the sky behind it. The distance it is measured over
+ignores height, because that is the shape the world is loaded in — chunks are columns kept or dropped on how
+far away they are horizontally. It closes over completely at exactly one view distance, which is the nearest
+the edge of the loaded world can ever be, so terrain dissolves into the sky instead of ending along a line.
+The loaded area is a square, so measuring the fog as a radius also closes it over the corners first, and what
+is left visible reads as a circle rather than as four straight edges.
+
 ## Noise
 
 Four generators live in `Minecraft.Core.Utilities.Noise`, all returning values in `[-1, 1]`, with `Noise01`

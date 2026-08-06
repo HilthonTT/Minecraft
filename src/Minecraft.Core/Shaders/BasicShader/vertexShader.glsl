@@ -9,6 +9,7 @@ out float brightness;
 out float sunlight;
 out vec3 rgbColor;
 out vec3 position;
+out vec3 worldPosition;
 out vec3 normal;
 
 uniform mat4 transformationMatrix;
@@ -17,9 +18,14 @@ uniform mat4 projectionMatrix;
 
 void main()
 {
-    gl_Position = projectionMatrix * viewMatrix * transformationMatrix  * vec4(vertexPosition, 1.0F);
+	// The chunk's own position is needed on its own, and not only folded into gl_Position, because the fog
+	// is measured as a distance from the camera through the world.
+	vec4 worldSpacePosition = transformationMatrix * vec4(vertexPosition, 1.0F);
+
+    gl_Position = projectionMatrix * viewMatrix * worldSpacePosition;
 	uv = vertexUv;
 	position = vertexPosition;
+	worldPosition = worldSpacePosition.xyz;
 	normal = vertexNormal;
 
 	brightness  = ((vertexIllumination >> 24) & 0x3F) / 64.0F;

@@ -61,6 +61,15 @@ public sealed class Environment
     public Vector3 GetCurrentMoonGlowColor() => _sky.GetMoonGlowColor(GetCurrentEarthTime());
 
     /// <summary>
+    /// The colour distant terrain fades into. It is the horizon colour because that is what the terrain is
+    /// fading into: the fog closes over at the edge of the loaded world, which sits on the horizon, so
+    /// anything else would leave a visible band of the wrong colour where the ground meets the sky. It is
+    /// its own method rather than a call to the horizon colour at each use, so that the two can be given
+    /// separate colour tables later without hunting down the places that assumed they were the same.
+    /// </summary>
+    public Vector3 GetCurrentFogColor() => _sky.GetHorizonColor(GetCurrentEarthTime());
+
+    /// <summary>
     /// Returns the current time scaled to earth time, so 24 hour long days
     /// </summary>
     private float GetCurrentEarthTime() => CurrentTime * 24.0F / TimeInDay;

@@ -5,9 +5,23 @@ layout (location = 1) out vec4 normalDepthColor;
 in vec2 uv;
 in float illumination;
 in vec3 position;
+in vec3 worldPosition;
 in vec3 normal;
 
 uniform sampler2D skinTexture;
+
+uniform vec3 cameraPosition;
+uniform vec3 fogColor;
+uniform float fogStart;
+uniform float fogEnd;
+
+// Kept the same as the one the blocks are drawn with, so that a mob standing on distant ground goes under
+// the haze at the same rate the ground does. See the comment there for why the distance ignores height.
+float fogFactorAt(vec3 fragmentWorldPosition)
+{
+	float distanceFromCamera = length(fragmentWorldPosition.xz - cameraPosition.xz);
+	return smoothstep(fogStart, fogEnd, distanceFromCamera);
+}
 
 void main()
 {
@@ -21,5 +35,7 @@ void main()
    }
 
    fragmentColor = vec4(albedo.rgb * illumination, 1.0);
+   fragmentColor.rgb = mix(fragmentColor.rgb, fogColor, fogFactorAt(worldPosition));
+
    normalDepthColor = vec4(normal, 1.0);
 }

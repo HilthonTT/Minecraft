@@ -15,7 +15,7 @@ public abstract class Session
 {
     private static readonly PlayerSettings _defaultPlayerSettings = new()
     {
-        ViewDistance = 8,
+        ViewDistance = Constants.VIEW_DISTANCE_CHUNKS,
     };
 
     private SessionState _state;

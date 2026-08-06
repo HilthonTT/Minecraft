@@ -19,6 +19,15 @@ public sealed class EntityShader : Shader
 
     public int LocationProjectionMatrix { get; private set; }
 
+    /// <summary>Where the camera is, which the distance the fog is taken over is measured from.</summary>
+    public int LocationCameraPosition { get; private set; }
+
+    public int LocationFogColor { get; private set; }
+
+    public int LocationFogStart { get; private set; }
+
+    public int LocationFogEnd { get; private set; }
+
     protected override void BindAttributes()
     {
         BindAttribute(0, "vertexPosition");
@@ -33,5 +42,9 @@ public sealed class EntityShader : Shader
         LocationTransformationMatrix = GetUniformLocation("transformationMatrix");
         LocationViewMatrix = GetUniformLocation("viewMatrix");
         LocationProjectionMatrix = GetUniformLocation("projectionMatrix");
+        LocationCameraPosition = GetUniformLocation("cameraPosition");
+        LocationFogColor = GetUniformLocation("fogColor");
+        LocationFogStart = GetUniformLocation("fogStart");
+        LocationFogEnd = GetUniformLocation("fogEnd");
     }
 }

@@ -22,6 +22,15 @@ public sealed class BasicShader : Shader
 
     public int LocationAmbientColor { get; private set; }
 
+    /// <summary>Where the camera is, which the distance the fog is taken over is measured from.</summary>
+    public int LocationCameraPosition { get; private set; }
+
+    public int LocationFogColor { get; private set; }
+
+    public int LocationFogStart { get; private set; }
+
+    public int LocationFogEnd { get; private set; }
+
     protected override void BindAttributes()
     {
         BindAttribute(0, "vertexPosition");
@@ -38,5 +47,9 @@ public sealed class BasicShader : Shader
         LocationProjectionMatrix = GetUniformLocation("projectionMatrix");
         LocationSunColor = GetUniformLocation("sunColor");
         LocationAmbientColor = GetUniformLocation("ambientColor");
+        LocationCameraPosition = GetUniformLocation("cameraPosition");
+        LocationFogColor = GetUniformLocation("fogColor");
+        LocationFogStart = GetUniformLocation("fogStart");
+        LocationFogEnd = GetUniformLocation("fogEnd");
     }
 }

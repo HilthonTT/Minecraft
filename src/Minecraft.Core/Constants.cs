@@ -8,6 +8,28 @@ public static class Constants
     public const int NUM_SECTIONS_IN_CHUNKS = 16;
     public const int MAX_BUILD_HEIGHT = NUM_SECTIONS_IN_CHUNKS * 16;
 
+    //Rendering
+    /// <summary>How far out from the player, in chunks, the world is loaded and drawn.</summary>
+    public const int VIEW_DISTANCE_CHUNKS = 8;
+
+    /// <summary>The same distance in blocks, which is what the fog is measured against.</summary>
+    public const float VIEW_DISTANCE_BLOCKS = VIEW_DISTANCE_CHUNKS * 16;
+
+    /// <summary>
+    /// Where the distance haze starts, as a fraction of the view distance. Terrain nearer than this is
+    /// drawn untouched.
+    /// </summary>
+    public const float FOG_START_FRACTION = 0.65F;
+
+    /// <summary>
+    /// Where the haze has closed over completely, as a fraction of the view distance. One view distance is
+    /// exactly the closest the edge of the loaded world can ever be — the loaded area is a square of
+    /// chunks, so along an axis it ends at the view distance and at a corner much further out. Measuring
+    /// the fog as a horizontal distance therefore closes it over the corners first, and what is left
+    /// visible reads as a circle rather than as four straight edges with the world stopping along them.
+    /// </summary>
+    public const float FOG_END_FRACTION = 1.0F;
+
     //Physics
     public const float GRAVITY = -475F;
 
