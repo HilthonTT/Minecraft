@@ -1,5 +1,10 @@
 # Minecraft
 
+[![CI](https://github.com/HilthonTT/Minecraft/actions/workflows/ci.yml/badge.svg)](https://github.com/Minecraft/SoftEngine/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/HilthonTT/Minecraft/actions/workflows/codeql.yml/badge.svg)](https://github.com/HilthonTT/Minecraft/actions/workflows/codeql.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/download)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https://opentk.net/).
 
 Infinite procedurally generated terrain across six biomes, with ridged mountain ranges under snow and ice,
