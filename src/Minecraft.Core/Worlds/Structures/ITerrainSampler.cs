@@ -16,4 +16,10 @@ public interface ITerrainSampler
     /// chunk of a structure agrees on the ground it is being built on.
     /// </summary>
     TerrainColumn SampleColumn(int worldX, int worldZ);
+
+    /// <summary>
+    /// The height standing water fills up to. A column whose surface is at or below it is under water, which
+    /// is no place to build.
+    /// </summary>
+    int SeaLevel { get; }
 }

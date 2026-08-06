@@ -1,4 +1,6 @@
-﻿namespace Minecraft.Core.Logging;
+﻿using System.Diagnostics;
+
+namespace Minecraft.Core.Logging;
 
 public static class Logger
 {
@@ -17,7 +19,7 @@ public static class Logger
         Console.WriteLine(line);
         // Also emitted to the debugger, so the log is visible in the IDE's output window and not only
         // in the console window the game was launched from.
-        System.Diagnostics.Debug.WriteLine(line);
+        Debug.WriteLine(line);
     }
 
     public static void Info(string message)

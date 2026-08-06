@@ -31,6 +31,9 @@ public sealed class BasicShader : Shader
 
     public int LocationFogEnd { get; private set; }
 
+    /// <summary>How solid what is being drawn is. One for everything except the water pass.</summary>
+    public int LocationMaterialAlpha { get; private set; }
+
     protected override void BindAttributes()
     {
         BindAttribute(0, "vertexPosition");
@@ -51,5 +54,6 @@ public sealed class BasicShader : Shader
         LocationFogColor = GetUniformLocation("fogColor");
         LocationFogStart = GetUniformLocation("fogStart");
         LocationFogEnd = GetUniformLocation("fogEnd");
+        LocationMaterialAlpha = GetUniformLocation("materialAlpha");
     }
 }

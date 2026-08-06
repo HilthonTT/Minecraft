@@ -19,6 +19,13 @@ public abstract class Block
     public bool IsOverridable { get; protected set; }
     //If this blocks lets light through or not
     public bool IsOpaque { get; protected set; } = true;
+
+    /// <summary>
+    /// Whether this block is a body of fluid. Liquids are drawn in a pass of their own so they can be seen
+    /// through, two cells of the same liquid share no face between them, and an entity moving through one
+    /// swims rather than falls.
+    /// </summary>
+    public bool IsLiquid { get; protected set; }
     //If this block has blockstate specific data
     public bool HasCustomState { get; protected set; } = false;
 

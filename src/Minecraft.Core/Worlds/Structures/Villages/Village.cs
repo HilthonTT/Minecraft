@@ -1,4 +1,4 @@
-using Minecraft.Core.Utilities;
+﻿using Minecraft.Core.Utilities;
 
 namespace Minecraft.Core.Worlds.Structures.Villages;
 
@@ -209,7 +209,7 @@ public sealed class Village : IStructure
                 TerrainColumn column = terrain.SampleColumn(centerX + offsetX, centerZ + offsetZ);
 
                 samples++;
-                if (column.Biome.SettlementPalette is null)
+                if (column.Biome.SettlementPalette is null || column.SurfaceY <= terrain.SeaLevel)
                 {
                     unsettleable++;
                 }
@@ -250,6 +250,12 @@ public sealed class Village : IStructure
         }
 
         floorY = total / (plot.Width * plot.Depth);
+
+        if (floorY <= terrain.SeaLevel)
+        {
+            return false;
+        }
+
         return floorY > BuildHeightMargin && floorY < Constants.MAX_BUILD_HEIGHT - BuildHeightMargin;
     }
 

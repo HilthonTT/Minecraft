@@ -1,4 +1,4 @@
-using Minecraft.Core.Shapes;
+﻿using Minecraft.Core.Shapes;
 using Minecraft.Core.Utilities;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
@@ -10,10 +10,11 @@ using OpenTK.Mathematics;
 namespace Minecraft.Core.Render.MeshGenerator;
 
 /// <summary>
-/// Meshes the solid geometry of a chunk. A face is only emitted when the neighbour on that side does not
-/// cover it, which is what keeps the interior of the terrain out of the vertex buffer entirely.
+/// Meshes the blocks of a chunk. A face is only emitted when the neighbour on that side does not cover it,
+/// which is what keeps the interior of the terrain out of the vertex buffer entirely. Water is separated
+/// out into a mesh of its own on the way past, since it has to be drawn after everything else.
 /// </summary>
-public sealed class OpaqueMeshGenerator : MeshGenerator
+public sealed class ChunkMeshGenerator : MeshGenerator
 {
     // Faces are shaded by orientation so that a flat lit scene still reads as three dimensional.
     private const uint StaticTopLight = 60;
@@ -31,11 +32,11 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
     private readonly bool _useSmoothLighting = true;
     private readonly Light[] _lightBuffer = new Light[4];
 
-    public OpaqueMeshGenerator(BlockModelRegistry blockModelRegistry) : base(blockModelRegistry)
+    public ChunkMeshGenerator(BlockModelRegistry blockModelRegistry) : base(blockModelRegistry)
     {
     }
 
-    protected override ChunkBufferLayout GenerateMesh(World world, Chunk chunk)
+    protected override ChunkMesh GenerateMesh(World world, Chunk chunk)
     {
         world.LoadedChunks.TryGetValue(new Vector2(chunk.GridX - 1, chunk.GridZ), out Chunk? chunkXNeg);
         world.LoadedChunks.TryGetValue(new Vector2(chunk.GridX + 1, chunk.GridZ), out Chunk? chunkXPos);
@@ -80,18 +81,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
             }
         }
 
-        return new ChunkBufferLayout
-        {
-            VertexPositions = _vertexPositions,
-            PositionsPointer = _positionPointer,
-            VertexUVs = _vertexUVs,
-            UVsPointer = _uvsPointer,
-            VertexLights = _vertexLights,
-            LightsPointer = _lightsPointer,
-            VertexNormals = _vertexNormals,
-            NormalsPointer = _normalPointer,
-            IndicesCount = _indicesCount,
-        };
+        return BuildChunkMesh();
     }
 
     private void MeshBlock(
@@ -108,7 +98,11 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         Chunk? chunkZNeg,
         Chunk? chunkZPos)
     {
-        BlockModel blockModel = _blockModelRegistry.Models[state.GetBlock().Id];
+        Block block = state.GetBlock();
+        BlockModel blockModel = _blockModelRegistry.Models[block.Id];
+
+        // Everything emitted for this block goes to the buffer set matching how it has to be drawn.
+        TargetLiquidBuffers(block.IsLiquid);
 
         int worldY = sectionLocalY + sectionHeight * 16;
         var chunkLocalPos = new Vector3i(localX, worldY, localZ);
@@ -121,35 +115,35 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         uint averageBlue = 0;
         int sampleCount = 0;
 
-        if (ShouldAddFace(chunkXPos, section, localX + 1, sectionLocalY, localZ, Direction.Left))
+        if (ShouldAddFace(block, chunkXPos, section, localX + 1, sectionLocalY, localZ, Direction.Left))
         {
             Light light = SampleNeighbourLight(chunk, chunkXPos, chunkLocalPos, 1, 0, StaticSideZLight);
             Accumulate(light, ref averageRed, ref averageGreen, ref averageBlue, ref sampleCount);
             BuildMeshForSide(world, chunk, Direction.Right, state, chunkLocalPos, worldPos, blockModel, light);
         }
 
-        if (ShouldAddFace(chunkXNeg, section, localX - 1, sectionLocalY, localZ, Direction.Right))
+        if (ShouldAddFace(block, chunkXNeg, section, localX - 1, sectionLocalY, localZ, Direction.Right))
         {
             Light light = SampleNeighbourLight(chunk, chunkXNeg, chunkLocalPos, -1, 0, StaticSideZLight);
             Accumulate(light, ref averageRed, ref averageGreen, ref averageBlue, ref sampleCount);
             BuildMeshForSide(world, chunk, Direction.Left, state, chunkLocalPos, worldPos, blockModel, light);
         }
 
-        if (ShouldAddFace(chunkZNeg, section, localX, sectionLocalY, localZ - 1, Direction.Front))
+        if (ShouldAddFace(block, chunkZNeg, section, localX, sectionLocalY, localZ - 1, Direction.Front))
         {
             Light light = SampleNeighbourLight(chunk, chunkZNeg, chunkLocalPos, 0, -1, StaticSideXLight);
             Accumulate(light, ref averageRed, ref averageGreen, ref averageBlue, ref sampleCount);
             BuildMeshForSide(world, chunk, Direction.Back, state, chunkLocalPos, worldPos, blockModel, light);
         }
 
-        if (ShouldAddFace(chunkZPos, section, localX, sectionLocalY, localZ + 1, Direction.Back))
+        if (ShouldAddFace(block, chunkZPos, section, localX, sectionLocalY, localZ + 1, Direction.Back))
         {
             Light light = SampleNeighbourLight(chunk, chunkZPos, chunkLocalPos, 0, 1, StaticSideXLight);
             Accumulate(light, ref averageRed, ref averageGreen, ref averageBlue, ref sampleCount);
             BuildMeshForSide(world, chunk, Direction.Front, state, chunkLocalPos, worldPos, blockModel, light);
         }
 
-        if (ShouldAddVerticalFace(chunk, section, localX, sectionLocalY, localZ, above: true))
+        if (ShouldAddVerticalFace(block, chunk, section, localX, sectionLocalY, localZ, above: true))
         {
             uint sampleY = (uint)Math.Min(worldY + 1, Constants.MAX_BUILD_HEIGHT - 1);
             Light light = chunk.LightMap.GetLightColorAt((uint)localX, sampleY, (uint)localZ, LightScale);
@@ -158,7 +152,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
             BuildMeshForSide(world, chunk, Direction.Top, state, chunkLocalPos, worldPos, blockModel, light);
         }
 
-        if (ShouldAddVerticalFace(chunk, section, localX, sectionLocalY, localZ, above: false))
+        if (ShouldAddVerticalFace(block, chunk, section, localX, sectionLocalY, localZ, above: false))
         {
             uint sampleY = (uint)Math.Max(worldY - 1, 0);
             Light light = chunk.LightMap.GetLightColorAt((uint)localX, sampleY, (uint)localZ, LightScale);
@@ -174,7 +168,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         }
 
         var alwaysVisibleLight = new Light();
-        if (!state.GetBlock().IsOpaque)
+        if (!block.IsOpaque)
         {
             alwaysVisibleLight = chunk.LightMap.GetLightColorAt(
                 (uint)chunkLocalPos.X,
@@ -294,6 +288,7 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
     /// current chunk, in which case the neighbouring chunk is consulted instead.
     /// </summary>
     private bool ShouldAddFace(
+        Block block,
         Chunk? neighbourChunk,
         Section currentSection,
         int localX,
@@ -323,6 +318,21 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
             return true;
         }
 
+        return ShouldAddFaceTowards(block, neighbour, facingBack);
+    }
+
+    /// <summary>
+    /// Whether a face between a block and the given neighbour needs drawing. A face is skipped when the
+    /// neighbour covers it, and also when both sides are the same liquid: the inside of a sea is not a
+    /// surface, and drawing it would fill every body of water with a grid of blended quads.
+    /// </summary>
+    private bool ShouldAddFaceTowards(Block block, BlockState neighbour, Direction facingBack)
+    {
+        if (block.IsLiquid && neighbour.GetBlock() == block)
+        {
+            return false;
+        }
+
         return !_blockModelRegistry.Models[neighbour.GetBlock().Id].IsOpaqueOnSide(facingBack);
     }
 
@@ -330,7 +340,14 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
     /// Whether the top or bottom face needs drawing. Vertical neighbours may live in the section above or
     /// below rather than in a neighbouring chunk.
     /// </summary>
-    private bool ShouldAddVerticalFace(Chunk chunk, Section currentSection, int localX, int localY, int localZ, bool above)
+    private bool ShouldAddVerticalFace(
+        Block block,
+        Chunk chunk,
+        Section currentSection,
+        int localX,
+        int localY,
+        int localZ,
+        bool above)
     {
         int neighbourY = above ? localY + 1 : localY - 1;
         BlockState? neighbour;
@@ -362,6 +379,6 @@ public sealed class OpaqueMeshGenerator : MeshGenerator
         }
 
         Direction facingBack = above ? Direction.Bottom : Direction.Top;
-        return !_blockModelRegistry.Models[neighbour.GetBlock().Id].IsOpaqueOnSide(facingBack);
+        return ShouldAddFaceTowards(block, neighbour, facingBack);
     }
 }

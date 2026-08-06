@@ -13,6 +13,8 @@ public sealed class CachedTerrainSampler(ITerrainSampler source) : ITerrainSampl
 {
     private readonly Dictionary<(int X, int Z), TerrainColumn> _columns = [];
 
+    public int SeaLevel => source.SeaLevel;
+
     public TerrainColumn SampleColumn(int worldX, int worldZ)
     {
         (int X, int Z) key = (worldX, worldZ);

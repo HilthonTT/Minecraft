@@ -108,11 +108,16 @@ public sealed class MobSpawner
     /// <para>
     /// Deliberately a depth and not merely something overhead. The highest block in a wooded column is the
     /// canopy, and the ground under a tree is broad daylight however much of the sky the leaves take up, so
-    /// anything that only asked whether a spot was roofed would fill a forest with zombies at noon. Set well
-    /// clear of the tallest tree, which puts the first spots that qualify inside the ground rather than on it.
+    /// anything that only asked whether a spot was roofed would fill a forest with zombies at noon.
+    /// </para>
+    /// <para>
+    /// It therefore has to clear the tallest tree in the world. A pine is grown from the block above the
+    /// surface and its top leaf sits a full trunk higher, so the tallest of them puts the top of its column
+    /// thirteen above the ground a mob would be standing on. Anything up to that is a tree rather than a
+    /// roof; the margin over it is what keeps a spot on open ground from qualifying at all.
     /// </para>
     /// </summary>
-    private const int DaylightShelterDepth = 12;
+    private const int DaylightShelterDepth = 18;
 
     /// <summary>
     /// One kind of mob a round may produce, how likely it is against the others, and how many of it go in at
@@ -494,6 +499,13 @@ public sealed class MobSpawner
     {
         BlockState state = world.GetBlockAt(blockPos);
         Block block = state.GetBlock();
+
+        // Water stops nothing and so would read as passable, but a seabed is not somewhere a sheep grazes
+        // or a zombie walks. Nothing in the world swims, so being in water at all rules a spot out.
+        if (block.IsLiquid)
+        {
+            return false;
+        }
 
         return block == BlockRegistry.Air || block.GetCollisionBox(state, blockPos).Length == 0;
     }

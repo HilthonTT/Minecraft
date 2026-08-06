@@ -1,4 +1,4 @@
-using Minecraft.Core.Utilities.Noise;
+﻿using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Biomes;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
@@ -28,6 +28,17 @@ public sealed class WorldGenerator
     /// it. Anything steeper is left as the bare rock of its biome.
     /// </summary>
     private const int CliffSlope = 3;
+
+    /// <summary>
+    /// How far above the waterline the ground is still washed bare. One block, so a beach is the strip the
+    /// water actually reaches rather than a band of sand running inland.
+    /// </summary>
+    private const int BeachHeight = 1;
+
+    /// <summary>
+    /// How far below the waterline the floor stops being beach sand and becomes the gravel of the deep.
+    /// </summary>
+    private const int SeabedGravelDepth = 8;
 
     /// <summary>
     /// The height above which the ground is left under snow. Set so that snow caps the peaks and the highest
@@ -78,6 +89,12 @@ public sealed class WorldGenerator
     private readonly Thread _terrainGeneratorThread;
 
     public int SeaLevel { get; } = 62;
+
+    /// <summary>
+    /// Where the ground is at any column, without the chunk holding it having to exist. Used to look ahead
+    /// for somewhere to put a player before any of the terrain around them has been built.
+    /// </summary>
+    public ITerrainSampler TerrainSampler => _terrainSampler;
 
     public WorldGenerator(WorldServer world, WorldStorage storage, int seed)
     {
@@ -228,7 +245,7 @@ public sealed class WorldGenerator
         {
             for (int localZ = 0; localZ < chunkDim; localZ++)
             {
-                BuildColumn(chunk, sampledColumns, chunkX, chunkZ, localX, localZ, surfaceHeights, surfaceBiomes);
+                BuildColumn(chunk, sampledColumns, chunkX, chunkZ, localX, localZ, surfaceHeights, surfaceBiomes, SeaLevel);
             }
         }
 
@@ -241,6 +258,9 @@ public sealed class WorldGenerator
         // a tree or a flower hanging over the hole it opened.
         _caveCarver.Carve(chunk, surfaceHeights);
 
+        // After the caves, so that a tunnel opening into the side of a lake does not fill up through it.
+        FillWaterUpToSeaLevel(chunk, surfaceHeights);
+
         for (int localX = 0; localX < chunkDim; localX++)
         {
             for (int localZ = 0; localZ < chunkDim; localZ++)
@@ -249,6 +269,13 @@ public sealed class WorldGenerator
 
                 // A cave mouth took the surface with it, so there is nothing left here to decorate.
                 if (chunk.GetBlockAt(localX, surfaceY, localZ).GetBlock() == BlockRegistry.Air)
+                {
+                    continue;
+                }
+
+                // Nothing grows on a seabed. Read off the block rather than compared against sea level, so
+                // that whatever decides where the water goes only has to be right in one place.
+                if (chunk.GetBlockAt(localX, surfaceY + 1, localZ).GetBlock() == BlockRegistry.Water)
                 {
                     continue;
                 }
@@ -301,7 +328,8 @@ public sealed class WorldGenerator
         int localX,
         int localZ,
         int[,] surfaceHeights,
-        Biome[,] surfaceBiomes)
+        Biome[,] surfaceBiomes,
+        int seaLevel)
     {
         (int surfaceY, Biome biome) = sampledColumns[localX + 1, localZ + 1];
 
@@ -315,7 +343,8 @@ public sealed class WorldGenerator
             surfaceY,
             slope,
             (chunkX * 16) + localX,
-            (chunkZ * 16) + localZ);
+            (chunkZ * 16) + localZ,
+            seaLevel);
 
         chunk.AddBlockAt(localX, surfaceY, localZ, BlockRegistry.GetState(top));
 
@@ -352,13 +381,24 @@ public sealed class WorldGenerator
         int surfaceY,
         int slope,
         int worldX,
-        int worldZ)
+        int worldZ,
+        int seaLevel)
     {
         // Nothing settles on a cliff face, so what shows is the rock the biome is cut into. Tested before the
         // snow, because snow does not lie on a wall either.
         if (slope >= CliffSlope)
         {
             return (biome.CliffBlock, biome.CliffBlock);
+        }
+
+        // Anything the water reaches is washed down to bare sand, whichever biome it nominally belongs to,
+        // which is what puts a beach around every sea and lake instead of grass running into the water. The
+        // deep floor further out is gravel, so a sea reads as getting deeper rather than as one flat basin.
+        if (surfaceY <= seaLevel + BeachHeight)
+        {
+            return surfaceY < seaLevel - SeabedGravelDepth
+                ? (BlockRegistry.Gravel, BlockRegistry.Gravel)
+                : (BlockRegistry.Sand, BlockRegistry.Sand);
         }
 
         float jitter = Noise2DPerlin.Noise(worldX * SnowLineDetail, worldZ * SnowLineDetail) * SnowLineJitter;
@@ -375,6 +415,34 @@ public sealed class WorldGenerator
         }
 
         return (biome.TopBlock, biome.GradientBlock);
+    }
+
+    /// <summary>
+    /// Fills everything standing open below the waterline with water, which is what puts the sea into an
+    /// ocean basin, the water into a river channel and a lake into any hollow that happens to fall below it.
+    /// <para>
+    /// Only the space above each column's own surface is filled. A cave that runs below the seabed is left
+    /// as the air it was carved into rather than flooded up through the rock, so breaking into one from
+    /// underneath finds a dry tunnel instead of the whole ocean.
+    /// </para>
+    /// </summary>
+    private void FillWaterUpToSeaLevel(Chunk chunk, int[,] surfaceHeights)
+    {
+        BlockState water = BlockRegistry.GetState(BlockRegistry.Water);
+
+        for (int localX = 0; localX < 16; localX++)
+        {
+            for (int localZ = 0; localZ < 16; localZ++)
+            {
+                for (int y = surfaceHeights[localX, localZ] + 1; y <= SeaLevel; y++)
+                {
+                    if (chunk.GetBlockAt(localX, y, localZ).GetBlock() == BlockRegistry.Air)
+                    {
+                        chunk.AddBlockAt(localX, y, localZ, water);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

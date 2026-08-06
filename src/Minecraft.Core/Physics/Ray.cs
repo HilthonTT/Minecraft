@@ -35,12 +35,23 @@ public struct Ray
 
             var steppedPos = position.ToBlockPos();
             BlockState? state = world.GetBlockAt(steppedPos);
-            if (state is not null && state.GetBlock() != BlockRegistry.Air)
+            if (state is null)
             {
-                hitBlockState = state;
-                blockPos = steppedPos;
-                break;
+                continue;
             }
+
+            // Water is stepped over rather than stopped at, so a click aimed through it reaches the ground
+            // underneath. Stopping here instead would leave the trace with nothing to hit, since water has
+            // no selection box, and standing in a lake would mean being unable to touch anything at all.
+            Block block = state.GetBlock();
+            if (block == BlockRegistry.Air || block.IsLiquid)
+            {
+                continue;
+            }
+
+            hitBlockState = state;
+            blockPos = steppedPos;
+            break;
         }
 
         if (hitBlockState is null)

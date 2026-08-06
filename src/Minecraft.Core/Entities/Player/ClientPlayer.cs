@@ -1,4 +1,4 @@
-using Minecraft.Core.Games;
+﻿using Minecraft.Core.Games;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render;
@@ -210,6 +210,12 @@ public sealed class ClientPlayer : Player
         if (_isInAir && !_isFlying)
         {
             speedMultiplier *= Constants.PLAYER_IN_AIR_SLOWDOWN;
+        }
+
+        // Water is heavy going, but not for someone flying through it, who is not swimming.
+        if (_isInLiquid && !_isFlying)
+        {
+            speedMultiplier *= Constants.WATER_MOVE_MULTIPLIER;
         }
 
         if (_isFlying)

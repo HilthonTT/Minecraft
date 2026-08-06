@@ -10,6 +10,7 @@ using Minecraft.Core.Shaders.EntityShader;
 using Minecraft.Core.Shapes;
 using Minecraft.Core.Textures;
 using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
@@ -28,13 +29,40 @@ public sealed class MasterRenderer
     private struct ChunkRemeshLayout
     {
         public Vector2 ChunkGridPosition;
-        public ChunkBufferLayout ChunkLayout;
+        public ChunkMesh Mesh;
     }
 
     // The colours the framebuffer is cleared with.
     private const float ColorClearR = 0.02F;
     private const float ColorClearG = 0.01F;
     private const float ColorClearB = 0.03F;
+
+    /// <summary>How much of what is behind the water still comes through it.</summary>
+    private const float WaterAlpha = 0.72F;
+
+    /// <summary>Fully opaque, which is every pass except the water.</summary>
+    private const float SolidAlpha = 1.0F;
+
+    /// <summary>
+    /// The colour looking through water settles into. Deliberately not the colour of the water surface: what
+    /// is being modelled is a long way of it stacked up between the eye and whatever is being looked at.
+    /// </summary>
+    private static readonly Vector3 UnderwaterTint = new(0.02F, 0.16F, 0.32F);
+
+    /// <summary>
+    /// How far can be seen underwater, in blocks. Short, because it is the drop from open air to this that
+    /// reads as having gone under rather than the colour on its own.
+    /// </summary>
+    private const float UnderwaterFogStart = 0.5F;
+    private const float UnderwaterFogEnd = 22F;
+
+    /// <summary>The fog in use this frame, which is the sky's unless the camera is under water.</summary>
+    private Vector3 _fogColor;
+    private float _fogStart;
+    private float _fogEnd;
+
+    /// <summary>Whether the camera is inside a liquid, which changes both the fog and the sky.</summary>
+    private bool _cameraSubmerged;
 
     private readonly Game _game;
 
@@ -49,7 +77,7 @@ public sealed class MasterRenderer
     private readonly ScreenQuad _screenQuad;
     private readonly UIRenderer _uiRenderer;
     private readonly Skydome _skydome;
-    private readonly OpaqueMeshGenerator _blocksMeshGenerator;
+    private readonly ChunkMeshGenerator _blocksMeshGenerator;
 
     /// <summary>The chunks that are currently being rendered.</summary>
     private readonly Dictionary<Vector2, RenderChunk> _toRenderChunks = [];
@@ -94,7 +122,7 @@ public sealed class MasterRenderer
             BlockAtlas.CellsPerRow);
         _textureAtlas = new TextureAtlas(textureAtlasId, BlockAtlas.SizeInPixels, BlockAtlas.CellSizeInPixels);
         _blockModelRegistry = new BlockModelRegistry(_textureAtlas);
-        _blocksMeshGenerator = new OpaqueMeshGenerator(_blockModelRegistry);
+        _blocksMeshGenerator = new ChunkMeshGenerator(_blockModelRegistry);
         _entityMeshRegistry = new EntityMeshRegistry();
         _screenQuad = new ScreenQuad(game.Window);
         _wireframeRenderer = new WireframeRenderer(this);
@@ -138,15 +166,32 @@ public sealed class MasterRenderer
 
     public void Render(World world)
     {
+        UpdateFog(world);
+
         GL.Enable(EnableCap.DepthTest);
         _screenQuad.Bind();
-        GL.ClearColor(ColorClearR, ColorClearG, ColorClearB, 1.0F);
+
+        // Under water the clear colour is what shows wherever no block was drawn, which is why the sky is
+        // left out below: looking up from the bottom of a sea should not find a bright horizon over it.
+        if (_cameraSubmerged)
+        {
+            GL.ClearColor(_fogColor.X, _fogColor.Y, _fogColor.Z, 1.0F);
+        }
+        else
+        {
+            GL.ClearColor(ColorClearR, ColorClearG, ColorClearB, 1.0F);
+        }
+
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-        _skydome.Render();
+        if (!_cameraSubmerged)
+        {
+            _skydome.Render();
+        }
 
         RenderChunks(world);
         RenderEntities(world);
+        RenderWater();
 
         GL.Enable(EnableCap.Blend);
         GL.Disable(EnableCap.CullFace);
@@ -228,6 +273,43 @@ public sealed class MasterRenderer
     private const float FogStartDistance = Constants.VIEW_DISTANCE_BLOCKS * Constants.FOG_START_FRACTION;
     private const float FogEndDistance = Constants.VIEW_DISTANCE_BLOCKS * Constants.FOG_END_FRACTION;
 
+    /// <summary>
+    /// Works out what the fog does this frame. Normally it is the sky's own, closing over at the edge of the
+    /// loaded world; inside water it becomes a short, dim blue that is what actually reads as being under.
+    /// </summary>
+    private void UpdateFog(World world)
+    {
+        _cameraSubmerged = IsPositionInLiquid(world, _cameraController.Camera.Position);
+
+        if (!_cameraSubmerged)
+        {
+            _fogColor = world.Environment.GetCurrentFogColor();
+            _fogStart = FogStartDistance;
+            _fogEnd = FogEndDistance;
+            return;
+        }
+
+        // Dimmed by how bright it is outside, so that going under at night is dark rather than the same
+        // blue it would be at noon.
+        Vector3 skyColor = world.Environment.GetCurrentFogColor();
+        float daylight = (skyColor.X + skyColor.Y + skyColor.Z) / 3.0F;
+
+        _fogColor = UnderwaterTint * Math.Clamp(daylight * 1.6F, 0.08F, 1.0F);
+        _fogStart = UnderwaterFogStart;
+        _fogEnd = UnderwaterFogEnd;
+    }
+
+    private static bool IsPositionInLiquid(World world, Vector3 position)
+    {
+        var blockPos = position.ToBlockPos();
+        if (world.IsOutsideBuildHeight(blockPos.Y))
+        {
+            return false;
+        }
+
+        return world.GetBlockAt(blockPos).GetBlock().IsLiquid;
+    }
+
     private void RenderChunks(World world)
     {
         _basicShader.Start();
@@ -239,13 +321,55 @@ public sealed class MasterRenderer
         // The active camera rather than the player's, so that the detached overhead camera sees the world
         // fog from where it is actually looking at it from.
         _basicShader.LoadVector(_basicShader.LocationCameraPosition, _cameraController.Camera.Position);
-        _basicShader.LoadVector(_basicShader.LocationFogColor, world.Environment.GetCurrentFogColor());
-        _basicShader.LoadFloat(_basicShader.LocationFogStart, FogStartDistance);
-        _basicShader.LoadFloat(_basicShader.LocationFogEnd, FogEndDistance);
+        _basicShader.LoadVector(_basicShader.LocationFogColor, _fogColor);
+        _basicShader.LoadFloat(_basicShader.LocationFogStart, _fogStart);
+        _basicShader.LoadFloat(_basicShader.LocationFogEnd, _fogEnd);
+        _basicShader.LoadFloat(_basicShader.LocationMaterialAlpha, SolidAlpha);
 
+        DrawChunkModels(liquid: false);
+    }
+
+    /// <summary>
+    /// Draws the water, after the solid blocks and the entities so that everything it is meant to be seen
+    /// through has already been laid down for it to blend over.
+    /// </summary>
+    private void RenderWater()
+    {
+        // The entity pass ran in between and left its own program bound and its own skin on texture unit
+        // zero, so both have to be put back before the water is drawn with them.
+        _basicShader.Start();
+        _basicShader.LoadTexture(_basicShader.LocationTextureAtlas, 0, _textureAtlas.Id);
+
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+        // Depth writes off, so that one stretch of water does not cut a hole in the stretch behind it: they
+        // are all the same surface as far as the eye is concerned, and the depth test against the solid
+        // world has already decided which of them is visible at all.
+        GL.DepthMask(false);
+
+        // The surface of a sea is a single skin of quads, all facing up. Culling would leave it invisible
+        // from underneath, which is exactly where a swimmer looks at it from.
+        GL.Disable(EnableCap.CullFace);
+
+        _basicShader.LoadFloat(_basicShader.LocationMaterialAlpha, WaterAlpha);
+        DrawChunkModels(liquid: true);
+
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(TriangleFace.Back);
+        GL.DepthMask(true);
+        GL.Disable(EnableCap.Blend);
+    }
+
+    /// <summary>Draws one of the two meshes of every chunk that survives the view frustum.</summary>
+    private void DrawChunkModels(bool liquid)
+    {
         foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
         {
-            VAOModel? model = chunkToRender.Value.HardBlocksModel;
+            VAOModel? model = liquid
+                ? chunkToRender.Value.LiquidBlocksModel
+                : chunkToRender.Value.HardBlocksModel;
+
             if (model is null)
             {
                 continue;
@@ -270,9 +394,9 @@ public sealed class MasterRenderer
         _entityShader.LoadMatrix(_entityShader.LocationViewMatrix, _cameraController.Camera.CurrentViewMatrix);
 
         _entityShader.LoadVector(_entityShader.LocationCameraPosition, _cameraController.Camera.Position);
-        _entityShader.LoadVector(_entityShader.LocationFogColor, world.Environment.GetCurrentFogColor());
-        _entityShader.LoadFloat(_entityShader.LocationFogStart, FogStartDistance);
-        _entityShader.LoadFloat(_entityShader.LocationFogEnd, FogEndDistance);
+        _entityShader.LoadVector(_entityShader.LocationFogColor, _fogColor);
+        _entityShader.LoadFloat(_entityShader.LocationFogStart, _fogStart);
+        _entityShader.LoadFloat(_entityShader.LocationFogEnd, _fogEnd);
 
         // Every kind of entity wears its own skin, so the bound texture is tracked rather than set once. Mobs
         // of the same kind come out of the collection together often enough for this to be worth it.
@@ -358,7 +482,7 @@ public sealed class MasterRenderer
                 world = _game.World;
             }
 
-            ChunkBufferLayout layout = _blocksMeshGenerator.GenerateMeshFor(world, chunk);
+            ChunkMesh mesh = _blocksMeshGenerator.GenerateMeshFor(world, chunk);
 
             lock (_meshLock)
             {
@@ -372,7 +496,7 @@ public sealed class MasterRenderer
                 _availableChunkMesh = new ChunkRemeshLayout
                 {
                     ChunkGridPosition = new Vector2(chunk.GridX, chunk.GridZ),
-                    ChunkLayout = layout,
+                    Mesh = mesh,
                 };
                 _chunkAvailableToRemesh = true;
             }
@@ -398,6 +522,7 @@ public sealed class MasterRenderer
             if (_toRenderChunks.TryGetValue(chunkMesh.ChunkGridPosition, out RenderChunk? renderChunk))
             {
                 renderChunk.HardBlocksModel?.CleanUp();
+                renderChunk.LiquidBlocksModel?.CleanUp();
             }
             else
             {
@@ -407,7 +532,14 @@ public sealed class MasterRenderer
                 _toRenderChunks.Add(chunkMesh.ChunkGridPosition, renderChunk);
             }
 
-            renderChunk.HardBlocksModel = new VAOModel(chunkMesh.ChunkLayout);
+            renderChunk.HardBlocksModel = new VAOModel(chunkMesh.Mesh.Opaque);
+
+            // A chunk with no water at all still gets asked for its liquid mesh, and an empty buffer would
+            // cost a vertex array and a draw call to render nothing.
+            renderChunk.LiquidBlocksModel = chunkMesh.Mesh.Liquid.IndicesCount > 0
+                ? new VAOModel(chunkMesh.Mesh.Liquid)
+                : null;
+
             _chunkAvailableToRemesh = false;
         }
     }

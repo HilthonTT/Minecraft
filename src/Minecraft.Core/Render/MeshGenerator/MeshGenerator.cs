@@ -8,63 +8,80 @@ using OpenTK.Mathematics;
 namespace Minecraft.Core.Render.MeshGenerator;
 
 /// <summary>
-/// Builds the vertex buffers for a chunk. The buffers are allocated once and reused for every chunk, since
-/// meshing happens continuously and the arrays are far too large to churn through the heap.
+/// Builds the vertex buffers for a chunk. A chunk produces two meshes rather than one, since its water has
+/// to be drawn after everything else, and both are filled in a single walk over the blocks.
 /// </summary>
 public abstract class MeshGenerator
 {
     /// <summary>
-    /// Upper bound on the vertex data a single chunk can produce. A chunk that exceeded this would have to
-    /// be almost entirely made of plants, which each contribute far more geometry than a solid block.
+    /// Upper bound on the solid vertex data a single chunk can produce. A chunk that exceeded this would
+    /// have to be almost entirely made of plants, which each contribute far more geometry than a solid
+    /// block.
     /// </summary>
-    private const int BufferCapacity = 1048576;
+    private const int OpaqueBufferCapacity = 1048576;
+
+    /// <summary>
+    /// The same for the water. Far smaller, because the inside of a body of water carries no geometry at
+    /// all: only the faces where it meets air are drawn, which for a sea is its surface and little else.
+    /// </summary>
+    private const int LiquidBufferCapacity = 262144;
 
     protected readonly BlockModelRegistry _blockModelRegistry;
 
-    protected float[] _vertexPositions = new float[BufferCapacity];
-    protected int _positionPointer;
-    protected float[] _vertexUVs = new float[BufferCapacity];
-    protected int _uvsPointer;
-    protected uint[] _vertexLights = new uint[BufferCapacity];
-    protected int _lightsPointer;
-    protected float[] _vertexNormals = new float[BufferCapacity];
-    protected int _normalPointer;
-    protected int _indicesCount;
+    private readonly MeshBuffers _opaqueBuffers = new(OpaqueBufferCapacity);
+    private readonly MeshBuffers _liquidBuffers = new(LiquidBufferCapacity);
+
+    /// <summary>Whichever of the two the block being meshed right now belongs in.</summary>
+    private MeshBuffers _target;
 
     protected MeshGenerator(BlockModelRegistry blockModelRegistry)
     {
         _blockModelRegistry = blockModelRegistry;
+        _target = _opaqueBuffers;
     }
 
-    public ChunkBufferLayout GenerateMeshFor(World world, Chunk chunk)
+    public ChunkMesh GenerateMeshFor(World world, Chunk chunk)
     {
-        ChunkBufferLayout chunkModel = GenerateMesh(world, chunk);
+        ChunkMesh mesh = GenerateMesh(world, chunk);
         ClearData();
-        return chunkModel;
+        return mesh;
     }
 
-    protected abstract ChunkBufferLayout GenerateMesh(World world, Chunk chunk);
+    protected abstract ChunkMesh GenerateMesh(World world, Chunk chunk);
+
+    /// <summary>Directs everything emitted from here on into one buffer set or the other.</summary>
+    protected void TargetLiquidBuffers(bool liquid)
+    {
+        _target = liquid ? _liquidBuffers : _opaqueBuffers;
+    }
+
+    protected ChunkMesh BuildChunkMesh()
+    {
+        return new ChunkMesh
+        {
+            Opaque = _opaqueBuffers.ToLayout(),
+            Liquid = _liquidBuffers.ToLayout(),
+        };
+    }
 
     protected void ClearData()
     {
-        _positionPointer = 0;
-        _uvsPointer = 0;
-        _lightsPointer = 0;
-        _normalPointer = 0;
-        _indicesCount = 0;
+        _opaqueBuffers.Clear();
+        _liquidBuffers.Clear();
+        _target = _opaqueBuffers;
     }
 
     private void AddVector3(Vector3 vector)
     {
-        _vertexPositions[_positionPointer++] = vector.X;
-        _vertexPositions[_positionPointer++] = vector.Y;
-        _vertexPositions[_positionPointer++] = vector.Z;
+        _target.Positions[_target.PositionsPointer++] = vector.X;
+        _target.Positions[_target.PositionsPointer++] = vector.Y;
+        _target.Positions[_target.PositionsPointer++] = vector.Z;
     }
 
     private void AddVector2(Vector2 vector)
     {
-        _vertexUVs[_uvsPointer++] = vector.X;
-        _vertexUVs[_uvsPointer++] = vector.Y;
+        _target.UVs[_target.UVsPointer++] = vector.X;
+        _target.UVs[_target.UVsPointer++] = vector.Y;
     }
 
     protected void AddFacesToMeshFromFront(BlockFace[] toAddFaces, Vector3i blockPos, Light[] lights, bool flip)
@@ -122,16 +139,16 @@ public abstract class MeshGenerator
 
         foreach (int index in order)
         {
-            _vertexLights[_lightsPointer++] = lights[index].GetStorage();
+            _target.Lights[_target.LightsPointer++] = lights[index].GetStorage();
         }
 
         for (int i = 0; i < 6; i++)
         {
-            _vertexNormals[_normalPointer++] = face.Normal.X;
-            _vertexNormals[_normalPointer++] = face.Normal.Y;
-            _vertexNormals[_normalPointer++] = face.Normal.Z;
+            _target.Normals[_target.NormalsPointer++] = face.Normal.X;
+            _target.Normals[_target.NormalsPointer++] = face.Normal.Y;
+            _target.Normals[_target.NormalsPointer++] = face.Normal.Z;
         }
 
-        _indicesCount += 6;
+        _target.IndicesCount += 6;
     }
 }

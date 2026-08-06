@@ -9,8 +9,14 @@ public sealed class WorldMetadata
     /// <summary>
     /// Bumped whenever the on disk layout changes in a way older saves cannot be read through. A save
     /// carrying a different version is refused rather than misread.
+    /// <para>
+    /// Version 2 added water, and with it the oceans, rivers and lakes the terrain had to be reshaped to
+    /// hold. Only modified chunks are stored and the rest are regenerated, so a version 1 world opened
+    /// against this generator would be half its old terrain and half new terrain that no longer joins onto
+    /// it. Refusing it outright is the only reading of such a save that is not wrong.
+    /// </para>
     /// </summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public int Version { get; init; } = CurrentVersion;
 

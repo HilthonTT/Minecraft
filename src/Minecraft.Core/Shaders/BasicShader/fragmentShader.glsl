@@ -19,6 +19,8 @@ uniform vec3 fogColor;
 uniform float fogStart;
 uniform float fogEnd;
 
+uniform float materialAlpha;
+
 float convertRange(float oldMin, float oldMax, float newMin, float newMax, float oldValue)
 {
     float oldRange = oldMax - oldMin;
@@ -63,6 +65,10 @@ void main()
    // anything about the block itself. A fragment out at the far edge is left as pure fog colour, which is
    // what hides the edge of the loaded world.
    fragmentColor.rgb = mix(fragmentColor.rgb, fogColor, fogFactorAt(worldPosition));
+
+   // Set rather than derived from the texture: the water cell of the sheet is a flat opaque blue, so how
+   // much of it is see through is a property of the pass drawing it and not of the artwork.
+   fragmentColor.a = materialAlpha;
 
    normalDepthColor = vec4(normal, 1.0F);
 }

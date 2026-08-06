@@ -1,3 +1,5 @@
+using Minecraft.Core.Worlds.Blocks;
+
 namespace Minecraft.Core.Worlds.Structures.Villages;
 
 /// <summary>
@@ -48,6 +50,10 @@ public sealed class VillageWell : VillagePiece
                 if (worldX == _centerX && worldZ == _centerZ)
                 {
                     writer.ClearColumn(worldX, worldZ, _floorY - ShaftDepth, roofY - 1);
+
+                    // Filled to the height of the courtyard around it, so the water sits just under the rim
+                    // and the well reads as one that has been drawn from rather than a dry hole with a roof.
+                    writer.FillColumn(worldX, worldZ, _floorY - ShaftDepth, _floorY, BlockRegistry.Water);
                     continue;
                 }
 

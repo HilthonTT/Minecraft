@@ -110,39 +110,84 @@ public sealed class WorldServer : World
         base.OnChunkUnloadedPostProcess(chunk);
     }
 
+    /// <summary>
+    /// How far the search for dry land wanders before giving up and laying a platform. Generous enough to
+    /// cross an ocean of the size the generator makes, and bounded so a world that somehow had no land at
+    /// all would still open.
+    /// </summary>
+    private const int MaxSpawnSearchRadiusInChunks = 40;
+
     private void LoadSpawnArea()
     {
+        // Centred on where a player will actually be put rather than on the origin, which the search below
+        // walks away from whenever the origin turns out to be at sea. Preloading around the origin instead
+        // would build a few hundred chunks of open water that nobody is ever standing in.
+        (int centerChunkX, int centerChunkZ) = FindDryLandChunkNearOrigin() ?? (0, 0);
+
         for (int x = -SpawnAreaRadius; x <= SpawnAreaRadius; x++)
         {
             for (int y = -SpawnAreaRadius; y <= SpawnAreaRadius; y++)
             {
-                AddPlayerPresenceToChunk(_worldGenerator.ProvideChunkAt(x, y));
+                AddPlayerPresenceToChunk(_worldGenerator.ProvideChunkAt(centerChunkX + x, centerChunkZ + y));
             }
         }
     }
 
     /// <summary>
-    /// Creates a suitable spawn position. Destroys blocks if necessary.
+    /// The nearest chunk to the origin whose middle column stands above the waterline, or null when there is
+    /// none within reach. Answered from the generator's terrain sampler, so no chunk has to exist for it.
     /// </summary>
-    public Vector3 GenerateAndGetValidSpawn()
+    private (int ChunkX, int ChunkZ)? FindDryLandChunkNearOrigin()
     {
-        //Check if there is a suitable position in the middle of the chunk at the origin of the world.
-        const int x = 8;
-        const int z = 8;
-
-        // Searched downwards from the sky rather than upwards from sea level. The first solid block met on
-        // the way down is the surface, and everything above it is open air, so the player always lands on
-        // top of the world. Coming up from below instead stops at the first gap tall enough to stand in,
-        // which underground is a cave.
-        for (int y = Constants.MAX_BUILD_HEIGHT - 4; y >= _worldGenerator.SeaLevel; y--)
+        for (int radius = 0; radius <= MaxSpawnSearchRadiusInChunks; radius++)
         {
-            if (HasSolidBlockAt(new Vector3i(x, y, z)))
+            for (int chunkX = -radius; chunkX <= radius; chunkX++)
             {
-                return new Vector3(x, y + 1, z);
+                for (int chunkZ = -radius; chunkZ <= radius; chunkZ++)
+                {
+                    // Only the edge of each ring, since everything inside it was covered by a smaller one.
+                    if (radius != 0 && Math.Abs(chunkX) != radius && Math.Abs(chunkZ) != radius)
+                    {
+                        continue;
+                    }
+
+                    int worldX = (chunkX * 16) + 8;
+                    int worldZ = (chunkZ * 16) + 8;
+
+                    if (_worldGenerator.TerrainSampler.SampleColumn(worldX, worldZ).SurfaceY > _worldGenerator.SeaLevel)
+                    {
+                        return (chunkX, chunkZ);
+                    }
+                }
             }
         }
 
-        //Create a platform to spawn on
+        return null;
+    }
+
+    /// <summary>
+    /// Creates a suitable spawn position. Destroys blocks if necessary.
+    /// <para>
+    /// The origin of a world is as likely to fall in an ocean as anywhere else, so somewhere dry is looked
+    /// for rather than assumed. The search walks outwards a chunk at a time and asks the generator how high
+    /// the ground is, which it can answer for terrain that has not been built yet, so only the one chunk
+    /// actually settled on ever has to be generated.
+    /// </para>
+    /// </summary>
+    public Vector3 GenerateAndGetValidSpawn()
+    {
+        if (FindDryLandChunkNearOrigin() is (int chunkX, int chunkZ))
+        {
+            Vector3? spawn = TryFindDryLandSpawnIn(chunkX, chunkZ);
+            if (spawn is not null)
+            {
+                return spawn.Value;
+            }
+        }
+
+        // Nothing dry within reach, so a platform is laid at the origin to stand on instead.
+        const int x = 8;
+        const int z = 8;
         const int platformSize = 3;
         for (int xOffset = -platformSize; xOffset < platformSize; xOffset++)
         {
@@ -171,6 +216,37 @@ public sealed class WorldServer : World
 
         // On top of the platform that was just laid, not inside it.
         return new Vector3(x, _worldGenerator.SeaLevel + 1, z);
+    }
+
+    /// <summary>
+    /// A standing position on the surface of the middle column of a chunk, or null when that column is under
+    /// water. The chunk is only generated once its ground is known to be dry.
+    /// </summary>
+    private Vector3? TryFindDryLandSpawnIn(int chunkX, int chunkZ)
+    {
+        int worldX = (chunkX * 16) + 8;
+        int worldZ = (chunkZ * 16) + 8;
+
+        if (_worldGenerator.TerrainSampler.SampleColumn(worldX, worldZ).SurfaceY <= _worldGenerator.SeaLevel)
+        {
+            return null;
+        }
+
+        AddPlayerPresenceToChunk(_worldGenerator.ProvideChunkAt(chunkX, chunkZ));
+
+        // Searched downwards from the sky rather than upwards from sea level. The first solid block met on
+        // the way down is the surface, and everything above it is open air, so the player always lands on
+        // top of the world. Coming up from below instead stops at the first gap tall enough to stand in,
+        // which underground is a cave.
+        for (int y = Constants.MAX_BUILD_HEIGHT - 4; y >= _worldGenerator.SeaLevel; y--)
+        {
+            if (HasSolidBlockAt(new Vector3i(worldX, y, worldZ)))
+            {
+                return new Vector3(worldX, y + 1, worldZ);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Whether the block at the given position is one that can be stood on.</summary>

@@ -1,4 +1,4 @@
-using Minecraft.Core.Worlds;
+﻿using Minecraft.Core.Worlds;
 using OpenTK.Mathematics;
 using System.Diagnostics;
 
@@ -122,6 +122,15 @@ public abstract class Player : Entity
 
     protected void AttemptToJump()
     {
+        // In water the same key is a swim stroke instead, which works whether or not there is anything
+        // underfoot: that is the whole of what it means to be swimming rather than jumping.
+        if (_isInLiquid)
+        {
+            _verticalSpeed = Constants.SWIM_UP_FORCE;
+            _isInAir = true;
+            return;
+        }
+
         if (_isInAir)
         {
             return;

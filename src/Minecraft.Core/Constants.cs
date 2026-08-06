@@ -37,6 +37,24 @@ public static class Constants
     public const float MAX_FALL_SPEED = -1000F;
 
     /// <summary>
+    /// The share of gravity that still acts on a body in water. What is left is what the water holds up, so
+    /// entering one turns a fall into a sink.
+    /// </summary>
+    public const float WATER_GRAVITY_MULTIPLIER = 0.16F;
+
+    /// <summary>
+    /// How fast a body sinks through water at most. Far short of terminal velocity in air, so that falling
+    /// into a lake is stopped by it rather than carried to the bottom.
+    /// </summary>
+    public const float MAX_SINK_SPEED = -55F;
+
+    /// <summary>How hard a swimmer pulls themselves upwards, which has to beat the sinking above.</summary>
+    public const float SWIM_UP_FORCE = 145F;
+
+    /// <summary>What water does to how fast a body can be pushed through it.</summary>
+    public const float WATER_MOVE_MULTIPLIER = 0.55F;
+
+    /// <summary>
     /// The longest frame the game simulates in one go. A frame that took longer, because of a hitch or
     /// because the window was not being drawn, is simulated as if it took this long instead: catching up on
     /// all of it at once would move everything so far in a single step that it passes through the world.

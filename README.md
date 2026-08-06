@@ -7,9 +7,10 @@
 
 A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https://opentk.net/).
 
-Infinite procedurally generated terrain across six biomes, with ridged mountain ranges under snow and ice,
-buried ore, caves and villages. Coloured block lighting with smooth per vertex ambient occlusion, a day/night
-cycle, mobs, and a client/server architecture that the singleplayer mode also runs through.
+Infinite procedurally generated terrain across six biomes, with oceans and the rivers that run down to them,
+ridged mountain ranges under snow and ice, buried ore, caves and villages. Coloured block lighting with smooth
+per vertex ambient occlusion, distance fog, a day/night cycle, mobs, and a client/server architecture that the
+singleplayer mode also runs through.
 
 ![Sheep grazing on a terraced meadow scattered with roses and dandelions, oak trees to either side and a bare stone mountain rising behind it under a clear sky](Screenshots/sample-1.png)
 
@@ -98,6 +99,21 @@ a border comes out as a slope rather than as a step.
 | Mountain    | Bare stone          | Ridged spines and gullies, patched with gravel and moss       |
 | Snowy peaks | Snowy grass         | The highest ground there is, pine over its lower shoulders    |
 
+How much of a column is land at all is decided before any of that, by a much broader field than the climate:
+where it falls away the ground is taken down into an ocean basin, and the biome's own hills are faded out
+along with it, so a sea has a floor of its own rather than the hills of whatever biome nominally covers it
+carried on under the waves. Between the two the ground climbs, which is what puts a shelf and then a beach
+between a sea and the land behind it instead of a wall. Rivers are cut along the line where a second, finer
+field crosses zero — a contour of a continuous field either closes on itself or runs forever, so a river
+never stops halfway. A river only ever lowers ground and only cuts so deep, so it carves a valley through the
+highlands and holds water once the land it crosses is low enough to fill.
+
+Everything left standing open below sea level is then filled with water, which is what puts the sea into a
+basin, the water into a river and a lake into any hollow that happens to fall below it. Ground the water
+reaches is washed to sand whichever biome it belongs to, and to gravel further down, so every shore has a
+beach and a sea reads as getting deeper rather than as one flat basin. Nothing is grown on a seabed, and no
+village is sited on one.
+
 Above the snow line the ground goes under snow, with sheets of glacial ice across part of it. The line
 itself wanders, so it does not draw a contour around every summit at exactly the same height. Anywhere the
 ground drops three blocks or more from one column to the next is left as the bare rock of its biome, which
@@ -155,6 +171,10 @@ function of the world seed and its position, and it reads the ground through `IT
 recomputes terrain from the seed — rather than out of the world, since the neighbouring chunks it spans are
 not loaded while any one of them is being generated.
 
+The save format is at version 2. Version 1 worlds are refused rather than opened: only modified chunks are
+stored and the rest are regenerated, so a world made before the terrain was reshaped to hold water would come
+back as half its old ground and half new ground that no longer joins onto it.
+
 Passing `seed` for a world that already exists is ignored, with a warning — its terrain is already fixed. To
 start over, delete the world directory or pick a different `world` name. A save whose `version` does not
 match the running build is refused rather than misread, and a corrupt chunk file is reported and regenerated
@@ -166,7 +186,7 @@ instead of taking the world down with it.
 | -------------------- | ------------------------------------------------- |
 | `W` `A` `S` `D`      | Move                                              |
 | Mouse                | Look                                              |
-| `Space`              | Jump, or ascend while flying                      |
+| `Space`              | Jump, swim upwards, or ascend while flying        |
 | `Space` twice        | Toggle flying                                     |
 | `Shift`              | Crouch, or descend while flying                   |
 | `Ctrl`               | Sprint                                            |
@@ -225,6 +245,13 @@ Lighting is a flood fill over four channels — red, green, blue and sunlight �
 block. Placing or breaking a block repairs only the affected region rather than relighting the chunk, and
 `SmoothLighting` averages the neighbouring cells at mesh time to get per vertex gradients and ambient
 occlusion.
+
+A chunk is meshed into two buffers rather than one. The solid blocks go down first, and the water is drawn
+after them and after the entities, blended over whatever ended up behind it, with depth writes off so one
+stretch of water does not cut a hole in the stretch behind it and with culling off so its surface is still
+there when looked at from underneath. Two cells of the same liquid share no face, so the inside of a sea
+carries no geometry at all: what is drawn is the skin where it meets the air. Under water the sky is left out
+entirely and the fog closes to a few blocks of dim blue, which is what reads as having gone under.
 
 Distance is hazed over with fog, in the horizon colour of whatever hour the world is at, so that it turns
 orange at sunset and near black at night along with the sky behind it. The distance it is measured over

@@ -48,6 +48,7 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.Dandelion.Id] = new BlockModelDandelion(textureAtlas);
         Models[BlockRegistry.RedMushroom.Id] = new BlockModelRedMushroom(textureAtlas);
         Models[BlockRegistry.BrownMushroom.Id] = new BlockModelBrownMushroom(textureAtlas);
+        Models[BlockRegistry.Water.Id] = new BlockModelWater(textureAtlas);
 
         // Air has no geometry, but the mesh generator still indexes the table by block id when it walks a
         // section, so the slot has to hold something that reports every side as see through.

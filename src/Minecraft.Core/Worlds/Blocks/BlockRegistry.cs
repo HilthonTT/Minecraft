@@ -43,6 +43,7 @@ public static class BlockRegistry
     public static readonly Block Dandelion = new BlockPlant(33, () => [Dirt, Grass, SnowyGrass]);
     public static readonly Block RedMushroom = new BlockPlant(34, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
     public static readonly Block BrownMushroom = new BlockPlant(35, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
+    public static readonly Block Water = new BlockWater(36);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -103,6 +104,7 @@ public static class BlockRegistry
             Dandelion,
             RedMushroom,
             BrownMushroom,
+            Water,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

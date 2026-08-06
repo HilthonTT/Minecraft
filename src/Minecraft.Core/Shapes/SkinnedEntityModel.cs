@@ -37,9 +37,13 @@ public sealed class SkinnedEntityModel : EntityModel
             float h = size.Y;
             float d = size.Z;
 
+            // The near cap is the top of the box and the far one its bottom, which is the way round the
+            // skins are drawn: on the leg of a sheep the near cap is the wool where the leg meets the
+            // fleece and the far one is the hoof. Taken the other way round a mob stands on its own
+            // shoulders, which on a sheep showed as white feet.
             return new BoxNet(
-                Bottom: new Vector4(u + d, v, w, d),
-                Top: new Vector4(u + d + w, v, w, d),
+                Bottom: new Vector4(u + d + w, v, w, d),
+                Top: new Vector4(u + d, v, w, d),
                 Right: new Vector4(u, v + d, d, h),
                 Front: new Vector4(u + d, v + d, w, h),
                 Left: new Vector4(u + d + w, v + d, d, h),
@@ -85,9 +89,11 @@ public sealed class SkinnedEntityModel : EntityModel
         // the underside, and swings the two caps round to face front and rear. It is the back rather than the
         // front that ends up on top: a quadruped's body is unwrapped as though the animal were reared up on
         // its hind legs, so the face drawn towards the bottom of the sheet is its belly.
+        // A lying box takes the caps the other way round from an upright one: the cap an upright box wears
+        // on top is the one a tipped body turns towards its front.
         (Vector4 top, Vector4 bottom, Vector4 front, Vector4 back) = box.Pose == SkinBoxPose.Upright
             ? (net.Top, net.Bottom, net.Front, net.Back)
-            : (net.Back, net.Front, net.Bottom, net.Top);
+            : (net.Back, net.Front, net.Top, net.Bottom);
 
         // The two sides keep their own rectangles wherever the box is pointed, but a tipped box carries them
         // round with it, so they go on a quarter turn from the way they were drawn.

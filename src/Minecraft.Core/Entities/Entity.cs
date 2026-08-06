@@ -1,4 +1,4 @@
-using Minecraft.Core.Physics;
+﻿using Minecraft.Core.Physics;
 using Minecraft.Core.Utilities;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
@@ -78,6 +78,12 @@ public abstract class Entity
     protected bool _doCollisionDetection = true;
     protected bool _isInAir = true;
     protected float _verticalSpeed;
+
+    /// <summary>
+    /// Whether the body of the entity is in water. Read once per frame rather than per collision step,
+    /// since a step covers a fraction of a block and the answer cannot change within one.
+    /// </summary>
+    protected bool _isInLiquid;
 
     /// <summary>Vector facing where the entity is heading, ignoring the vertical component.</summary>
     protected Vector3 _moveForward = Vector3.UnitZ;
@@ -197,6 +203,19 @@ public abstract class Entity
             return;
         }
 
+        if (_isInLiquid)
+        {
+            // Most of the weight is carried by the water, and what sinking is left is capped well short of
+            // a fall through air. The cap also catches the speed a long drop built up on the way in, which
+            // would otherwise spear straight through a sea to the floor before the water ever slowed it.
+            _verticalSpeed = MathF.Max(
+                _verticalSpeed + (Constants.GRAVITY * Constants.WATER_GRAVITY_MULTIPLIER * deltaTime),
+                Constants.MAX_SINK_SPEED);
+
+            MoveVertically(_verticalSpeed);
+            return;
+        }
+
         // Capped, because a fall that keeps accelerating eventually covers more ground per frame than the
         // collision check can follow.
         _verticalSpeed = MathF.Max(_verticalSpeed + Constants.GRAVITY * deltaTime, Constants.MAX_FALL_SPEED);
@@ -211,6 +230,8 @@ public abstract class Entity
     /// </summary>
     protected void ApplyVelocityAndCheckCollision(float deltaTime, World world)
     {
+        UpdateLiquidState(world);
+
         if (IsAffectedByGravity)
         {
             TryApplyGravity(deltaTime);
@@ -230,6 +251,27 @@ public abstract class Entity
         }
 
         Velocity += MovementFriction * Velocity * deltaTime;
+    }
+
+    /// <summary>
+    /// Works out whether the entity is in water, sampled at the middle of its body. Taking the middle rather
+    /// than the feet is what stops a body standing in a single block of shallow water from swimming in it,
+    /// while still catching one that has gone under.
+    /// </summary>
+    private void UpdateLiquidState(World world)
+    {
+        var samplePos = new Vector3i(
+            (int)MathF.Floor(Position.X + (_width / 2F)),
+            (int)MathF.Floor(Position.Y + (_height / 2F)),
+            (int)MathF.Floor(Position.Z + (_length / 2F)));
+
+        if (world.IsOutsideBuildHeight(samplePos.Y))
+        {
+            _isInLiquid = false;
+            return;
+        }
+
+        _isInLiquid = world.GetBlockAt(samplePos).GetBlock().IsLiquid;
     }
 
     /// <summary>How many steps this frame's movement is split into to keep every step below a block.</summary>
