@@ -207,9 +207,9 @@ dropped entirely past the distance anything can be heard from. Where the listene
 rather than the player, so the detached overhead camera hears the world from where it is actually looking at
 it.
 
-What plays is decided entirely on the client, from what it can already see, so none of it needed anything new
-from the server. Footsteps come from watching things move rather than from being told about a step, which is
-what lets another player's footfalls sound without a packet per stride. Every sound is drawn from a set of
+Almost all of it is decided on the client from what it can already see, so hardly any of it needed anything
+new from the server. Footsteps come from watching things move rather than from being told about a step, which
+is what lets another player's footfalls sound without a packet per stride. Every sound is drawn from a set of
 interchangeable recordings and pitched slightly either side of where it was recorded, so a run across open
 ground does not read as the same handful of clips looping.
 
@@ -219,10 +219,16 @@ ground does not read as the same handful of clips looping.
 | Breaking, placing | A block changing, in that block's own material                          |
 | Splash, strokes   | Going into water, and swimming through it                               |
 | Animals, zombies  | Their own calls on a timer, and their own footfalls                     |
-| Fuse              | TNT being struck                                                        |
+| Fuse, explosion   | TNT being struck, and the blast at the end of it                        |
 
 A block says which of seven sets it belongs to — stone, grass, gravel, sand, wood, snow or cloth — rather than
-carrying sounds of its own, since a dozen kinds of stone all break the same way.
+carrying sounds of its own, since a dozen kinds of stone all break the same way. The greenery sounds like the
+grass it grows out of; cloth is for the cactus, which gives under a blow rather than tearing.
+
+The blast is the one thing the server has to send, as an `Explosion` packet carrying where it went off. What
+a client would otherwise see of it is the hundreds of separate block removals it leaves behind, which arrive
+one at a time and are indistinguishable from somebody mining quickly. Those removals are then held silent for
+a moment, so what is heard is the bang rather than the terrain it destroyed being taken apart block by block.
 
 The set on disk is far larger than what is used, so only what is reachable is read; that takes about two
 thirds of a second, which is done off the main thread so the window is not held up by it. A machine with no
