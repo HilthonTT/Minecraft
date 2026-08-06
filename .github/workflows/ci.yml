@@ -1,4 +1,4 @@
-name: Build
+name: CI
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 
 # A superseded run of the same branch is of no interest once a newer commit is in.
 concurrency:
-  group: build-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -22,6 +22,49 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
+  # The existing sources predate .editorconfig and do not pass a repository wide `dotnet format`, so this
+  # checks only the files a pull request touches. New and edited code is held to the style rules without
+  # a sweeping reformat of everything else first.
+  format:
+    if: github.event_name == 'pull_request'
+    # Same Windows constraint as the build job: loading the workspace restores net10.0-windows projects.
+    runs-on: windows-latest
+    name: Format
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          # dotnet format needs the merge base present to diff against.
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Collect changed C# files
+        id: changed
+        run: >
+          ./.github/scripts/Get-ChangedSources.ps1
+          -BaseSha '${{ github.event.pull_request.base.sha }}'
+          -HeadSha '${{ github.event.pull_request.head.sha }}'
+        shell: pwsh
+
+      - name: Verify formatting
+        if: steps.changed.outputs.any == 'true'
+        run: >
+          dotnet format Minecraft.slnx --verify-no-changes --severity warn
+          --include ${{ steps.changed.outputs.files }}
+        shell: pwsh
+
   build:
     # Both projects target net10.0-windows, and texture loading goes through System.Drawing, which is
     # Windows only. There is no cross platform configuration to fall back to.
