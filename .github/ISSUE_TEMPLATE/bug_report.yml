@@ -1,0 +1,72 @@
+name: Bug report
+description: Something in the game behaves differently to how it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rendering and world generation bugs are much easier to fix with a screenshot and the seed, so please
+        include both where they apply.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a singleplayer world with seed 12345
+        2. Fly to roughly x=300, z=-120
+        3. The chunk border shows a seam in the lighting
+    validations:
+      required: true
+
+  - type: input
+    id: seed
+    attributes:
+      label: World seed
+      description: If the problem is tied to a particular world.
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Singleplayer
+        - Multiplayer (client)
+        - Dedicated server
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag, or the commit hash if you built from source.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, GPU and driver version, and `dotnet --version`.
+      placeholder: |
+        Windows 11 24H2
+        NVIDIA RTX 4070, driver 566.36
+        .NET SDK 10.0.302
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output
+      description: Any exception or OpenGL error printed to the console. This is rendered as code, so no backticks needed.
+      render: text

@@ -1,0 +1,35 @@
+version: 2
+
+updates:
+  # OpenTK and System.Drawing.Common are the only two direct dependencies, so a weekly check is plenty.
+  # Minor and patch bumps arrive as a single grouped pull request; a major version of either is the kind of
+  # change that wants reading, so it comes on its own.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    open-pull-requests-limit: 5
+    groups:
+      dotnet-dependencies:
+        patterns: ['*']
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # The workflows pin actions by major tag, which still leaves the tag itself to be moved forward when a new
+  # major lands.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    groups:
+      github-actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci
+      include: scope

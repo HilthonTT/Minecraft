@@ -1,0 +1,30 @@
+# Text files are stored with LF and checked out with the platform's native endings, which is what the
+# repository already contains. Without this, the result depends on each contributor's core.autocrlf setting.
+* text=auto
+
+*.cs      text diff=csharp
+*.csproj  text
+*.slnx    text
+*.props   text
+*.targets text
+*.glsl    text
+*.json    text
+*.md      text
+*.yml     text
+*.ps1     text eol=crlf
+
+# Textures, models and fonts must never be line-ending converted.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.obj  binary
+*.fnt  binary
+*.ttf  binary
+*.jar  binary
+*.zip  binary
+*.dll  binary
+*.exe  binary
+
+# Screenshots are project documentation rather than source; keep them out of language statistics.
+Screenshots/* linguist-documentation

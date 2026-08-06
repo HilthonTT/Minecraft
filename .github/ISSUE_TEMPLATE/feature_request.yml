@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest a block, mob, mechanic or engine change
+labels: [enhancement]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: Describe the feature and how it would behave in game.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why
+      description: What it makes possible that is awkward or impossible today.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - World generation
+        - Rendering and lighting
+        - Blocks and items
+        - Mobs
+        - Networking and multiplayer
+        - User interface
+        - Saving and loading
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
