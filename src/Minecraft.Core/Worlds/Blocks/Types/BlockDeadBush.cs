@@ -1,3 +1,4 @@
+﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks.States;
@@ -10,6 +11,7 @@ public sealed class BlockDeadBush : Block
     public BlockDeadBush(ushort id) : base(id)
     {
         IsOpaque = false;
+        SoundMaterial = BlockSoundMaterial.Grass;
     }
 
     public override BlockState GetNewDefaultState()

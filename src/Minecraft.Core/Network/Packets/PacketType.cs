@@ -1,4 +1,4 @@
-namespace Minecraft.Core.Network.Packets;
+﻿namespace Minecraft.Core.Network.Packets;
 
 public enum PacketType
 {
@@ -15,5 +15,6 @@ public enum PacketType
     PlayerJoin,
     PlayerLeave,
     PlayerBlockInteraction,
-    PlayerKeepAlive
+    PlayerKeepAlive,
+    Explosion
 }

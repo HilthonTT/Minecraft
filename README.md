@@ -9,8 +9,8 @@ A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https:
 
 Infinite procedurally generated terrain across six biomes, with oceans and the rivers that run down to them,
 ridged mountain ranges under snow and ice, buried ore, caves and villages. Coloured block lighting with smooth
-per vertex ambient occlusion, distance fog, a day/night cycle, mobs, and a client/server architecture that the
-singleplayer mode also runs through.
+per vertex ambient occlusion, distance fog, positional sound, a day/night cycle, mobs, and a client/server
+architecture that the singleplayer mode also runs through.
 
 ![Sheep grazing on a terraced meadow scattered with roses and dandelions, oak trees to either side and a bare stone mountain rising behind it under a clear sky](Screenshots/sample-1.png)
 
@@ -200,6 +200,34 @@ Function keys drive the debug tools: `F1` hitboxes, `F2` debug readout, `F3` col
 blocks around the player, `F5` chunk borders, `F6` detached overhead camera, `F7` light level overlay
 (`Up`/`Down` picks the level), `F8` fill a chunk layer with TNT, `F9` build a test room.
 
+## Sound
+
+Sounds are placed in the world: quieter the further off they are, weighted towards the ear they are on, and
+dropped entirely past the distance anything can be heard from. Where the listener stands is the active camera
+rather than the player, so the detached overhead camera hears the world from where it is actually looking at
+it.
+
+What plays is decided entirely on the client, from what it can already see, so none of it needed anything new
+from the server. Footsteps come from watching things move rather than from being told about a step, which is
+what lets another player's footfalls sound without a packet per stride. Every sound is drawn from a set of
+interchangeable recordings and pitched slightly either side of where it was recorded, so a run across open
+ground does not read as the same handful of clips looping.
+
+| Sound             | When                                                                   |
+| ----------------- | ---------------------------------------------------------------------- |
+| Footsteps         | Anything walking, in the voice of the block underfoot                   |
+| Breaking, placing | A block changing, in that block's own material                          |
+| Splash, strokes   | Going into water, and swimming through it                               |
+| Animals, zombies  | Their own calls on a timer, and their own footfalls                     |
+| Fuse              | TNT being struck                                                        |
+
+A block says which of seven sets it belongs to — stone, grass, gravel, sand, wood, snow or cloth — rather than
+carrying sounds of its own, since a dozen kinds of stone all break the same way.
+
+The set on disk is far larger than what is used, so only what is reachable is read; that takes about two
+thirds of a second, which is done off the main thread so the window is not held up by it. A machine with no
+sound device logs it once and runs silently rather than refusing to start.
+
 ## Layout
 
 | Project          | Purpose                       |
@@ -211,6 +239,7 @@ Inside `Minecraft.Core`:
 
 | Directory              | Contents                                                                |
 | ---------------------- | ----------------------------------------------------------------------- |
+| `Audio/`               | Sound loading, the mixer, and what decides when anything plays           |
 | `Entities/`            | Camera, the player on both sides of a connection, and the mobs           |
 | `Games/`               | Game loop, window, game state, menu flow, start argument parsing         |
 | `IO/`                  | Buffered binary reader and writer for network packets                    |

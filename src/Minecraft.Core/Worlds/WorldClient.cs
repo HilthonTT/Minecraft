@@ -11,6 +11,8 @@ public sealed class WorldClient : World
     {
         OnBlockPlacedHandler += game.MasterRenderer.OnBlockPlaced;
         OnBlockRemovedHandler += game.MasterRenderer.OnBlockRemoved;
+        OnBlockPlacedHandler += game.SoundDirector.OnBlockPlaced;
+        OnBlockRemovedHandler += game.SoundDirector.OnBlockRemoved;
         OnChunkLoadedHandler += game.MasterRenderer.OnChunkLoaded;
         OnChunkUnloadedHandler += game.MasterRenderer.OnChunkUnloaded;
     }

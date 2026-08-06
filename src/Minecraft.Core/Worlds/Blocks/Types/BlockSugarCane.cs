@@ -1,3 +1,4 @@
+﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks.States;
@@ -15,6 +16,7 @@ public sealed class BlockSugarCane : Block
         IsTickable = true;
         IsOpaque = false;
         HasCustomState = true;
+        SoundMaterial = BlockSoundMaterial.Grass;
     }
 
     public override BlockState GetNewDefaultState()

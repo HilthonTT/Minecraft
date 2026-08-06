@@ -44,6 +44,11 @@ public sealed class ClientNetHandler : INetHandler
         _game.World.AddPlayerPresenceToChunk(chunkDataPacket.Chunk);
     }
 
+    public void ProcessExplosionPacket(ExplosionPacket explosionPacket)
+    {
+        _game.SoundDirector.OnExplosion(explosionPacket.Position);
+    }
+
     public void ProcessChunkUnloadPacket(ChunkUnloadPacket unloadChunkPacket)
     {
         foreach (Vector2 chunkGridPosition in unloadChunkPacket.ChunkGridPositions)

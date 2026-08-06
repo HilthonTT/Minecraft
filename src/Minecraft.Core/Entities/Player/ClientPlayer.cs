@@ -147,6 +147,13 @@ public sealed class ClientPlayer : Player
             if (!_isCrouching && hitBlock.IsInteractable)
             {
                 _game.Client.WritePacket(new PlayerBlockInteractionPacket(MouseOverObject.IntersectedBlockPos));
+
+                // Played here rather than waiting to be told, since the fuse is lit by this click and the
+                // server broadcasts nothing until the blast itself.
+                if (hitBlock == BlockRegistry.Tnt)
+                {
+                    _game.SoundDirector.OnTntLit(MouseOverObject.IntersectedBlockPos);
+                }
             }
             else if (hitBlock.IsOverridable &&
                      _selectedBlock.GetBlock().CanAddBlockAt(world, MouseOverObject.IntersectedBlockPos))

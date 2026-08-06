@@ -85,6 +85,16 @@ public abstract class Entity
     /// </summary>
     protected bool _isInLiquid;
 
+    /// <summary>
+    /// Whether the entity is stood on something rather than falling. Only means anything for the entities
+    /// this side of the connection actually simulates: one it merely eases towards what the server last
+    /// said is never in the air as far as this is concerned.
+    /// </summary>
+    public bool IsOnGround => !_isInAir;
+
+    /// <summary>Whether the entity is in water. Carries the same caveat as <see cref="IsOnGround"/>.</summary>
+    public bool IsInLiquid => _isInLiquid;
+
     /// <summary>Vector facing where the entity is heading, ignoring the vertical component.</summary>
     protected Vector3 _moveForward = Vector3.UnitZ;
 

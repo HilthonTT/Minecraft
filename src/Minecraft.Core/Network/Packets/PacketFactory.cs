@@ -95,6 +95,11 @@ public sealed class PacketFactory
                     string playerName = ReadUtf8String(reader);
                     return new PlayerJoinRequestPacket(playerName);
                 }
+            case PacketType.Explosion:
+                {
+                    Vector3 position = ReadVector3(reader);
+                    return new ExplosionPacket(position);
+                }
             case PacketType.PlayerJoinAccept:
                 {
                     int playerId = reader.ReadInt32();

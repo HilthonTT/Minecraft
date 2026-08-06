@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Physics;
+﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Physics;
 using OpenTK.Mathematics;
 using Minecraft.Core.Utilities.Vectors;
 
@@ -26,6 +27,12 @@ public abstract class Block
     /// swims rather than falls.
     /// </summary>
     public bool IsLiquid { get; protected set; }
+
+    /// <summary>
+    /// Which set of sounds this block is walked on and broken with. Stone by default, which is what most of
+    /// the world is made of.
+    /// </summary>
+    public BlockSoundMaterial SoundMaterial { get; protected set; } = BlockSoundMaterial.Stone;
     //If this block has blockstate specific data
     public bool HasCustomState { get; protected set; } = false;
 

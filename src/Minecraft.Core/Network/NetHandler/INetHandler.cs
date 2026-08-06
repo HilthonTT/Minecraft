@@ -31,4 +31,6 @@ public interface INetHandler
     void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket);
 
     void ProcessPlayerBlockInteractionpacket(PlayerBlockInteractionPacket playerInteractionPacket);
+
+    void ProcessExplosionPacket(ExplosionPacket explosionPacket);
 }

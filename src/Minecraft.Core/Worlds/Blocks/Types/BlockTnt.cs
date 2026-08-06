@@ -1,3 +1,5 @@
+﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;
 
@@ -14,6 +16,7 @@ public sealed class BlockTnt : Block
         IsTickable = true;
         IsInteractable = true;
         HasCustomState = true;
+        SoundMaterial = BlockSoundMaterial.Grass;
     }
 
     public override BlockState GetNewDefaultState()
@@ -91,6 +94,13 @@ public sealed class BlockTnt : Block
         }
 
         world.QueueToRemoveBlocksAt(targets);
+
+        // Sent as the event itself. What the clients would otherwise get is the hundreds of separate block
+        // removals it leaves behind, which arrive one at a time and are indistinguishable from mining.
+        world.Game.Server.BroadcastPacket(new ExplosionPacket(new Vector3(
+            source.BlockPosition.X + 0.5F,
+            source.BlockPosition.Y + 0.5F,
+            source.BlockPosition.Z + 0.5F)));
 
         // Any TNT caught in the blast lights on a much shorter fuse, which is what produces the chain.
         foreach (BlockStateTnt explosive in explosives)

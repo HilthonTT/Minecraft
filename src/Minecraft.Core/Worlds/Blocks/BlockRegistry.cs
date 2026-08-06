@@ -1,3 +1,4 @@
+﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Worlds.Blocks.Types;
 
 namespace Minecraft.Core.Worlds.Blocks;
@@ -34,12 +35,12 @@ public static class BlockRegistry
     public static readonly Block DiamondOre = new BlockSolid(24);
     public static readonly Block Glowstone = new BlockGlowstone(25);
     public static readonly Block MossyCobblestone = new BlockSolid(26);
-    public static readonly Block Clay = new BlockSolid(27);
-    public static readonly Block Snow = new BlockSolid(28);
-    public static readonly Block SnowyGrass = new BlockSolid(29);
+    public static readonly Block Clay = new BlockSolid(27, BlockSoundMaterial.Gravel);
+    public static readonly Block Snow = new BlockSolid(28, BlockSoundMaterial.Snow);
+    public static readonly Block SnowyGrass = new BlockSolid(29, BlockSoundMaterial.Grass);
     public static readonly Block Ice = new BlockSolid(30);
-    public static readonly Block BirchLog = new BlockSolid(31);
-    public static readonly Block SpruceLog = new BlockSolid(32);
+    public static readonly Block BirchLog = new BlockSolid(31, BlockSoundMaterial.Wood);
+    public static readonly Block SpruceLog = new BlockSolid(32, BlockSoundMaterial.Wood);
     public static readonly Block Dandelion = new BlockPlant(33, () => [Dirt, Grass, SnowyGrass]);
     public static readonly Block RedMushroom = new BlockPlant(34, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
     public static readonly Block BrownMushroom = new BlockPlant(35, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);

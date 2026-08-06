@@ -126,6 +126,9 @@ public sealed class ServerNetHandler : INetHandler
     public void ProcessChunkDataPacket(ChunkDataPacket chunkDataPacket) =>
         throw new InvalidOperationException("A server does not receive chunk data.");
 
+    public void ProcessExplosionPacket(ExplosionPacket explosionPacket) =>
+        throw new InvalidOperationException("A server does not receive explosions; it is the one that sets them off.");
+
     public void ProcessChunkUnloadPacket(ChunkUnloadPacket unloadChunkPacket) =>
         throw new InvalidOperationException("A server does not receive chunk unloads.");
 

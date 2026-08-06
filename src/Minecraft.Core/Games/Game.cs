@@ -1,3 +1,4 @@
+﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network;
@@ -32,6 +33,9 @@ public sealed class Game
     public Server Server { get; private set; } = null!;
     public MenuController Menu { get; private set; } = null!;
 
+    /// <summary>Null on a dedicated server, which has nobody to hear anything.</summary>
+    public SoundDirector SoundDirector { get; private set; } = null!;
+
     /// <summary>Whether this process is running a world of its own, rather than only joining somebody else's.</summary>
     public bool IsServer => RunMode is RunMode.ClientServer or RunMode.Server;
 
@@ -40,6 +44,8 @@ public sealed class Game
     /// again whenever a session is started from the menu, since that is what decides between hosting and
     /// joining.
     /// </summary>
+    private AudioEngine _audioEngine = null!;
+
     public RunMode RunMode { get; private set; }
 
     public GameState State { get; private set; } = GameState.MainMenu;
@@ -104,6 +110,9 @@ public sealed class Game
 
         ClientPlayer = new ClientPlayer(this);
         MasterRenderer = new MasterRenderer(this);
+
+        _audioEngine = new AudioEngine();
+        SoundDirector = new SoundDirector(this, _audioEngine, new SoundRegistry());
         Menu = new MenuController(
             this,
             _startArgs.IP + ":" + _startArgs.Port,
@@ -186,6 +195,7 @@ public sealed class Game
         if (RunMode != RunMode.Server)
         {
             MasterRenderer.CleanUp();
+            _audioEngine.Dispose();
             Input.Dispose();
         }
     }
@@ -245,6 +255,7 @@ public sealed class Game
         Client.Update(elapsedSeconds);
         World.Update(elapsedSeconds);
         MasterRenderer.EndFrameUpdate(World);
+        SoundDirector.Update(elapsedSeconds, World);
     }
 
     public void OnRenderGame()
@@ -349,6 +360,7 @@ public sealed class Game
         if (RunMode != RunMode.Server)
         {
             MasterRenderer?.UnloadWorld();
+            SoundDirector?.OnWorldUnloaded();
             ClientPlayer?.ResetForNewSession();
         }
     }

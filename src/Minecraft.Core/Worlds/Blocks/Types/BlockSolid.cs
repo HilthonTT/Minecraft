@@ -1,3 +1,4 @@
+﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Worlds.Blocks.States;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
@@ -8,8 +9,9 @@ namespace Minecraft.Core.Worlds.Blocks.Types;
 /// </summary>
 public sealed class BlockSolid : Block
 {
-    public BlockSolid(ushort id) : base(id)
+    public BlockSolid(ushort id, BlockSoundMaterial soundMaterial = BlockSoundMaterial.Stone) : base(id)
     {
+        SoundMaterial = soundMaterial;
     }
 
     public override BlockState GetNewDefaultState()

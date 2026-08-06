@@ -1,3 +1,4 @@
+﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;
@@ -10,6 +11,7 @@ public sealed class BlockCactus : Block
     {
         IsOpaque = false;
         HasCustomState = true;
+        SoundMaterial = BlockSoundMaterial.Cloth;
     }
 
     public override BlockState GetNewDefaultState()
