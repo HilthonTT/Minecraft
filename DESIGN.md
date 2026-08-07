@@ -7,8 +7,10 @@ How the engine works. For building and playing it, see [README.md](README.md).
 - [World generation](#world-generation)
 - [Structures](#structures)
 - [Saved worlds](#saved-worlds)
+- [Settings](#settings)
 - [Lighting](#lighting)
 - [Rendering](#rendering)
+- [Particles](#particles)
 - [Mobs](#mobs)
 - [Sound](#sound)
 - [Noise](#noise)
@@ -32,6 +34,7 @@ Inside `Minecraft.Core`:
 | `Network/`           | Client, server, sessions, packets and their handlers                      |
 | `Physics/`           | Axis aligned boxes and ray tracing                                        |
 | `Render/`            | Master renderer, chunk meshing, debug overlays, UI and the menu screens   |
+| `Render/Particles/`  | The specks in the air: what moves them, what draws them, what throws them |
 | `Resources/`         | Textures, fonts and models, copied to the output directory on build       |
 | `Shaders/`           | GLSL programs and their typed wrappers                                    |
 | `Shapes/`            | Block and entity model geometry, and the registries that hold it          |
@@ -70,6 +73,8 @@ border comes out as a slope rather than as a step.
 | Mountain    | Bare stone          | Ridged spines and gullies, patched with gravel and moss        |
 | Snowy peaks | Snowy grass         | The highest ground there is, pine over its lower shoulders     |
 
+![Grassland running back to pine covered outcrops with grey mountains on the horizon, an oak village and its fenced wheat field in the middle distance](Screenshots/sample-2.png)
+
 ### Land and sea
 
 How much of a column is land at all is decided before any of that, by a much broader field than the climate:
@@ -89,6 +94,8 @@ reaches is washed to sand whichever biome it belongs to, and to gravel further d
 and a sea reads as getting deeper rather than as one flat basin. Nothing is grown on a seabed, and no village
 is sited on one.
 
+![A river running down a broad valley between grassy hills, sand along both banks, a grey mountain rising on the left and a stick of TNT held in the corner of the view](Screenshots/sample-8.png)
+
 ### Snow and cliffs
 
 Above the snow line the ground goes under snow, with sheets of glacial ice across part of it. The line itself
@@ -104,7 +111,7 @@ the chunk its centre falls in but is laid down by every chunk it reaches into, s
 sheared off at a border. Caves are carved after the veins, so a tunnel cutting through one leaves its face
 showing in the wall, and the floor of the world is bedrock.
 
-![An oak village of plank and log houses beside a fenced wheat field, with sheep among the buildings, pine covered outcrops behind and grey mountains on the horizon](Screenshots/sample-2.png)
+![A wide cave chamber lit by torches along its floor, a seam of coal showing in the far wall and a pocket of dirt broken into overhead](Screenshots/sample-10.png)
 
 ## Structures
 
@@ -114,6 +121,8 @@ only its own slice; two chunks that disagreed would leave a house cut in half al
 An `IStructure` therefore has to be a pure function of the world seed and its position, and it reads the ground
 through `ITerrainSampler` — which recomputes terrain from the seed — rather than out of the world, since the
 neighbouring chunks it spans are not loaded while any one of them is being generated.
+
+![Plank and log houses stepping down a terraced meadow, sheep grazing between them, mountains on the horizon and a torch held in the corner of the view](Screenshots/sample-4.png)
 
 ## Saved worlds
 
@@ -147,12 +156,50 @@ instead of taking the world down with it.
 Passing `seed` for a world that already exists is ignored, with a warning — its terrain is already fixed. To
 start over, delete the world directory or pick a different `world` name.
 
+## Settings
+
+`GameSettings` holds what one player prefers of the game, as against `Constants`, which is what the game is. It
+lives in `options.txt` beside the executable, in the same plain `key=value` text a `level.dat` uses, and is
+read before anything built from it — the camera is constructed with the chosen field of view rather than being
+corrected to it afterwards.
+
+Every setting applies the moment it changes rather than at the next world, which is why the options screen dims
+the world instead of covering it: a render distance or a field of view can be judged against the thing it
+changes. A single `OnChangedHandler` carries each change out to the camera, the mixer and the fog, and it is
+only raised when a value has really moved, so a handler that costs something can hang off it directly while a
+slider is being dragged.
+
+Render distance is the one that cannot be settled on this side. The server owns which chunks are loaded and
+streamed, so the client sends a `PlayerSettings` packet — on joining, and again on every change — and the
+server holds what it asks for against a ceiling of its own before storing it on the session. `ChunkProvider`
+reads that figure every update, so the world being streamed follows the slider. The fog is measured against the
+same distance, so moving it moves the horizon rather than leaving the haze somewhere the world no longer ends.
+
 ## Lighting
 
 Lighting is a flood fill over four channels — red, green, blue and sunlight — packed into a `ushort` per block.
 Placing or breaking a block repairs only the affected region rather than relighting the chunk, and
 `SmoothLighting` averages the neighbouring cells at mesh time to get per vertex gradients and ambient
 occlusion.
+
+### Torches
+
+A torch is the only light the player can put down, and the reason the coloured channels are worth having: it
+burns a deep orange, short of glowstone on every channel and much shorter on blue, so a lit passage reads as
+having been lit by somebody rather than as daylight let in.
+
+Nothing had to be added to the lighting for it. A `BlockState` that implements `ILightSource` is collected into
+the chunk's `LightSourceBlocks` when it is placed and dropped from it when it is broken, and the flood fill
+already works from that list, so the torch only had to say what colour it burns.
+
+What a torch does need of its own is which way it was put down. The face that was clicked is known only at the
+moment of placing and is gone by the time the world has the block, so `IOrientedBlockState` hands it over on
+the way past; the attachment is then a byte of the block's saved state, and the model is one of five shapes
+built once at start up rather than sheared per torch as it is meshed. A torch on a wall watches only the block
+it is attached to, so digging the floor out from under one leaves it where it is, and taking its wall away
+drops it.
+
+![A narrow alley between village buildings, lit warm orange by a torch on the wall, with a torch held in the corner of the view](Screenshots/sample-5.png)
 
 ## Rendering
 
@@ -179,11 +226,64 @@ ever be, so terrain dissolves into the sky instead of ending along a line. The l
 measuring the fog as a radius also closes it over the corners first, and what is left visible reads as a circle
 rather than as four straight edges.
 
+### The block in hand
+
+The held block is drawn through the same shader the world is, with the view matrix set to the identity. That is
+what pins it to the screen: its vertices are already where the eye is looking from, so turning the head moves
+the world past it and leaves it where it was. The depth buffer is cleared first, so terrain the player is
+standing against can never cut into it, and it is drawn through a projection of its own at a fixed field of
+view, so widening the view opens up the world without throwing the block off the corner of the screen.
+
+Its mesh takes every face of the block, hidden ones included, since there is no neighbouring block in a hand
+for any of them to be buried against, and shades them by orientation with the same fixed figures the chunk
+mesher uses, so a block in the hand reads the same way one in the world does. The mesh is rebuilt only when the
+block, its state or the light where the player is standing changes, which is what lets a torch carried into a
+cave go dark with the room around it without rebuilding anything per frame.
+
+## Particles
+
+Specks are a fixed array of structs reused in place: there are hundreds of them at a time and every one is
+walked each frame, so a class per speck would cost more than simulating it. A full array drops the newest
+rather than growing.
+
+They are moved one axis at a time against the world, which is what lets a chip slide along a wall it has run
+into rather than stop dead against it, and what is solid is measured by whether a block has a collision box
+rather than by whether it can be seen through — so a speck falls past grass and into water, and is stopped by
+leaves. A speck has no width, so where a body needs a swept box this only has to ask what is in the cell it is
+about to enter.
+
+Their geometry changes every frame, so unlike everything else the renderer owns its buffers directly and
+refills them in place rather than building a `VAOModel` per frame, which would mean creating and deleting GL
+buffers sixty times a second. They are drawn after the solid world and before the water, so terrain hides them
+and a splash thrown up out of a lake is seen through its surface rather than painted over it.
+
+What throws them is decided the same way the sound is: on the client, from what it can already see.
+
+| Speck             | Thrown by                                                          |
+| ----------------- | ------------------------------------------------------------------ |
+| Chips of a block  | That block breaking, in pieces of its own texture                   |
+| Dust              | Sprinting, in pieces of whatever is underfoot                       |
+| Droplets          | Going into water                                                    |
+| Smoke             | A blast, which also holds the chips off while the terrain comes apart |
+| Flame             | Every torch in sight, on a flicker of its own                       |
+
+A chip is a randomly placed quarter of the broken block's cell rather than the whole of it, which is what makes
+a shower read as pieces of what was broken instead of a cloud of the same picture repeated. Nothing needed a
+texture adding: the flame is the top of the torch's own artwork, and the smoke is cobblestone held at a low
+brightness, since the shader multiplies the sheet by the light it is given.
+
+Torch flames are found by walking the light sources the chunks around the player already keep a list of — the
+same list the lighting itself is driven from — so nothing has to be searched for.
+
+![A line of torches down a grassy bank, some standing on the ground and some leaning off the earth face beside them, each with orange flame specks drifting up from its tip](Screenshots/sample-9.png)
+
 ## Mobs
 
 Sheep graze by day and zombies come out after dark, both built as cuboid models wearing a Minecraft skin sheet.
 Only the server runs their behaviour and physics; every client eases each mob towards the last position and
 facing it was told about, the same way it does for other players.
+
+![A cow and a sheep grazing on a terraced meadow below a village house, with an oak log held in the corner of the view](Screenshots/sample-6.png)
 
 Passive and hostile mobs are counted against caps of their own rather than one shared total. Sharing a cap
 starves the animals out — a hostile mob follows the player and so never wanders far enough off to be despawned,

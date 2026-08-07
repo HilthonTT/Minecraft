@@ -2,6 +2,7 @@
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network;
+using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Render;
 using Minecraft.Core.Render.UI;
 using Minecraft.Core.Utilities;
@@ -32,6 +33,12 @@ public sealed class Game
     public WorldClient World { get; private set; } = null!;
     public Server Server { get; private set; } = null!;
     public MenuController Menu { get; private set; } = null!;
+
+    /// <summary>
+    /// What this player has set the game up to look, sound and feel like. Read off disk before anything that
+    /// is built from it, and every change to it applied straight away through <see cref="ApplySettings"/>.
+    /// </summary>
+    public GameSettings Settings { get; }
 
     /// <summary>Null on a dedicated server, which has nobody to hear anything.</summary>
     public SoundDirector SoundDirector { get; private set; } = null!;
@@ -80,6 +87,36 @@ public sealed class Game
         WorldName = startArgs.WorldName;
         WorldSeed = startArgs.Seed;
         FreshWorld = startArgs.FreshWorld;
+
+        // Loaded here rather than at start up, since the camera and the audio engine are built from it.
+        Settings = GameSettings.Load();
+        Settings.OnChangedHandler += ApplySettings;
+    }
+
+    /// <summary>
+    /// Takes a changed setting everywhere it has to go. Called for every change, including each step of a
+    /// slider being dragged, so all of it is cheap: the one thing that is not — telling the server how far
+    /// this player can see — is only reached when the distance itself has actually moved.
+    /// </summary>
+    private void ApplySettings()
+    {
+        if (RunMode == RunMode.Server)
+        {
+            return;
+        }
+
+        _audioEngine.MasterVolume = Settings.MasterVolume;
+        ClientPlayer.ApplyFieldOfViewSetting();
+        SendViewDistanceToServer();
+    }
+
+    /// <summary>
+    /// Tells the server how much of the world to stream. The server owns which chunks are loaded, so this is
+    /// the only way a render distance chosen here reaches the thing that acts on it.
+    /// </summary>
+    private void SendViewDistanceToServer()
+    {
+        Client?.WritePacket(new PlayerSettingsPacket(Settings.RenderDistanceChunks));
     }
 
     public void OnStartGame(GameWindow window)
@@ -111,7 +148,7 @@ public sealed class Game
         ClientPlayer = new ClientPlayer(this);
         MasterRenderer = new MasterRenderer(this);
 
-        _audioEngine = new AudioEngine();
+        _audioEngine = new AudioEngine { MasterVolume = Settings.MasterVolume };
         SoundDirector = new SoundDirector(this, _audioEngine, new SoundRegistry());
         Menu = new MenuController(
             this,
@@ -194,6 +231,8 @@ public sealed class Game
 
         if (RunMode != RunMode.Server)
         {
+            Settings.Save();
+
             MasterRenderer.CleanUp();
             _audioEngine.Dispose();
             Input.Dispose();
@@ -254,8 +293,9 @@ public sealed class Game
 
         Client.Update(elapsedSeconds);
         World.Update(elapsedSeconds);
-        MasterRenderer.EndFrameUpdate();
+        MasterRenderer.EndFrameUpdate(elapsedSeconds);
         SoundDirector.Update(elapsedSeconds, World);
+        MasterRenderer.Particles.Update(elapsedSeconds, World);
     }
 
     public void OnRenderGame()
@@ -302,7 +342,13 @@ public sealed class Game
                 break;
 
             case GameState.Paused:
-                Resume();
+                // The options are reached from the pause menu, so Escape there has to step back to it rather
+                // than drop straight into the world with a screen still up over it.
+                if (!Menu.OnEscape())
+                {
+                    Resume();
+                }
+
                 break;
 
             default:
@@ -339,6 +385,10 @@ public sealed class Game
                 EndSession();
                 return false;
             }
+
+            // Straight after the join request, so the first chunks the server streams are already the right
+            // number of them rather than the default followed by a correction.
+            SendViewDistanceToServer();
         }
 
         EnterState(GameState.Playing);

@@ -16,5 +16,6 @@ public enum PacketType
     PlayerLeave,
     PlayerBlockInteraction,
     PlayerKeepAlive,
-    Explosion
+    Explosion,
+    PlayerSettings
 }

@@ -25,6 +25,7 @@ public sealed class MenuController
         RenameWorld,
         DeleteWorld,
         Pause,
+        Options,
     }
 
     private readonly Game _game;
@@ -38,11 +39,18 @@ public sealed class MenuController
     private readonly UICanvasRenameWorld _renameWorld;
     private readonly UICanvasDeleteWorld _deleteWorld;
     private readonly UICanvasPauseMenu _pauseMenu;
+    private readonly UICanvasOptions _options;
 
     private Screen _screen = Screen.None;
 
     /// <summary>Which screen the world list was opened from, and so where backing out of it goes.</summary>
     private Screen _worldListOpenedFrom = Screen.Main;
+
+    /// <summary>
+    /// The same for the options, which are reached both from the title and from a paused game and have to go
+    /// back to whichever of the two it was.
+    /// </summary>
+    private Screen _optionsOpenedFrom = Screen.Main;
 
     public MenuController(Game game, string defaultServerAddress, int hostPort, string defaultWorldName)
     {
@@ -60,6 +68,7 @@ public sealed class MenuController
         _renameWorld = new UICanvasRenameWorld(game);
         _deleteWorld = new UICanvasDeleteWorld(game);
         _pauseMenu = new UICanvasPauseMenu(game);
+        _options = new UICanvasOptions(game);
 
         // Registered once and left there. Which of them is drawn is decided by the canvas being enabled,
         // so switching screens does not rebuild anything.
@@ -70,6 +79,7 @@ public sealed class MenuController
         game.MasterRenderer.AddCanvas(_renameWorld);
         game.MasterRenderer.AddCanvas(_deleteWorld);
         game.MasterRenderer.AddCanvas(_pauseMenu);
+        game.MasterRenderer.AddCanvas(_options);
     }
 
     public void ShowMainMenu() => SetScreen(Screen.Main);
@@ -78,13 +88,20 @@ public sealed class MenuController
 
     public void Hide() => SetScreen(Screen.None);
 
-    /// <summary>Escape steps back out of a screen that was opened from another one.</summary>
-    public void OnEscape()
+    /// <summary>
+    /// Escape steps back out of a screen that was opened from another one, and reports whether it did. What
+    /// it means when there is nowhere left to step back to is the game's business rather than the menu's: on
+    /// the title screen it means nothing, and over a paused world it means carry on playing.
+    /// </summary>
+    public bool OnEscape()
     {
-        if (_screen is not (Screen.None or Screen.Main))
+        if (_screen is Screen.None or Screen.Main or Screen.Pause)
         {
-            GoBack();
+            return false;
         }
+
+        GoBack();
+        return true;
     }
 
     public void Update()
@@ -113,6 +130,11 @@ public sealed class MenuController
 
             case MenuAction.Multiplayer:
                 SetScreen(Screen.Multiplayer);
+                break;
+
+            case MenuAction.Options:
+                _optionsOpenedFrom = _screen;
+                SetScreen(Screen.Options);
                 break;
 
             case MenuAction.Host:
@@ -274,6 +296,7 @@ public sealed class MenuController
         Screen.WorldSetup => Screen.WorldList,
         Screen.RenameWorld => Screen.WorldList,
         Screen.DeleteWorld => Screen.WorldList,
+        Screen.Options => _optionsOpenedFrom,
         _ => Screen.Main,
     };
 
@@ -331,6 +354,7 @@ public sealed class MenuController
 
     private void SetScreen(Screen screen)
     {
+        Screen previous = _screen;
         _screen = screen;
 
         _mainMenu.IsEnabled = screen == Screen.Main;
@@ -340,6 +364,14 @@ public sealed class MenuController
         _renameWorld.IsEnabled = screen == Screen.RenameWorld;
         _deleteWorld.IsEnabled = screen == Screen.DeleteWorld;
         _pauseMenu.IsEnabled = screen == Screen.Pause;
+        _options.IsEnabled = screen == Screen.Options;
+
+        // Written out on the way off the options rather than on every step of a slider, which would put the
+        // file through a hundred rewrites over a single drag.
+        if (previous == Screen.Options)
+        {
+            _game.Settings.Save();
+        }
 
         // Read again every time it is shown, since a world may have been created, renamed or deleted since
         // the last look, and by the screens this one leads to at that.
@@ -360,6 +392,7 @@ public sealed class MenuController
         Screen.RenameWorld => _renameWorld,
         Screen.DeleteWorld => _deleteWorld,
         Screen.Pause => _pauseMenu,
+        Screen.Options => _options,
         _ => null,
     };
 }

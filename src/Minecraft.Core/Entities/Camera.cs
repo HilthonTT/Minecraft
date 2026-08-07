@@ -8,7 +8,6 @@ namespace Minecraft.Core.Entities;
 public sealed class Camera
 {
     private readonly ViewFrustum _viewFrustum;
-    private readonly ProjectionMatrixInfo _defaultProjection;
 
     public Vector3 Position { get; private set; }
 
@@ -30,7 +29,7 @@ public sealed class Camera
 
     public Camera(ProjectionMatrixInfo projectionInfo)
     {
-        _defaultProjection = projectionInfo;
+        DefaultFieldOfView = projectionInfo.FieldOfView;
         CurrentProjection = projectionInfo;
         CurrentProjectionMatrix = CreateProjectionMatrix();
 
@@ -59,7 +58,29 @@ public sealed class Camera
 
     public void SetFieldOfViewToDefault()
     {
-        SetFieldOfView(_defaultProjection.FieldOfView);
+        SetFieldOfView(DefaultFieldOfView);
+    }
+
+    /// <summary>
+    /// The field of view this camera settles back to, which everything that widens or narrows it — sprinting,
+    /// crouching — works out from. Settable so the player's own choice becomes the resting point rather than
+    /// something layered on top of the one the camera was built with.
+    /// </summary>
+    public float DefaultFieldOfView { get; private set; }
+
+    /// <summary>
+    /// Changes the resting field of view, taking the camera to it if it is not currently widened or narrowed
+    /// by anything. Moving it while sprinting would fight with the sprint, which puts it back on its own.
+    /// </summary>
+    public void SetDefaultFieldOfView(float fieldOfView)
+    {
+        bool wasResting = CurrentProjection.FieldOfView == DefaultFieldOfView;
+        DefaultFieldOfView = fieldOfView;
+
+        if (wasResting)
+        {
+            SetFieldOfView(fieldOfView);
+        }
     }
 
     public void SetWindowSize(int width, int height)

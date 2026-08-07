@@ -56,6 +56,13 @@ public sealed class AudioEngine : IDisposable
     /// <summary>Whether there is an output to play through at all, which a machine without one has not.</summary>
     public bool IsAvailable => _output is not null;
 
+    /// <summary>
+    /// What every sound is scaled by on its way out, from silent to as recorded. Applied when a voice is
+    /// created rather than to the mixer, so changing it leaves whatever is already playing alone and takes
+    /// effect on the next sound instead of jumping the volume of a clip midway through.
+    /// </summary>
+    public float MasterVolume { get; set; } = 1.0F;
+
     public AudioEngine()
     {
         try
@@ -140,7 +147,11 @@ public sealed class AudioEngine : IDisposable
             return;
         }
 
-        // Nothing worth hearing, and every voice costs a slot whether or not it can be made out.
+        leftGain *= MasterVolume;
+        rightGain *= MasterVolume;
+
+        // Nothing worth hearing, and every voice costs a slot whether or not it can be made out. Tested after
+        // the master volume, so a game turned all the way down queues no voices at all.
         if (leftGain <= 0.001F && rightGain <= 0.001F)
         {
             return;

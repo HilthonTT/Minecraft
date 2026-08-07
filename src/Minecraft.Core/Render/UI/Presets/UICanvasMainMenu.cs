@@ -10,6 +10,7 @@ public sealed class UICanvasMainMenu : UICanvasMenu
 
     private readonly UIButton _singleplayerButton;
     private readonly UIButton _multiplayerButton;
+    private readonly UIButton _optionsButton;
     private readonly UIButton _quitButton;
 
     public UICanvasMainMenu(Game game)
@@ -17,6 +18,7 @@ public sealed class UICanvasMainMenu : UICanvasMenu
     {
         _singleplayerButton = new UIButton(this, "Singleplayer");
         _multiplayerButton = new UIButton(this, "Multiplayer");
+        _optionsButton = new UIButton(this, "Options");
         _quitButton = new UIButton(this, "Quit Game");
 
         Layout();
@@ -34,6 +36,11 @@ public sealed class UICanvasMainMenu : UICanvasMenu
             return MenuAction.Multiplayer;
         }
 
+        if (_optionsButton.Update(mousePosition, mousePressed))
+        {
+            return MenuAction.Options;
+        }
+
         if (_quitButton.Update(mousePosition, mousePressed))
         {
             return MenuAction.QuitGame;
@@ -44,7 +51,7 @@ public sealed class UICanvasMainMenu : UICanvasMenu
 
     protected override void Layout()
     {
-        const int rowCount = 3;
+        const int rowCount = 4;
         float columnHeight = (rowCount * UIButton.Height) + ((rowCount - 1) * UIButton.Gap);
 
         // Nudged below the middle, which leaves the title room above it without pushing the buttons off a
@@ -52,9 +59,12 @@ public sealed class UICanvasMainMenu : UICanvasMenu
         float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
         var rowSize = new Vector2(RowWidth, UIButton.Height);
 
-        _singleplayerButton.SetBounds(new Vector2(RowLeft, columnTop), rowSize);
-        _multiplayerButton.SetBounds(new Vector2(RowLeft, columnTop + UIButton.Height + UIButton.Gap), rowSize);
-        _quitButton.SetBounds(new Vector2(RowLeft, columnTop + (2 * (UIButton.Height + UIButton.Gap))), rowSize);
+        float row = columnTop;
+        foreach (UIButton button in (UIButton[])[_singleplayerButton, _multiplayerButton, _optionsButton, _quitButton])
+        {
+            button.SetBounds(new Vector2(RowLeft, row), rowSize);
+            row += UIButton.Height + UIButton.Gap;
+        }
 
         LayoutFrame(columnTop, columnTop + columnHeight + 24);
     }

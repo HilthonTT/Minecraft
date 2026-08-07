@@ -18,6 +18,12 @@ public abstract class Player : Entity
     protected bool _isCrouching;
     protected bool _isRunning;
 
+    /// <summary>Whether the player is sprinting, which is the one thing that kicks dust up off the ground.</summary>
+    public bool IsRunning => _isRunning;
+
+    /// <summary>Whether the player is flying, which is not walking however fast the ground goes past.</summary>
+    public bool IsFlying => _isFlying;
+
     protected readonly Stopwatch _jumpStopWatch = new();
 
     /// <summary>Vector facing towards where the player is looking.</summary>

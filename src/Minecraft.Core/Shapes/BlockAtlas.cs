@@ -30,6 +30,12 @@ public static class BlockAtlas
     public static Vector2 WheatGrowing { get; } = new(11, 5);
     public static Vector2 WheatRipe { get; } = new(15, 5);
 
+    /// <summary>
+    /// A lit torch. Only the middle two columns of the cell carry the stick and its flame, so the model wears
+    /// a slice of this rather than the whole of it.
+    /// </summary>
+    public static Vector2 Torch { get; } = new(0, 5);
+
     // A cactus is drawn narrower than its cell, so its artwork carries a blank margin the way a plant does
     // even though it is built as a cube rather than as crossed quads.
     public static Vector2 CactusTop { get; } = new(5, 4);
@@ -52,6 +58,7 @@ public static class BlockAtlas
         WheatSeedling,
         WheatGrowing,
         WheatRipe,
+        Torch,
         CactusTop,
         CactusSide,
         CactusBottom,

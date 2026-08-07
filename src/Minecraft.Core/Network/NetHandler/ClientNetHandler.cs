@@ -47,6 +47,7 @@ public sealed class ClientNetHandler : INetHandler
     public void ProcessExplosionPacket(ExplosionPacket explosionPacket)
     {
         _game.SoundDirector.OnExplosion(explosionPacket.Position);
+        _game.MasterRenderer.Particles.OnExplosion(_game.World, explosionPacket.Position);
     }
 
     public void ProcessChunkUnloadPacket(ChunkUnloadPacket unloadChunkPacket)
@@ -189,6 +190,11 @@ public sealed class ClientNetHandler : INetHandler
     }
 
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)
+    {
+        throw new InvalidOperationException();
+    }
+
+    public void ProcessPlayerSettingsPacket(PlayerSettingsPacket playerSettingsPacket)
     {
         throw new InvalidOperationException();
     }

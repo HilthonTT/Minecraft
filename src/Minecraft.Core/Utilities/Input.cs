@@ -39,6 +39,9 @@ public sealed class Input : IDisposable
 
     public bool OnMousePress(MouseButton b) => _window.MouseState.IsButtonPressed(b);
 
+    /// <summary>Whether the button is held right now, rather than having gone down on this frame.</summary>
+    public bool OnMouseDown(MouseButton b) => _window.MouseState.IsButtonDown(b);
+
     private void HandleTextInput(TextInputEventArgs e) => _pending.AddRange(e.AsString);
 
     public void Dispose() => _window.TextInput -= HandleTextInput;

@@ -1,4 +1,5 @@
 using Minecraft.Core.Games;
+using Minecraft.Core.Render.Particles;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Chunks;
@@ -66,6 +67,9 @@ public sealed class UICanvasDebug : UICanvas
 
         builder.AppendLine($"FPS={_game.CurrentFPS:0} AVG FPS={_game.AverageFPSCounter.GetAverageFPS()}");
         builder.AppendLine($"Block={_game.ClientPlayer.MouseOverObject?.BlockstateHit}");
+        builder.AppendLine(
+            $"Holding={_game.ClientPlayer.SelectedBlock}" +
+            $" Particles={_game.MasterRenderer.Particles.LiveParticleCount}/{ParticleSystem.Capacity}");
         builder.AppendLine(
             $"Time={_game.World.Environment.CurrentTime:0.00}/{_game.World.Environment.TimeInDay}");
         builder.AppendLine($"IsServer={_game.IsServer}");

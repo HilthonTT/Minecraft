@@ -130,6 +130,10 @@ public sealed class PacketFactory
                 {
                     return new PlayerKeepAlivePacket();
                 }
+            case PacketType.PlayerSettings:
+                {
+                    return new PlayerSettingsPacket(reader.ReadInt32());
+                }
             default: throw new Exception("Invalid packet type: " + packetType);
         }
     }

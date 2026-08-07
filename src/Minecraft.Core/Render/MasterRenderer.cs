@@ -3,6 +3,7 @@ using Minecraft.Core.Games;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render.Chunks;
 using Minecraft.Core.Render.MeshGenerator;
+using Minecraft.Core.Render.Particles;
 using Minecraft.Core.Render.UI;
 using Minecraft.Core.Render.UI.Presets;
 using Minecraft.Core.Shaders.BasicShader;
@@ -103,6 +104,13 @@ public sealed class MasterRenderer
     private readonly Thread _meshGenerationThread;
     private volatile bool _isRunning = true;
 
+    private readonly HeldItemRenderer _heldItemRenderer;
+    private readonly ParticleSystem _particleSystem = new();
+    private readonly ParticleRenderer _particleRenderer;
+
+    /// <summary>What throws specks into the air, and what the world tells when something happens worth one.</summary>
+    public ParticleDirector Particles { get; }
+
     public DebugHelper DebugHelper { get; }
     public UICanvasIngame IngameCanvas { get; }
     public int DitherTextureId { get; }
@@ -130,6 +138,9 @@ public sealed class MasterRenderer
         _playerBlockRenderer = new PlayerHoverBlockRenderer(_wireframeRenderer, game.ClientPlayer);
         DitherTextureId = TextureLoader.LoadDitherTexture();
         _skydome = new Skydome(game);
+        _heldItemRenderer = new HeldItemRenderer(game, _basicShader, _blockModelRegistry, _textureAtlas);
+        _particleRenderer = new ParticleRenderer(_basicShader, _textureAtlas);
+        Particles = new ParticleDirector(game, _particleSystem, _blockModelRegistry);
 
         _uiRenderer = new UIRenderer(_cameraController);
         IngameCanvas = new UICanvasIngame(game);
@@ -191,6 +202,11 @@ public sealed class MasterRenderer
 
         RenderChunks(world);
         RenderEntities(world);
+
+        // Before the water, so that a splash thrown up out of a lake is seen through its surface rather than
+        // painted over it, and after the solid world, which is what hides the specks behind terrain.
+        _particleRenderer.Render(_particleSystem, _cameraController.Camera, world, _fogColor, _fogStart, _fogEnd);
+
         RenderWater();
 
         GL.Enable(EnableCap.Blend);
@@ -198,6 +214,11 @@ public sealed class MasterRenderer
         GL.Disable(EnableCap.DepthTest);
         _playerBlockRenderer.RenderSelection();
         DebugHelper.UpdateAndRender();
+
+        // Over the world and its outlines, under the interface: what the player is holding is part of the
+        // scene, but nothing they can read should end up behind it.
+        _heldItemRenderer.Render(world, _cameraController.Camera);
+
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         _uiRenderer.Render();
         GL.Disable(EnableCap.Blend);
@@ -258,6 +279,8 @@ public sealed class MasterRenderer
 
         IngameCanvas.OnWorldUnloaded();
         DebugHelper.OnWorldUnloaded();
+        _heldItemRenderer.OnWorldUnloaded();
+        Particles.OnWorldUnloaded();
     }
 
     /// <summary>
@@ -267,11 +290,13 @@ public sealed class MasterRenderer
     public void DiscardPendingMouseLook() => _cameraController.DiscardPendingMouseLook();
 
     /// <summary>
-    /// The distance the fog is taken over, in blocks. Held against the view distance so that it always
-    /// closes over exactly where the loaded world runs out, however far that is set to.
+    /// The distance the fog is taken over, in blocks. Measured against whatever the player has set the render
+    /// distance to rather than a fixed figure, so it always closes over exactly where the loaded world runs
+    /// out and moving the slider moves the horizon rather than leaving the haze somewhere else.
     /// </summary>
-    private const float FogStartDistance = Constants.VIEW_DISTANCE_BLOCKS * Constants.FOG_START_FRACTION;
-    private const float FogEndDistance = Constants.VIEW_DISTANCE_BLOCKS * Constants.FOG_END_FRACTION;
+    private float FogStartDistance => _game.Settings.RenderDistanceBlocks * Constants.FOG_START_FRACTION;
+
+    private float FogEndDistance => _game.Settings.RenderDistanceBlocks * Constants.FOG_END_FRACTION;
 
     /// <summary>
     /// Works out what the fog does this frame. Normally it is the sky's own, closing over at the edge of the
@@ -503,10 +528,11 @@ public sealed class MasterRenderer
         }
     }
 
-    public void EndFrameUpdate()
+    public void EndFrameUpdate(float deltaTime)
     {
         RemeshChunkIfMeshAvailable();
         _cameraController.Update();
+        _heldItemRenderer.Update(deltaTime);
     }
 
     private void RemeshChunkIfMeshAvailable()
@@ -712,6 +738,7 @@ public sealed class MasterRenderer
     private void OnPlayerCameraProjectionChanged(ProjectionMatrixInfo projectionInfo)
     {
         _screenQuad.AdjustToWindowSize(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
+        _heldItemRenderer.OnWindowResized(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
         UploadActiveCameraProjectionMatrix();
     }
 
@@ -732,6 +759,8 @@ public sealed class MasterRenderer
         // current chunk before the models it feeds are deleted.
         _meshGenerationThread.Join(TimeSpan.FromSeconds(1));
 
+        _heldItemRenderer.CleanUp();
+        _particleRenderer.CleanUp();
         _basicShader.CleanUp();
         _entityShader.CleanUp();
         _uiRenderer.CleanUp();

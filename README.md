@@ -9,8 +9,8 @@ A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https:
 
 Infinite procedurally generated terrain across six biomes, with oceans and the rivers that run down to them,
 ridged mountain ranges under snow and ice, buried ore, caves and villages. Coloured block lighting with smooth
-per vertex ambient occlusion, distance fog, positional sound, a day/night cycle, mobs, and a client/server
-architecture that the singleplayer mode also runs through.
+per vertex ambient occlusion, placeable torches, particles, distance fog, positional sound, a day/night cycle,
+mobs, and a client/server architecture that the singleplayer mode also runs through.
 
 ![Sheep grazing on a terraced meadow scattered with roses and dandelions, oak trees to either side and a bare stone mountain rising behind it under a clear sky](Screenshots/sample-1.png)
 
@@ -97,12 +97,43 @@ the menu instead, and never deletes anything.
 | Left click      | Break block                                |
 | Right click     | Place block, or interact (TNT)             |
 | Middle click    | Pick the block being looked at             |
+| `1`–`9`         | Choose a block to build with               |
+| Scroll wheel    | Step through the same nine                 |
 | `Enter`         | Open and send chat                         |
 | `Escape`        | Open the pause menu, or close the chat     |
 
 Function keys drive the debug tools: `F1` hitboxes, `F2` debug readout, `F3` collect garbage, `F4` clear blocks
 around the player, `F5` chunk borders, `F6` detached overhead camera, `F7` light level overlay (`Up`/`Down`
 picks the level), `F8` fill a chunk layer with TNT, `F9` build a test room.
+
+### What you are holding
+
+Whatever is selected is drawn in your hand, and that is the only place it is shown: there is no bar of slots
+along the bottom of the screen, because there is nothing behind one yet. Nothing is collected, counted or
+spent, so the number keys and the wheel are a way of naming a block to build with rather than an inventory.
+
+The nine are a torch, planks, cobblestone, stone, dirt, sand, an oak log, glowstone and TNT. Anything else in
+the world is still reachable by pointing at it and clicking the middle mouse button.
+
+![A pig standing in long grass on a terraced hillside, an oak log held in the corner of the view and the outline of the block being pointed at in the middle of the screen](Screenshots/sample-7.png)
+
+## Options
+
+`Options`, from the title screen or the pause menu, sets:
+
+| Setting           | Range           | Notes                                                      |
+| ----------------- | --------------- | ---------------------------------------------------------- |
+| Render distance   | 2–16 chunks     | Moves the fog and the horizon with it                       |
+| Field of view     | 60°–110°        | Sprinting and crouching still widen and narrow it from there |
+| Volume            | 0–100%          |                                                             |
+| Mouse sensitivity | 10%–150%        |                                                             |
+
+Every one of them applies as the slider moves, and the pause menu only dims the world rather than covering it,
+so a setting can be judged against the thing it changes. They are written to `options.txt` next to the
+executable when you leave the screen.
+
+Changing the render distance while playing takes effect immediately, on a server as well as in a singleplayer
+world: the client asks, and the server is what decides how much of the world to send.
 
 ## Saved worlds
 

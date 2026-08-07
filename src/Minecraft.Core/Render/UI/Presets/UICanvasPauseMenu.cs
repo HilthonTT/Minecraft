@@ -14,6 +14,7 @@ public sealed class UICanvasPauseMenu : UICanvasMenu
     private static readonly Vector3 _backdropColor = new(0.02F, 0.02F, 0.03F);
 
     private readonly UIButton _resumeButton;
+    private readonly UIButton _optionsButton;
     private readonly UIButton _quitToTitleButton;
     private readonly UIButton _quitGameButton;
 
@@ -21,6 +22,7 @@ public sealed class UICanvasPauseMenu : UICanvasMenu
         : base(game, "Game Menu", _backdropColor, BackdropTransparency)
     {
         _resumeButton = new UIButton(this, "Back to Game");
+        _optionsButton = new UIButton(this, "Options");
         _quitToTitleButton = new UIButton(this, "Save and Quit to Title");
         _quitGameButton = new UIButton(this, "Quit Game");
 
@@ -32,6 +34,11 @@ public sealed class UICanvasPauseMenu : UICanvasMenu
         if (_resumeButton.Update(mousePosition, mousePressed))
         {
             return MenuAction.Resume;
+        }
+
+        if (_optionsButton.Update(mousePosition, mousePressed))
+        {
+            return MenuAction.Options;
         }
 
         if (_quitToTitleButton.Update(mousePosition, mousePressed))
@@ -49,15 +56,18 @@ public sealed class UICanvasPauseMenu : UICanvasMenu
 
     protected override void Layout()
     {
-        const int rowCount = 3;
+        const int rowCount = 4;
         float columnHeight = (rowCount * UIButton.Height) + ((rowCount - 1) * UIButton.Gap);
 
         float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
         var rowSize = new Vector2(RowWidth, UIButton.Height);
 
-        _resumeButton.SetBounds(new Vector2(RowLeft, columnTop), rowSize);
-        _quitToTitleButton.SetBounds(new Vector2(RowLeft, columnTop + UIButton.Height + UIButton.Gap), rowSize);
-        _quitGameButton.SetBounds(new Vector2(RowLeft, columnTop + (2 * (UIButton.Height + UIButton.Gap))), rowSize);
+        float row = columnTop;
+        foreach (UIButton button in (UIButton[])[_resumeButton, _optionsButton, _quitToTitleButton, _quitGameButton])
+        {
+            button.SetBounds(new Vector2(RowLeft, row), rowSize);
+            row += UIButton.Height + UIButton.Gap;
+        }
 
         LayoutFrame(columnTop, columnTop + columnHeight + 24);
     }

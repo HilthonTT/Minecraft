@@ -17,12 +17,28 @@ public sealed class ClientPlayer : Player
 {
     private const float SecondsPerPositionUpdate = 0.1F;
 
+    /// <summary>
+    /// What sprinting and crouching do to the field of view, as a share of whatever it is resting at. Held as
+    /// a multiplier rather than as an angle so that a player who has widened their view still gets the same
+    /// pull when they break into a run.
+    /// </summary>
+    private const float RunningFieldOfViewMultiplier = 1.10F;
+    private const float CrouchingFieldOfViewMultiplier = 0.97F;
+
     private readonly Game _game;
 
-    private BlockState _selectedBlock = BlockRegistry.GetState(BlockRegistry.Tnt);
     private float _elapsedSecondsSinceLastPositionUpdate;
 
     public Camera Camera { get; }
+
+    /// <summary>The block a right click would place. Also what is drawn in the player's own hand.</summary>
+    public BlockState SelectedBlock { get; private set; } = BlockRegistry.GetState(BlockRegistry.Tnt);
+
+    /// <summary>
+    /// Raised when the player swings at the world — breaking, placing or interacting. Watched by the renderer
+    /// that draws the held block, which is the only thing an arm swing is visible in.
+    /// </summary>
+    public event Action? OnSwingHandler;
 
     /// <summary>The block the player is currently looking at, or null when out of reach.</summary>
     public RayTraceResult? MouseOverObject { get; private set; }
@@ -35,13 +51,19 @@ public sealed class ClientPlayer : Player
         {
             DistanceNearPlane = 0.1F,
             DistanceFarPlane = 1000F,
-            FieldOfView = 1.5F,
+            FieldOfView = game.Settings.FieldOfViewRadians,
             WindowPixelWidth = game.Window.ClientSize.X,
             WindowPixelHeight = game.Window.ClientSize.Y,
         });
 
         OnToggleRunningHandler += OnRunningToggle;
         OnToggleCrouchingHandler += OnCrouchingToggle;
+    }
+
+    /// <summary>Takes the field of view the player has chosen, for when they change it from the options.</summary>
+    public void ApplyFieldOfViewSetting()
+    {
+        Camera.SetDefaultFieldOfView(_game.Settings.FieldOfViewRadians);
     }
 
     /// <summary>
@@ -75,7 +97,7 @@ public sealed class ClientPlayer : Player
     {
         if (isRunning)
         {
-            Camera.SetFieldOfView(1.65F);
+            Camera.SetFieldOfView(Camera.DefaultFieldOfView * RunningFieldOfViewMultiplier);
         }
         else
         {
@@ -87,7 +109,7 @@ public sealed class ClientPlayer : Player
     {
         if (isCrouching)
         {
-            Camera.SetFieldOfView(1.45F);
+            Camera.SetFieldOfView(Camera.DefaultFieldOfView * CrouchingFieldOfViewMultiplier);
         }
         else
         {
@@ -111,6 +133,11 @@ public sealed class ClientPlayer : Player
         if (_game.IsGameplayInputEnabled)
         {
             UpdateKeyboardMovementInput();
+        }
+
+        if (_game.IsGameplayInputEnabled)
+        {
+            UpdateBlockSelectionInput();
         }
 
         ApplyVelocityAndCheckCollision(deltaTime, world);
@@ -143,6 +170,9 @@ public sealed class ClientPlayer : Player
         if (Game.Input.OnMousePress(MouseButton.Right))
         {
             Block hitBlock = world.GetBlockAt(MouseOverObject.IntersectedBlockPos).GetBlock();
+            Block selected = SelectedBlock.GetBlock();
+
+            OnSwingHandler?.Invoke();
 
             if (!_isCrouching && hitBlock.IsInteractable)
             {
@@ -156,28 +186,90 @@ public sealed class ClientPlayer : Player
                 }
             }
             else if (hitBlock.IsOverridable &&
-                     _selectedBlock.GetBlock().CanAddBlockAt(world, MouseOverObject.IntersectedBlockPos))
+                     selected.CanAddBlockAt(world, MouseOverObject.IntersectedBlockPos))
             {
                 // The block being looked at can be replaced outright, so the new block takes its place.
-                BlockState newBlock = BlockRegistry.GetState(_selectedBlock.GetBlock());
-                _game.Client.WritePacket(new PlaceBlockPacket(newBlock, MouseOverObject.IntersectedBlockPos));
+                _game.Client.WritePacket(new PlaceBlockPacket(
+                    BuildStateToPlaceAt(MouseOverObject.IntersectedBlockPos),
+                    MouseOverObject.IntersectedBlockPos));
             }
-            else if (_selectedBlock.GetBlock().CanAddBlockAt(world, MouseOverObject.BlockPlacePosition))
+            else if (selected.CanAddBlockAt(world, MouseOverObject.BlockPlacePosition))
             {
-                BlockState newBlock = BlockRegistry.GetState(_selectedBlock.GetBlock());
-                _game.Client.WritePacket(new PlaceBlockPacket(newBlock, MouseOverObject.BlockPlacePosition));
+                _game.Client.WritePacket(new PlaceBlockPacket(
+                    BuildStateToPlaceAt(MouseOverObject.BlockPlacePosition),
+                    MouseOverObject.BlockPlacePosition));
             }
         }
 
         if (Game.Input.OnMousePress(MouseButton.Middle))
         {
-            _selectedBlock = world.GetBlockAt(MouseOverObject.IntersectedBlockPos);
+            BlockState picked = world.GetBlockAt(MouseOverObject.IntersectedBlockPos);
+            if (picked.GetBlock() != BlockRegistry.Air)
+            {
+                SelectedBlock = picked;
+            }
         }
 
         if (Game.Input.OnMousePress(MouseButton.Left))
         {
+            OnSwingHandler?.Invoke();
             _game.Client.WritePacket(new RemoveBlockPacket(MouseOverObject.IntersectedBlockPos));
         }
+    }
+
+    /// <summary>
+    /// The state to send for a placement. Fresh rather than the held one, since two blocks placed from the
+    /// same selection must not end up sharing a state, and a block that cares which way it was put down —
+    /// a torch against a wall — is told here, where the face that was clicked is still known.
+    /// </summary>
+    private BlockState BuildStateToPlaceAt(Vector3i blockPos)
+    {
+        BlockState state = BlockRegistry.GetState(SelectedBlock.GetBlock());
+
+        if (state is IOrientedBlockState oriented && MouseOverObject is not null)
+        {
+            oriented.OrientTowardsSupport(MouseOverObject.IntersectedBlockPos - blockPos);
+        }
+
+        return state;
+    }
+
+    /// <summary>
+    /// Picks what to build with. The number keys reach straight for one of the palette, and the wheel steps
+    /// through it, which is what a hand on the mouse wants. What is currently held is not shown on a bar of
+    /// its own: it is in the player's hand, drawn in front of them.
+    /// </summary>
+    private void UpdateBlockSelectionInput()
+    {
+        if (!_game.Window.IsFocused)
+        {
+            return;
+        }
+
+        for (int slot = 0; slot < BlockPalette.Blocks.Count; slot++)
+        {
+            if (Game.Input.OnKeyPress(Keys.D1 + slot))
+            {
+                SelectedBlock = BlockRegistry.GetState(BlockPalette.Blocks[slot]);
+                return;
+            }
+        }
+
+        float scroll = Game.Input.ScrollDelta.Y;
+        if (scroll == 0)
+        {
+            return;
+        }
+
+        // Stepped from where the palette currently sits, or from its start when what is held was picked off
+        // the world with the middle button and is not in the palette at all.
+        int current = BlockPalette.IndexOf(SelectedBlock.GetBlock());
+        int count = BlockPalette.Blocks.Count;
+        int next = current < 0
+            ? (scroll > 0 ? 0 : count - 1)
+            : ((current - Math.Sign(scroll)) % count + count) % count;
+
+        SelectedBlock = BlockRegistry.GetState(BlockPalette.Blocks[next]);
     }
 
     private void UpdateKeyboardMovementInput()

@@ -18,6 +18,13 @@ public abstract class Session
         ViewDistance = Constants.VIEW_DISTANCE_CHUNKS,
     };
 
+    /// <summary>
+    /// The furthest a client may ask to see. A view distance is honoured because it is the client's own
+    /// business how much of the world it wants, but it costs the server generation and streaming work, so it
+    /// is not left for a client to name any number it likes.
+    /// </summary>
+    private const int MaxAcceptedViewDistance = 16;
+
     private SessionState _state;
 
     /// <summary>Null until the server has accepted the connection and assigned a player to it.</summary>
@@ -25,7 +32,7 @@ public abstract class Session
 
     public INetHandler NetHandler { get; }
 
-    public PlayerSettings PlayerSettings { get; }
+    public PlayerSettings PlayerSettings { get; private set; }
 
     public Connection Connection { get; }
 
@@ -57,6 +64,18 @@ public abstract class Session
 
         PlayerSettings = _defaultPlayerSettings;
         State = SessionState.AwaitingAcceptance;
+    }
+
+    /// <summary>
+    /// Takes the view distance the client asked for, held to what this server is willing to serve. The chunk
+    /// provider reads it every update, so this takes effect on the next one rather than at the next session.
+    /// </summary>
+    public void SetViewDistance(int viewDistance)
+    {
+        PlayerSettings = PlayerSettings with
+        {
+            ViewDistance = Math.Clamp(viewDistance, 1, MaxAcceptedViewDistance),
+        };
     }
 
     public void AssignPlayer(Player player)

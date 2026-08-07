@@ -58,6 +58,11 @@ public sealed class ServerNetHandler : INetHandler
         _game.Server.BroadcastPacketExceptTo(_session, entityDataPacket);
     }
 
+    public void ProcessPlayerSettingsPacket(PlayerSettingsPacket playerSettingsPacket)
+    {
+        _session.SetViewDistance(playerSettingsPacket.ViewDistance);
+    }
+
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)
     {
         string playerName = playerJoinRequestPacket.Name.Trim();

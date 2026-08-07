@@ -38,6 +38,9 @@ public enum MenuAction
     /// <summary>Go through with whatever the screen was asking about.</summary>
     Confirm,
 
+    /// <summary>Open the screen the game is set up to taste on.</summary>
+    Options,
+
     /// <summary>Step back to the screen this one was opened from.</summary>
     Back,
 

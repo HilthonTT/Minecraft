@@ -63,7 +63,8 @@ public sealed class CameraController
 
     private void UpdateCameraPitchAndYaw()
     {
-        Vector2 delta = -_game.Window.MouseState.Delta * Constants.PLAYER_MOUSE_SENSIVITY;
+        float sensitivity = Constants.PLAYER_MOUSE_SENSIVITY * _game.Settings.MouseSensitivity;
+        Vector2 delta = -_game.Window.MouseState.Delta * sensitivity;
 
         float newYaw = (Camera.Yaw + delta.X) % (MathF.PI * 2.0F);
         float newPitch = Math.Clamp(Camera.Pitch + delta.Y, -MaxPitchRadians, MaxPitchRadians);
