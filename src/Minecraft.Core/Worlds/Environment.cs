@@ -15,6 +15,15 @@ public sealed class Environment
     private const float SunsetHour = 18.0F;
 
     /// <summary>
+    /// The hour by which the last of the light has gone out of the sky, and the hour at which it starts
+    /// coming back. Sunset and sunrise are not the same thing: the sky is still coloured for an hour after
+    /// the sun has gone and is already lightening for an hour before it returns, which is why these sit
+    /// inside <see cref="IsNight"/> rather than at its edges. See <see cref="IsDarkOutside"/>.
+    /// </summary>
+    private const float DuskHour = 19.0F;
+    private const float DawnHour = 5.0F;
+
+    /// <summary>
     /// The current time in seconds.
     /// </summary>
     public float CurrentTime { get; set; }
@@ -79,6 +88,19 @@ public sealed class Environment
 
     /// <summary>Whether the sun is below the horizon. It rises at 6 and sets at 18.</summary>
     public bool IsNight => CurrentHourOfDay < SunriseHour || CurrentHourOfDay >= SunsetHour;
+
+    /// <summary>
+    /// Whether the open sky is dark, rather than merely sunless. Deliberately a narrower window than
+    /// <see cref="IsNight"/>: the hour after sunset and the hour before sunrise are still bright enough to
+    /// read the ground by, so anything that comes out in the dark has no business being about in them.
+    /// <para>
+    /// The gap between the two is what keeps dusk and dawn quiet at both ends. Nothing hostile appears
+    /// outdoors from <see cref="DawnHour"/>, an hour before the sun is up, and nothing burns in the open
+    /// until it actually is, so a mob that came out in the small hours is neither joined by new ones nor
+    /// snuffed out while the sky is still half dark.
+    /// </para>
+    /// </summary>
+    public bool IsDarkOutside => CurrentHourOfDay >= DuskHour || CurrentHourOfDay < DawnHour;
 
     public void Update(float deltaTimeSeconds)
     {

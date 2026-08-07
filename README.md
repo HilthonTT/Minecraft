@@ -135,8 +135,15 @@ position and facing it was told about, the same way it does for other players.
 
 Passive and hostile mobs are counted against caps of their own rather than one shared total. Sharing a cap
 starves the animals out — a hostile mob follows the player and so never wanders far enough off to be
-despawned, while an animal drifts away and is cleared. Hostile mobs left over from the night are cleared at
-first light, unless somebody is stood close enough to watch it happen.
+despawned, while an animal drifts away and is cleared. Hostile mobs left over from the night burn up a few
+seconds after the sun finds them, wherever they are standing and whoever is watching.
+
+Zombies only appear in the dark. The server keeps no light map — those are built by the renderer on each
+client — so the spawner works out where the daylight falls from the heightmap every chunk already carries:
+the sun comes down each column that has nothing solid over it and then spreads out from where it lands,
+losing a step for every block it travels sideways and every block it drops. Anything more than seven steps
+from the open sky is dark, which is what tells a cave from the shade of a tree. So by day they are confined
+to the caves, and at night they have the run of the surface as well, apart from wherever a torch is burning.
 
 ![Zombies scattered across a dark meadow at night, one of them close to the camera](Screenshots/sample-3.png)
 

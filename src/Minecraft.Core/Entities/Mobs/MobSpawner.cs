@@ -17,9 +17,11 @@ namespace Minecraft.Core.Entities.Mobs;
 /// mobs want darkness, which they find under the night sky and underground at any hour.
 /// </para>
 /// <para>
-/// There is no light level to read here. Light maps are built by the renderer on each client and never on
-/// the server, so darkness is worked out from whether the sky reaches the spot and from how near the nearest
-/// block that gives off light is, which is as much as this side of the game knows.
+/// There is no light map to read here. Light maps are built by the renderer on each client and never on the
+/// server, so where the daylight falls is worked out instead from the heightmap every chunk already keeps:
+/// see <see cref="IsReachedBySunlight"/>, which walks the sun down the open columns around a spot the same
+/// way the renderer's flood fill would. Torchlight is not modelled at all, only kept away from; see
+/// <see cref="IsNearLightSource"/>.
 /// </para>
 /// </summary>
 public sealed class MobSpawner
@@ -59,11 +61,16 @@ public sealed class MobSpawner
     private const float MobCapDistance = 56F;
 
     /// <summary>
-    /// How near a player a hostile mob has to be to survive the sunrise. Ones further off are cleared at
-    /// first light, so a night's worth of them is not still standing about at noon; ones close enough to be
-    /// watched are left alone rather than blinking out in front of somebody.
+    /// How many rounds a hostile mob may stand in the sun before it burns up. A round is a second, so a
+    /// night's worth of them is gone shortly after sunrise rather than still wandering the fields at noon.
+    /// <para>
+    /// Not instant, and not conditional on nobody watching. Clearing them the moment the sun came up would
+    /// have them blink out in front of whoever they were chasing, and sparing the ones being watched, which
+    /// is what this used to do, spared exactly the ones the player could see: a zombie follows its target, so
+    /// the ones near enough to be excused were the ones that then walked about in broad daylight all day.
+    /// </para>
     /// </summary>
-    private const float DaylightDespawnDistance = 32F;
+    private const int SunlightRoundsBeforeBurningUp = 8;
 
     /// <summary>Mobs never appear closer to a player than this, so nothing is seen popping into existence.</summary>
     private const float MinDistanceFromPlayer = 14F;
@@ -104,20 +111,29 @@ public sealed class MobSpawner
     private const int LightSourceExclusionRadius = 12;
 
     /// <summary>
-    /// How far below the top of its column a spot has to be before the daylight is taken not to reach it.
+    /// How many blocks the daylight carries once it has stopped falling straight down, which is how far from
+    /// the open sky a spot has to be to be dark by day.
     /// <para>
-    /// Deliberately a depth and not merely something overhead. The highest block in a wooded column is the
-    /// canopy, and the ground under a tree is broad daylight however much of the sky the leaves take up, so
-    /// anything that only asked whether a spot was roofed would fill a forest with zombies at noon.
+    /// Sunlight comes down an unobstructed column at full strength and then spreads, losing a step for every
+    /// block it travels sideways and for every block it drops below the floor of the column it came down.
+    /// The renderer's flood fill starts it at fifteen and mobs want under eight, which leaves seven steps;
+    /// see <see cref="IsReachedBySunlight"/>, which measures that distance rather than reading a light map
+    /// the server does not keep.
     /// </para>
     /// <para>
-    /// It therefore has to clear the tallest tree in the world. A pine is grown from the block above the
-    /// surface and its top leaf sits a full trunk higher, so the tallest of them puts the top of its column
-    /// thirteen above the ground a mob would be standing on. Anything up to that is a tree rather than a
-    /// roof; the margin over it is what keeps a spot on open ground from qualifying at all.
+    /// Spreading is the whole point of doing it this way. Asking only whether a spot had something overhead
+    /// would call the ground under a tree sheltered, and it is broad daylight there however much of the sky
+    /// the leaves take up, because the light walks in from the open ground a few blocks away.
     /// </para>
     /// </summary>
-    private const int DaylightShelterDepth = 18;
+    private const int SunlightSpreadDistance = 7;
+
+    /// <summary>
+    /// How far down a column the search for the block that stops the daylight goes before giving up. Only
+    /// deep water and glass towers run longer than this, and a column that does is treated as sunlit all the
+    /// way down, which costs a spawn rather than allowing a wrong one.
+    /// </summary>
+    private const int SunlightColumnSearchDepth = 32;
 
     /// <summary>
     /// One kind of mob a round may produce, how likely it is against the others, and how many of it go in at
@@ -141,6 +157,15 @@ public sealed class MobSpawner
     private readonly List<Player.Player> _players = [];
     private readonly List<Chunk> _spawnableChunks = [];
     private readonly List<Mob> _toDespawn = [];
+
+    /// <summary>
+    /// How many rounds running each hostile mob has been standing in the sun, keyed by entity id. Rebuilt
+    /// from scratch every round into <see cref="_nextSunlightRounds"/> and swapped, so a mob that has died or
+    /// stepped back into the shade leaves no entry behind: entity ids are handed out again after a despawn,
+    /// and a count left lying about would be inherited by whatever is given the id next.
+    /// </summary>
+    private Dictionary<int, int> _sunlightRounds = [];
+    private Dictionary<int, int> _nextSunlightRounds = [];
 
     private int _ticksUntilNextRound;
     private int _roundsUntilNextAnimalRound;
@@ -200,8 +225,9 @@ public sealed class MobSpawner
     private void DespawnUnwantedMobs(WorldServer world)
     {
         _toDespawn.Clear();
+        _nextSunlightRounds.Clear();
 
-        bool isDay = !world.Environment.IsNight;
+        bool isSunUp = !world.Environment.IsNight;
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
@@ -210,11 +236,14 @@ public sealed class MobSpawner
                 continue;
             }
 
-            if (ShouldDespawn(world, mob, isDay))
+            if (ShouldDespawn(world, mob, isSunUp))
             {
                 _toDespawn.Add(mob);
             }
         }
+
+        // Swapped rather than assigned, so the pair of dictionaries is reused round after round.
+        (_sunlightRounds, _nextSunlightRounds) = (_nextSunlightRounds, _sunlightRounds);
 
         // Collected first, because despawning removes the entity from the collection being walked.
         foreach (Mob mob in _toDespawn)
@@ -223,7 +252,7 @@ public sealed class MobSpawner
         }
     }
 
-    private bool ShouldDespawn(World world, Mob mob, bool isDay)
+    private bool ShouldDespawn(World world, Mob mob, bool isSunUp)
     {
         if (!mob.IsHostile)
         {
@@ -235,11 +264,30 @@ public sealed class MobSpawner
             return true;
         }
 
-        // Caught above ground by the sunrise. One deep enough under it is left where it is, so a cave keeps
-        // whatever came out in it however bright the day above has become.
-        return isDay
-            && !IsShelteredFromDaylight(world, mob.Position.ToBlockPos())
-            && !IsAnyPlayerWithin(mob.Position, DaylightDespawnDistance);
+        return IsBurningUpInSunlight(world, mob, isSunUp);
+    }
+
+    /// <summary>
+    /// Whether a hostile mob has now stood in the daylight long enough to burn up. Nothing in the world has
+    /// any health to take away yet, so burning up is simply being removed after a few seconds of it; what
+    /// matters is that it happens wherever the sun reaches, so that a cave keeps whatever came out in it
+    /// however bright the day above has become, and nothing else does.
+    /// </summary>
+    private bool IsBurningUpInSunlight(World world, Mob mob, bool isSunUp)
+    {
+        if (!isSunUp || !IsReachedBySunlight(world, mob.Position.ToBlockPos()))
+        {
+            return false;
+        }
+
+        int roundsInSunlight = _sunlightRounds.GetValueOrDefault(mob.ID) + 1;
+        if (roundsInSunlight >= SunlightRoundsBeforeBurningUp)
+        {
+            return true;
+        }
+
+        _nextSunlightRounds[mob.ID] = roundsInSunlight;
+        return false;
     }
 
     /// <summary>
@@ -311,10 +359,10 @@ public sealed class MobSpawner
         int columnTop = GetColumnTop(chunk, anchorX, anchorZ);
 
         // After dark half the hostile attempts are aimed at the surface and half at a random depth under it,
-        // so a night above ground is busy without the caves beneath it staying empty. By day the surface has
-        // nothing to offer them, so every attempt goes underground. Animals belong on the surface and nowhere
-        // else, so theirs always start at the top of the column.
-        bool aimUnderground = hostile && (!world.Environment.IsNight || Random.Shared.Next(2) == 0);
+        // so a night above ground is busy without the caves beneath it staying empty. While there is light in
+        // the sky the surface has nothing to offer them, so every attempt goes underground. Animals belong on
+        // the surface and nowhere else, so theirs always start at the top of the column.
+        bool aimUnderground = hostile && (!world.Environment.IsDarkOutside || Random.Shared.Next(2) == 0);
 
         (int startY, int searchDepth) = aimUnderground
             ? (Random.Shared.Next(2, Math.Max(3, columnTop + 1)), UndergroundSearchDepth)
@@ -533,12 +581,12 @@ public sealed class MobSpawner
 
     /// <summary>
     /// Whether a spot is dark enough for a hostile mob. Standing in for a light level the server does not
-    /// have: after dark the whole world qualifies, by day only what is deep enough under the ground for the
-    /// sun not to reach it, and near anything that glows nothing does.
+    /// have: while the sky is dark the whole of the outdoors qualifies, and while there is any light in it
+    /// only what the sun cannot reach does. Near anything that glows, nothing qualifies at either hour.
     /// </summary>
     private static bool IsDarkEnoughForHostiles(World world, Vector3i feet)
     {
-        if (!world.Environment.IsNight && !IsShelteredFromDaylight(world, feet))
+        if (!world.Environment.IsDarkOutside && IsReachedBySunlight(world, feet))
         {
             return false;
         }
@@ -547,21 +595,88 @@ public sealed class MobSpawner
     }
 
     /// <summary>
-    /// Whether a spot lies far enough under the top of its column that the daylight is taken not to reach
-    /// it. See <see cref="DaylightShelterDepth"/> for why this is measured as a depth.
+    /// Whether the daylight falls on a spot. The sun comes down every column that has nothing solid over it
+    /// and then spreads out from where it lands, so a spot is lit when any such column is within
+    /// <see cref="SunlightSpreadDistance"/> steps of it, counting a step for each block sideways and each
+    /// block down. That is the renderer's flood fill measured rather than run, and it is what tells a cave
+    /// from the shade of a tree: both have something overhead, but only one of them is out of the sun's
+    /// reach.
+    /// <para>
+    /// Walls are not accounted for, so a windowless room with the open ground just outside it reads as lit
+    /// and nothing appears in it. That is the safe way round to be wrong: it withholds a spawn rather than
+    /// putting a zombie somewhere the player can see the sun.
+    /// </para>
     /// </summary>
-    private static bool IsShelteredFromDaylight(World world, Vector3i blockPos)
+    private static bool IsReachedBySunlight(World world, Vector3i blockPos)
     {
-        Vector2 chunkPos = World.GetChunkPosition(blockPos.X, blockPos.Z);
+        // The column the spot is in, first and on its own, because it settles every spot standing in the
+        // open, which is most of them, without the search below having to run at all.
+        if (IsSunlitColumnWithinReach(world, blockPos, offsetX: 0, offsetZ: 0))
+        {
+            return true;
+        }
 
-        // A spot whose chunk has gone is not worth sheltering from the sun; treating it as lit lets the
-        // despawn pass clear a mob that has wandered out of the loaded world.
+        for (int offsetX = -SunlightSpreadDistance; offsetX <= SunlightSpreadDistance; offsetX++)
+        {
+            // Whatever the sideways budget has left after this column is how far the search may go the other
+            // way, which is what makes the area searched a diamond rather than a square.
+            int remaining = SunlightSpreadDistance - Math.Abs(offsetX);
+
+            for (int offsetZ = -remaining; offsetZ <= remaining; offsetZ++)
+            {
+                if (IsSunlitColumnWithinReach(world, blockPos, offsetX, offsetZ))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the daylight coming down one neighbouring column still has the strength to reach the spot,
+    /// having travelled the distance between the two.
+    /// </summary>
+    private static bool IsSunlitColumnWithinReach(World world, Vector3i blockPos, int offsetX, int offsetZ)
+    {
+        int worldX = blockPos.X + offsetX;
+        int worldZ = blockPos.Z + offsetZ;
+
+        Vector2 chunkPos = World.GetChunkPosition(worldX, worldZ);
+
+        // A column in a chunk nobody has loaded is left out rather than guessed at. The spot's own column is
+        // always loaded, so the open sky directly overhead is never missed this way.
         if (!world.LoadedChunks.TryGetValue(chunkPos, out Chunk? chunk))
         {
             return false;
         }
 
-        return blockPos.Y <= chunk.TopMostBlocks[blockPos.X & 15, blockPos.Z & 15] - DaylightShelterDepth;
+        int sunlitFloorY = GetSunlitFloorOfColumn(chunk, worldX & 15, worldZ & 15);
+
+        int distance = Math.Abs(offsetX) + Math.Abs(offsetZ) + Math.Max(0, sunlitFloorY - blockPos.Y);
+        return distance <= SunlightSpreadDistance;
+    }
+
+    /// <summary>
+    /// The lowest block of a column the daylight still falls straight into, which is the one above the
+    /// highest block that stops light. Leaves and stone both stop it; flowers, glass and water do not, so a
+    /// pond is lit to its bed and a meadow to the ground.
+    /// </summary>
+    private static int GetSunlitFloorOfColumn(Chunk chunk, int localX, int localZ)
+    {
+        int highest = Math.Min(chunk.TopMostBlocks[localX, localZ], Constants.MAX_BUILD_HEIGHT - 1);
+        int lowest = Math.Max(0, highest - SunlightColumnSearchDepth);
+
+        for (int y = highest; y >= lowest; y--)
+        {
+            if (chunk.GetBlockAt(localX, y, localZ).GetBlock().IsOpaque)
+            {
+                return y + 1;
+            }
+        }
+
+        return lowest;
     }
 
     /// <summary>
