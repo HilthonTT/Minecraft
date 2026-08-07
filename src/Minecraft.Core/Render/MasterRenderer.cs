@@ -503,7 +503,7 @@ public sealed class MasterRenderer
         }
     }
 
-    public void EndFrameUpdate(World world)
+    public void EndFrameUpdate()
     {
         RemeshChunkIfMeshAvailable();
         _cameraController.Update();
@@ -612,7 +612,7 @@ public sealed class MasterRenderer
             MeshChunk(editedLightMapChunk, true);
         }
 
-        foreach (Chunk editedLightMapChunk in FloodFillLight.RepairSunlightGridOnBlockAdded(world, chunk, blockPos, newState))
+        foreach (Chunk editedLightMapChunk in FloodFillLight.RepairSunlightGridOnBlockAdded(world, chunk, blockPos))
         {
             MeshChunk(editedLightMapChunk, true);
         }

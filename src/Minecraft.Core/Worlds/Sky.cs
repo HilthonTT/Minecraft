@@ -5,9 +5,9 @@ namespace Minecraft.Core.Worlds;
 public sealed class Sky
 {
     /*
-     * The colors of the different parts of the sky, the sun and moon and other elements can be changed 
-     * by altering the color for the given hour. The sky will interpolate between the previous color
-     * and the next color linearly for smooth transitions between the different colors.
+     * A colour is given for a handful of hours of the day and left invalid for the rest. The sky
+     * interpolates linearly between the previous and next hour that has one, so the transitions come out
+     * smooth and only the hours where something actually changes have to be written down.
      */
 
     private readonly Vector3[] _topSkyColors = new Vector3[24];
@@ -82,14 +82,6 @@ public sealed class Sky
         _moonGlowColors[18] = new Vector3(0.85F, 0.85F, 0.7F);
         _moonGlowColors[20] = new Vector3(0.224F, 0.259F, 0.233F);
     }
-
-    public void SetTopSkyColorTo(Vector3 color, int hour) => _topSkyColors[hour] = color;
-    public void SetBottomSkyColorTo(Vector3 color, int hour) => _bottomSkyColors[hour] = color;
-    public void SetHorizonColorTo(Vector3 color, int hour) => _horizonColors[hour] = color;
-    public void SetSunColorTo(Vector3 color, int hour) => _sunColors[hour] = color;
-    public void SetSunGlowColorTo(Vector3 color, int hour) => _sunGlowColors[hour] = color;
-    public void SetMoonColorTo(Vector3 color, int hour) => _moonColors[hour] = color;
-    public void SetMoonGlowColorTo(Vector3 color, int hour) => _moonGlowColors[hour] = color;
 
     public Vector3 GetTopSkyColor(float hour) => GetCurrentColorMix(_topSkyColors, hour);
     public Vector3 GetBottomSkyColor(float hour) => GetCurrentColorMix(_bottomSkyColors, hour);

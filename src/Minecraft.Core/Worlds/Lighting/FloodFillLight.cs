@@ -129,7 +129,7 @@ public static class FloodFillLight
         return updatedChunks.ToArray();
     }
 
-    public static Chunk[] RepairSunlightGridOnBlockAdded(World world, Chunk chunk, Vector3i blockPos, BlockState? blockState = null)
+    public static Chunk[] RepairSunlightGridOnBlockAdded(World world, Chunk chunk, Vector3i blockPos)
     {
         var updatedChunks = new HashSet<Chunk>();
 

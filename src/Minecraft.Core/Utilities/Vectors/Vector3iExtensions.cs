@@ -27,11 +27,6 @@ public static class Vector3iExtensions
             (int)MathF.Floor(position.Z));
     }
 
-    public static Vector3 ToFloat(this Vector3i position)
-    {
-        return new Vector3(position.X, position.Y, position.Z);
-    }
-
     /// <summary>
     /// Maps a world space block position onto its position within its chunk. Y is already chunk local since
     /// chunks span the full build height.
@@ -76,18 +71,5 @@ public static class Vector3iExtensions
             position.West(),
             position.Down(),
         ];
-    }
-
-    public static double Distance(this Vector3i from, Vector3i to)
-    {
-        int dx = to.X - from.X;
-        int dy = to.Y - from.Y;
-        int dz = to.Z - from.Z;
-        return Math.Sqrt(dx * dx + dy * dy + dz * dz);
-    }
-
-    public static int ManhattanDistance(this Vector3i from, Vector3i to)
-    {
-        return Math.Abs(to.X - from.X) + Math.Abs(to.Y - from.Y) + Math.Abs(to.Z - from.Z);
     }
 }

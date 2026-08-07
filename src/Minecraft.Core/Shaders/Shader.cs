@@ -84,16 +84,6 @@ public abstract class Shader
         GL.Uniform3(location, vector);
     }
 
-    public void LoadBoolean(int location, bool value)
-    {
-        float toLoad = 0;
-        if (value)
-        {
-            toLoad = 1;
-        }
-        GL.Uniform1(location, toLoad);
-    }
-
     public void LoadMatrix(int location, Matrix4 matrix)
     {
         GL.UniformMatrix4(location, false, ref matrix);

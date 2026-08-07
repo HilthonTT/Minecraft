@@ -35,7 +35,6 @@ public sealed class Server
     private TcpListener? _tcpServer;
     private volatile bool _isRunning;
     private int _port;
-    private ServerSession? _host;
     private WorldStorage? _storage;
 
     public List<ServerSession> ConnectedClients { get; } = [];
@@ -54,13 +53,11 @@ public sealed class Server
         IsOpenToPublic = isOpenToPublic;
     }
 
-    public bool IsHost(Session.Session session) => session == _host;
-
     /// <summary>
-    /// Opens the world and starts listening. Reports whether that worked, since the port being taken is
-    /// something the player has to be told about rather than a crash.
+    /// Opens the world and starts listening on every interface. Reports whether that worked, since the port
+    /// being taken is something the player has to be told about rather than a crash.
     /// </summary>
-    public bool Start(string address, int port)
+    public bool Start(int port)
     {
         _port = port;
 
@@ -204,12 +201,6 @@ public sealed class Server
         var session = new ServerSession(clientConnection, netHandler);
         netHandler.AssignSession(session);
         session.OnStateChangedHandler += OnSessionStateChanged;
-
-        // In a combined client/server run the first connection is the local player, who hosts the world.
-        if (_game.RunMode == RunMode.ClientServer && ConnectedClients.Count == 0)
-        {
-            _host = session;
-        }
 
         ConnectedClients.Add(session);
 

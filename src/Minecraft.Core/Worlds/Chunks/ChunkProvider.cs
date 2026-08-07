@@ -207,7 +207,7 @@ public sealed class ChunkProvider
         }
     }
 
-    public void Update(float deltaTimeSeconds)
+    public void Update()
     {
         HandleReceivedChunk();
 

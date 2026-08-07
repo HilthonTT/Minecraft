@@ -254,7 +254,7 @@ public sealed class Game
 
         Client.Update(elapsedSeconds);
         World.Update(elapsedSeconds);
-        MasterRenderer.EndFrameUpdate(World);
+        MasterRenderer.EndFrameUpdate();
         SoundDirector.Update(elapsedSeconds, World);
     }
 
@@ -321,7 +321,7 @@ public sealed class Game
         if (IsServer)
         {
             Server = new Server(this, true);
-            if (!Server.Start(ip, port))
+            if (!Server.Start(port))
             {
                 EndSession();
                 return false;

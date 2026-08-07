@@ -51,7 +51,6 @@ public static class TextureLoader
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, filter);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, filter);
-        //GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)OpenTK.Graphics.OpenGL.ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, 1.0f);
 
         _textures.Add(texture);
         return texture;

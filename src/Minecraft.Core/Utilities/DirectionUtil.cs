@@ -11,20 +11,6 @@ public static class DirectionUtil
     private static readonly Vector3i Top = new(0, 1, 0);
     private static readonly Vector3i Bottom = new(0, -1, 0);
 
-    public static Direction Invert(Direction direction)
-    {
-        return direction switch
-        {
-            Direction.Back => Direction.Front,
-            Direction.Front => Direction.Back,
-            Direction.Left => Direction.Right,
-            Direction.Right => Direction.Left,
-            Direction.Top => Direction.Bottom,
-            Direction.Bottom => Direction.Top,
-            _ => throw new ArgumentOutOfRangeException(nameof(direction)),
-        };
-    }
-
     public static Vector3i ToUnit(Direction direction)
     {
         return direction switch

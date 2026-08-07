@@ -21,8 +21,8 @@ dotnet run --project src/Minecraft.App
 The solution file uses the `.slnx` format, which needs a recent SDK. If your tooling does not understand it,
 build the two `.csproj` files directly.
 
-`README.md` covers the layout, how the client and server fit together, and the start arguments — worth reading
-before a first change.
+`README.md` covers the start arguments and the controls; `DESIGN.md` covers the layout and how the client and
+server, world generation, lighting and the save format fit together — worth reading before a first change.
 
 ## Before you open a pull request
 

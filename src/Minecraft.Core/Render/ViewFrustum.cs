@@ -22,23 +22,21 @@ public sealed class ViewFrustum
         }
     }
 
-    private float _nearWidth, _nearHeight, _farWidth, _farHeight;
+    private float _nearWidth, _nearHeight;
     private readonly FrustumPlane[] _frustumPlanes = new FrustumPlane[6];
 
     public ViewFrustum(ProjectionMatrixInfo projectionInfo)
     {
-        CalculateNearFarWidthHeight(projectionInfo);
+        CalculateNearWidthHeight(projectionInfo);
     }
 
-    private void CalculateNearFarWidthHeight(ProjectionMatrixInfo pInfo)
+    private void CalculateNearWidthHeight(ProjectionMatrixInfo pInfo)
     {
         float aspectRatio = pInfo.WindowPixelWidth / (float)pInfo.WindowPixelHeight;
         const float extesion = 2;
         float tan = (float)Math.Tan(pInfo.FieldOfView * 0.5F) * extesion;
         _nearHeight = tan * pInfo.DistanceNearPlane;
         _nearWidth = _nearHeight * aspectRatio;
-        _farHeight = tan * pInfo.DistanceFarPlane;
-        _farWidth = _farHeight * aspectRatio;
     }
 
     public void UpdateFrustumPoints(Camera camera)
@@ -81,18 +79,6 @@ public sealed class ViewFrustum
         normal = Vector3.Cross(yAxis, temporary);
         _frustumPlanes[5].normal = normal; //right plane
         _frustumPlanes[5].distanceToOrigin = Vector3.Dot(_frustumPlanes[5].normal, nearCenter + xAxis * _nearWidth);
-    }
-
-    public bool IsSphereInFrustum(Vector3 position, float radius)
-    {
-        for (int i = 0; i < 6; i++)
-        {
-            if (_frustumPlanes[i].GetSignedDistance(position) < -radius)
-            {
-                return false;
-            }
-        }
-        return true;
     }
 
     public bool IsAABBInFrustum(AxisAlignedBox aabb)

@@ -17,7 +17,7 @@ public sealed class ServerSession : Session
 
     public void Update(float deltaTimeSeconds)
     {
-        _chunkProvider.Update(deltaTimeSeconds);
+        _chunkProvider.Update();
         _entityTracker.Update(deltaTimeSeconds);
     }
 }

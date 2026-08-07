@@ -101,11 +101,6 @@ public class UICanvas
         return true;
     }
 
-    public bool RemoveComponentFromRender(UIComponent component)
-    {
-        return _components.Remove(component);
-    }
-
     public virtual void Update() { }
 
     /// <summary>Called after the canvas was resized, for canvases that lay their components out in pixels.</summary>

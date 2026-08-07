@@ -36,11 +36,8 @@ public sealed class Input : IDisposable
 
     public bool OnKeyDown(Keys key) => _window.KeyboardState.IsKeyDown(key);
     public bool OnKeyPress(Keys key) => _window.KeyboardState.IsKeyPressed(key);
-    public bool OnKeyRelease(Keys key) => _window.KeyboardState.IsKeyReleased(key);
 
-    public bool OnMouseDown(MouseButton b) => _window.MouseState.IsButtonDown(b);
     public bool OnMousePress(MouseButton b) => _window.MouseState.IsButtonPressed(b);
-    public bool OnMouseRelease(MouseButton b) => _window.MouseState.IsButtonReleased(b);
 
     private void HandleTextInput(TextInputEventArgs e) => _pending.AddRange(e.AsString);
 

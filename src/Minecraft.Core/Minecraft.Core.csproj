@@ -27,9 +27,5 @@
       <Link>Shaders\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <None Remove="Resources\Screenshot 2026-08-04 230200.png" />
-    <None Remove="Resources\Screenshot 2026-08-04 230200.png" />
-  </ItemGroup>
 
 </Project>

@@ -1,5 +1,4 @@
-﻿using Minecraft.Core.Entities.Player;
-using Minecraft.Core.Games;
+﻿using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.NetHandler;
@@ -44,8 +43,6 @@ public sealed class Client
         };
         _packetTransferThread.Start();
     }
-
-    public PlayerSettings GetPlayerSettings() => _session!.PlayerSettings;
 
     public bool ConnectWith(string host, int port)
     {

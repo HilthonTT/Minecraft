@@ -53,13 +53,6 @@ public sealed class BufferedDataStream
         _bufferedStream.WriteByte(((byte*)&value)[0]);
     }
 
-    public unsafe void WriteInt16(short value)
-    {
-        byte* pValue = (byte*)&value;
-        _bufferedStream.WriteByte(pValue[0]);
-        _bufferedStream.WriteByte(pValue[1]);
-    }
-
     public unsafe void WriteUInt16(ushort value)
     {
         byte* pValue = (byte*)&value;
@@ -86,11 +79,6 @@ public sealed class BufferedDataStream
         WriteFloat(value.X);
         WriteFloat(value.Y);
         WriteFloat(value.Z);
-    }
-
-    public void WriteBytes(byte[] value)
-    {
-        _bufferedStream.Write(value, 0, value.Length);
     }
 
     public void WriteChunk(Chunk value)
