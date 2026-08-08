@@ -4,7 +4,7 @@ using Minecraft.Core.Logging;
 StartArgs startArgs;
 try
 {
-    startArgs = new ArgsParser().ParseProgramArgs(args);
+    startArgs = ArgsParser.ParseProgramArgs(args);
 }
 catch (ArgumentException e)
 {

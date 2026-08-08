@@ -3,7 +3,7 @@ using Minecraft.Core.Network;
 
 namespace Minecraft.Core.Games;
 
-public sealed class ArgsParser
+public static class ArgsParser
 {
     /// <summary>A description of every start argument, shown when one of them is invalid.</summary>
     public const string Usage = """
@@ -38,7 +38,7 @@ public sealed class ArgsParser
     /// Parses <c>key=value</c> start arguments. Every argument is optional; anything left out falls back to
     /// the defaults above, which run a singleplayer game on the loopback address.
     /// </summary>
-    public StartArgs ParseProgramArgs(string[] args)
+    public static StartArgs ParseProgramArgs(string[] args)
     {
         Dictionary<string, string> parsedArgs = [];
         foreach (string arg in args)
