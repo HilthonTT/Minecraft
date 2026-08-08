@@ -18,36 +18,46 @@ How the engine works. For building and playing it, see [README.md](README.md).
 
 ## Project layout
 
-| Project          | Purpose                |
-| ---------------- | ---------------------- |
-| `Minecraft.Core` | Engine library         |
-| `Minecraft.App`  | Executable entry point |
+| Path                  | Purpose                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| `src/Minecraft.Core/` | Engine library                                                      |
+| `src/Minecraft.App/`  | Executable entry point                                              |
+| `tools/`              | Programs that author assets, neither built nor shipped with the game |
+
+Directories mirror namespaces exactly, so where a type lives is where its `using` says it does.
 
 Inside `Minecraft.Core`:
 
 | Directory            | Contents                                                                 |
 | -------------------- | ------------------------------------------------------------------------ |
-| `Audio/`             | Sound loading, the mixer, and what decides when anything plays            |
-| `Entities/`          | Camera, the player on both sides of a connection, and the mobs            |
-| `Games/`             | Game loop, window, game state, menu flow, start argument parsing          |
+| `Audio/`             | Sound loading, the mixer, and what decides when anything plays             |
+| `Entities/`          | Camera, the player on both sides of a connection, and the mobs             |
+| `Games/`             | Game loop, window, game state, menu flow, input, start argument parsing    |
 | `Inventories/`       | Stacks, the slots that hold them, and the catalogue of what can go in one  |
-| `IO/`                | Buffered binary reader and writer for network packets                     |
-| `Logging/`           | Levelled console logger                                                   |
-| `Network/`           | Client, server, sessions, packets and their handlers                      |
-| `Physics/`           | Axis aligned boxes and ray tracing                                        |
-| `Render/`            | Master renderer, chunk meshing, debug overlays, UI and the menu screens   |
-| `Render/Particles/`  | The specks in the air: what moves them, what draws them, what throws them |
-| `Resources/`         | Textures, fonts and models, copied to the output directory on build       |
-| `Shaders/`           | GLSL programs and their typed wrappers                                    |
-| `Shapes/`            | Block and entity model geometry, and the registries that hold it          |
-| `Textures/`          | Texture atlas and the offscreen framebuffer                               |
-| `Utilities/`         | Math, input, noise, OBJ loading, VAO wrapper, object pool                 |
-| `Worlds/`            | Blocks, chunks, sections and lighting                                     |
-| `Worlds/Biomes/`     | The biomes and the climate map that decides between them                  |
-| `Worlds/Generation/` | The generator itself: terrain sampling, ore veins and cave carving        |
-| `Worlds/Decoration/` | What each biome grows on its surface, and the trees it grows              |
-| `Worlds/Structures/` | Villages and the framework that sites them and builds them across chunks  |
-| `Worlds/Storage/`    | Reading and writing saved worlds                                          |
+| `IO/`                | Buffered binary reader and writer for network packets                      |
+| `Logging/`           | Levelled console logger                                                    |
+| `Network/`           | Client, server, sessions, packets and their handlers                       |
+| `Physics/`           | Axis aligned boxes and ray tracing                                         |
+| `Render/`            | Master renderer, chunk meshing, debug overlays, UI and the menu screens    |
+| `Render/Particles/`  | The specks in the air: what moves them, what draws them, what throws them  |
+| `Resources/`         | Textures, fonts and models, copied to the output directory on build        |
+| `Shaders/`           | GLSL programs and their typed wrappers                                     |
+| `Shapes/`            | Block and entity model geometry, and the registries that hold it           |
+| `Textures/`          | Texture atlas, texture loading and the offscreen framebuffer               |
+| `Utilities/`         | Only what belongs to no one caller: math, noise, directions, object pool   |
+| `Worlds/`            | The world itself, and the client and server halves of it                   |
+| `Worlds/Biomes/`     | The biomes and the climate map that decides between them                   |
+| `Worlds/Blocks/`     | Block types, their states and the registry and palette that number them    |
+| `Worlds/Chunks/`     | Chunks, the sections they are sliced into, and what streams them           |
+| `Worlds/Generation/` | The generator itself: terrain sampling, ore veins and cave carving         |
+| `Worlds/Decoration/` | What each biome grows on its surface, and the trees it grows               |
+| `Worlds/Lighting/`   | The flood fill, its four channels and the map it writes into               |
+| `Worlds/Structures/` | Villages and the framework that sites them and builds them across chunks   |
+| `Worlds/Storage/`    | Reading and writing saved worlds                                           |
+
+`Utilities/` is held to things with no one owner — a type used by exactly one area lives with that area
+instead, which is why loading a texture sits in `Textures/`, the VAO wrapper in `Render/`, and the input
+wrapper in `Games/` beside the window it reads.
 
 ## Client and server
 

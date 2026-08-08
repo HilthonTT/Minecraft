@@ -1,6 +1,5 @@
 ﻿using Minecraft.Core.Entities;
 using Minecraft.Core.Shaders.WireframeShader;
-using Minecraft.Core.Utilities;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 

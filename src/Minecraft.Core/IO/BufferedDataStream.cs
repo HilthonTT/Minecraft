@@ -1,7 +1,6 @@
 ﻿using Minecraft.Core.Logging;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
-using Minecraft.Core.Worlds.Sections;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.IO;

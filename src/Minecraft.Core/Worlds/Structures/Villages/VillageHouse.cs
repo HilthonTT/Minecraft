@@ -1,4 +1,4 @@
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Worlds.Structures.Villages;

@@ -1,6 +1,6 @@
 using Minecraft.Core.Audio;
 using Minecraft.Core.Physics;
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;

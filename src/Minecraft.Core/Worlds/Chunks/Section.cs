@@ -1,6 +1,6 @@
 using Minecraft.Core.Worlds.Blocks;
 
-namespace Minecraft.Core.Worlds.Sections;
+namespace Minecraft.Core.Worlds.Chunks;
 
 /// <summary>
 /// A 16 by 16 by 16 slice of a chunk. Blocks are stored as bare ids, with only the few blocks that carry

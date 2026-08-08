@@ -1,6 +1,5 @@
 using Minecraft.Core.Games;
 using Minecraft.Core.Network.Packets;
-using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System.Text;

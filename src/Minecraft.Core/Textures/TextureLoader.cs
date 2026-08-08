@@ -5,7 +5,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Minecraft.Core.Utilities;
+namespace Minecraft.Core.Textures;
 
 [SupportedOSPlatform("windows")]
 public static class TextureLoader

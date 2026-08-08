@@ -5,7 +5,6 @@ using Minecraft.Core.Network;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Render;
 using Minecraft.Core.Render.UI;
-using Minecraft.Core.Utilities;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Graphics.OpenGL;

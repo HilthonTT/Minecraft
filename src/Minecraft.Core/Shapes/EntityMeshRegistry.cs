@@ -1,6 +1,6 @@
 using Minecraft.Core.Entities;
 using Minecraft.Core.Render.MeshGenerator;
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Render;
 using System.Collections.ObjectModel;
 using System.Runtime.Versioning;
 

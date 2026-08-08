@@ -1,5 +1,4 @@
 using Minecraft.Core.Textures;
-using Minecraft.Core.Utilities;
 
 namespace Minecraft.Core.Render.UI;
 

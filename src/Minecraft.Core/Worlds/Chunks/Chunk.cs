@@ -1,6 +1,5 @@
 ﻿using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Lighting;
-using Minecraft.Core.Worlds.Sections;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Chunks;

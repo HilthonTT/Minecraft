@@ -1,5 +1,4 @@
 using Minecraft.Core.Shaders.UIShader;
-using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI;

@@ -1,5 +1,5 @@
 using Minecraft.Core.IO;
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Worlds.Lighting;
 using OpenTK.Mathematics;
 

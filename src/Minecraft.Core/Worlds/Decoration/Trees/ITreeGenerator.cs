@@ -1,6 +1,6 @@
 using Minecraft.Core.Worlds.Chunks;
 
-namespace Minecraft.Core.Worlds.Trees;
+namespace Minecraft.Core.Worlds.Decoration.Trees;
 
 public interface ITreeGenerator
 {

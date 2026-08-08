@@ -1,10 +1,9 @@
 ﻿using Minecraft.Core.Shapes;
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using Minecraft.Core.Worlds.Lighting;
-using Minecraft.Core.Worlds.Sections;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.MeshGenerator;

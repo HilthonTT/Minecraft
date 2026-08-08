@@ -1,5 +1,4 @@
 using Minecraft.Core.Textures;
-using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;

@@ -1,7 +1,7 @@
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 
-namespace Minecraft.Core.Worlds.Trees;
+namespace Minecraft.Core.Worlds.Decoration.Trees;
 
 /// <summary>
 /// Shared groundwork for the trees that grow as a trunk with discs of leaves stacked around it.

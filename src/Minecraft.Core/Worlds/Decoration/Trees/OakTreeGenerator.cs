@@ -1,7 +1,7 @@
 ﻿using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 
-namespace Minecraft.Core.Worlds.Trees;
+namespace Minecraft.Core.Worlds.Decoration.Trees;
 
 public sealed class OakTreeGenerator : ITreeGenerator
 {

@@ -1,7 +1,7 @@
 ﻿using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 
-namespace Minecraft.Core.Render.Chunks;
+namespace Minecraft.Core.Render;
 
 public sealed class RenderChunk
 {

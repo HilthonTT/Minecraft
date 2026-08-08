@@ -1,7 +1,7 @@
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Shapes;
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;

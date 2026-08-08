@@ -1,5 +1,5 @@
 using Minecraft.Core.Textures;
-using Minecraft.Core.Utilities;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;

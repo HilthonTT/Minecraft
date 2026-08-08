@@ -1,5 +1,4 @@
 using Minecraft.Core.Shapes;
-using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.MeshGenerator;

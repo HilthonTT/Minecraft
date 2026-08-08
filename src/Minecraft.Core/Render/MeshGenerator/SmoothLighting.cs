@@ -1,4 +1,4 @@
-﻿using Minecraft.Core.Utilities;
+﻿using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;

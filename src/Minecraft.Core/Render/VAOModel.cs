@@ -3,7 +3,7 @@ using Minecraft.Core.Worlds.Lighting;
 using OpenTK.Graphics.OpenGL;
 using System.Runtime.InteropServices;
 
-namespace Minecraft.Core.Utilities;
+namespace Minecraft.Core.Render;
 
 public sealed class VAOModel
 {

@@ -2,7 +2,7 @@ using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
 
-namespace Minecraft.Core.Utilities;
+namespace Minecraft.Core.Worlds.Chunks;
 
 public static class BlockPropagation
 {

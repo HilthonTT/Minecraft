@@ -3,7 +3,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-namespace Minecraft.Core.Utilities;
+namespace Minecraft.Core.Games;
 
 public sealed class Input : IDisposable
 {

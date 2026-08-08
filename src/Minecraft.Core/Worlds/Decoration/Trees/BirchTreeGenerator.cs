@@ -1,7 +1,7 @@
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 
-namespace Minecraft.Core.Worlds.Trees;
+namespace Minecraft.Core.Worlds.Decoration.Trees;
 
 /// <summary>
 /// A birch: a tall pale trunk carrying a crown that sits entirely at the top of it, so a birch wood is open

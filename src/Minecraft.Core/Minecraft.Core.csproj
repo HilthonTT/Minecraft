@@ -16,9 +16,10 @@
   </ItemGroup>
 
   <!-- Assets are loaded at runtime by a path relative to the output directory, so they have to
-       travel alongside the assembly. -->
+       travel alongside the assembly. Everything under Resources\ ships, which is why the tools that
+       author those assets live in tools\ rather than beside their output. -->
   <ItemGroup>
-    <None Include="Resources\**\*" Exclude="Resources\runnable-hiero.jar">
+    <None Include="Resources\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>

@@ -1,4 +1,4 @@
-﻿namespace Minecraft.Core.Utilities;
+﻿namespace Minecraft.Core.Utilities.Spatial;
 
 public enum Direction : byte
 {

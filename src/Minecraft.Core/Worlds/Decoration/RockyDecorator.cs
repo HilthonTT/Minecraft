@@ -1,7 +1,7 @@
 using Minecraft.Core.Utilities.Noise;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
-using Minecraft.Core.Worlds.Trees;
+using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 

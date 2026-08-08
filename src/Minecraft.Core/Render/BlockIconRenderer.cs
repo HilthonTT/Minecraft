@@ -2,7 +2,6 @@ using Minecraft.Core.Entities;
 using Minecraft.Core.Shaders.BasicShader;
 using Minecraft.Core.Shapes;
 using Minecraft.Core.Textures;
-using Minecraft.Core.Utilities;
 using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;

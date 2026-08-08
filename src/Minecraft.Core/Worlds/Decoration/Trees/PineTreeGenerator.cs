@@ -1,7 +1,7 @@
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 
-namespace Minecraft.Core.Worlds.Trees;
+namespace Minecraft.Core.Worlds.Decoration.Trees;
 
 /// <summary>
 /// A pine: a dark trunk under a spire of leaves that steps in as it climbs, and that starts low enough down
