@@ -10,7 +10,7 @@ A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https:
 Infinite procedurally generated terrain across six biomes, with oceans and the rivers that run down to them,
 ridged mountain ranges under snow and ice, buried ore, caves and villages. Coloured block lighting with smooth
 per vertex ambient occlusion, placeable torches, particles, distance fog, positional sound, a day/night cycle,
-mobs, and a client/server architecture that the singleplayer mode also runs through.
+mobs, an inventory and hotbar, and a client/server architecture that the singleplayer mode also runs through.
 
 ![Sheep grazing on a terraced meadow scattered with roses and dandelions, oak trees to either side and a bare stone mountain rising behind it under a clear sky](Screenshots/sample-1.png)
 
@@ -97,8 +97,9 @@ the menu instead, and never deletes anything.
 | Left click      | Break block                                |
 | Right click     | Place block, or interact (TNT)             |
 | Middle click    | Pick the block being looked at             |
-| `1`–`9`         | Choose a block to build with               |
-| Scroll wheel    | Step through the same nine                 |
+| `1`–`9`         | Choose a hotbar slot to build with         |
+| Scroll wheel    | Step along the same nine                   |
+| `E`             | Open and close the inventory               |
 | `Enter`         | Open and send chat                         |
 | `Escape`        | Open the pause menu, or close the chat     |
 
@@ -106,14 +107,27 @@ Function keys drive the debug tools: `F1` hitboxes, `F2` debug readout, `F3` col
 around the player, `F5` chunk borders, `F6` detached overhead camera, `F7` light level overlay (`Up`/`Down`
 picks the level), `F8` fill a chunk layer with TNT, `F9` build a test room.
 
-### What you are holding
+### Inventory and hotbar
 
-Whatever is selected is drawn in your hand, and that is the only place it is shown: there is no bar of slots
-along the bottom of the screen, because there is nothing behind one yet. Nothing is collected, counted or
-spent, so the number keys and the wheel are a way of naming a block to build with rather than an inventory.
+Nine slots run along the bottom of the screen. Whichever is selected is also drawn in your hand, and its name
+fades in above the bar as you reach for it. A new world starts you carrying a torch, planks, cobblestone,
+stone, dirt, sand, an oak log, glowstone and TNT.
 
-The nine are a torch, planks, cobblestone, stone, dirt, sand, an oak log, glowstone and TNT. Anything else in
-the world is still reachable by pointing at it and clicking the middle mouse button.
+![A wide grassland of long grass and flowers under a clear sky with a plank platform built out across it, the hotbar along the bottom of the screen with a torch selected in the first slot and that torch held in the corner of the view](Screenshots/sample-11.png)
+
+`E` opens the inventory: every block in the game across the top, three rows of storage under it, and the same
+nine hotbar slots at the bottom. Left click picks a whole stack up onto the cursor and puts it down again,
+right click takes half or places one at a time, and dropping a stack onto a slot that already holds the same
+block pours the two together. Clicking the block list with a full cursor throws that stack away.
+
+![The inventory screen open over a grassland at dusk: four rows holding every block in the game under the heading Blocks, three empty rows of storage under Carried, and the nine hotbar slots along the bottom each with a stack of sixty four](Screenshots/sample-12.png)
+
+Pointing at something in the world and clicking the middle mouse button still reaches for it directly: if it
+is already on the hotbar that slot is selected, and otherwise it is put into the slot in hand.
+
+Nothing is spent yet — building does not take a block out of the stack — because nothing yet drops one to put
+back. The counts are real all the same, so the day breaking a block leaves something behind, it has somewhere
+to land.
 
 ![A pig standing in long grass on a terraced hillside, an oak log held in the corner of the view and the outline of the block being pointed at in the middle of the screen](Screenshots/sample-7.png)
 

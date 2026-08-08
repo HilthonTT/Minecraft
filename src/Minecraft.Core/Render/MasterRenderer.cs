@@ -113,6 +113,15 @@ public sealed class MasterRenderer
 
     public DebugHelper DebugHelper { get; }
     public UICanvasIngame IngameCanvas { get; }
+    public UICanvasHotbar HotbarCanvas { get; }
+    public UICanvasInventory InventoryCanvas { get; }
+
+    /// <summary>
+    /// What draws a block inside a slot. The screens that own slots queue their icons with it while the
+    /// interface is being built, and it draws them all in a pass of its own between the two halves of it.
+    /// </summary>
+    public BlockIconRenderer BlockIcons { get; }
+
     public int DitherTextureId { get; }
 
     public MasterRenderer(Game game)
@@ -142,9 +151,30 @@ public sealed class MasterRenderer
         _particleRenderer = new ParticleRenderer(_basicShader, _textureAtlas);
         Particles = new ParticleDirector(game, _particleSystem, _blockModelRegistry);
 
+        BlockIcons = new BlockIconRenderer(
+            _basicShader,
+            _blockModelRegistry,
+            _textureAtlas,
+            game.Window.ClientSize.X,
+            game.Window.ClientSize.Y);
+
         _uiRenderer = new UIRenderer(_cameraController);
         IngameCanvas = new UICanvasIngame(game);
         AddCanvas(IngameCanvas);
+
+        // Registered before the menu canvases, which are added by the menu controller once this renderer
+        // exists, so that a screen brought up over the world is drawn over the bar rather than under it. The
+        // overlays go on the same list and are picked out of it by the pass that draws them.
+        HotbarCanvas = new UICanvasHotbar(game);
+        AddCanvas(HotbarCanvas);
+        AddCanvas(HotbarCanvas.Overlay);
+
+        InventoryCanvas = new UICanvasInventory(game);
+        AddCanvas(InventoryCanvas);
+        AddCanvas(InventoryCanvas.Overlay);
+
+        HotbarCanvas.IsEnabled = false;
+        InventoryCanvas.IsEnabled = false;
 
         EnableDepthTest();
         EnableCulling();
@@ -220,7 +250,7 @@ public sealed class MasterRenderer
         _heldItemRenderer.Render(world, _cameraController.Camera);
 
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        _uiRenderer.Render();
+        RenderInterface();
         GL.Disable(EnableCap.Blend);
         GL.Enable(EnableCap.CullFace);
 
@@ -242,12 +272,33 @@ public sealed class MasterRenderer
         GL.Disable(EnableCap.CullFace);
         GL.Disable(EnableCap.DepthTest);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        _uiRenderer.Render();
+        RenderInterface();
         GL.Disable(EnableCap.Blend);
         GL.Enable(EnableCap.CullFace);
 
         _screenQuad.Unbind();
         _screenQuad.RenderToScreen();
+    }
+
+    /// <summary>
+    /// The interface, in three parts: the panels, then the blocks standing in whichever of them are slots,
+    /// then the counts and labels that have to be read over those blocks.
+    /// <para>
+    /// The middle part is real geometry with a depth buffer of its own, which is why it cannot simply be
+    /// another component on a canvas — a canvas is a stack of flat quads drawn in the order it was given
+    /// them, and a cube needs to know which of its own faces is in front.
+    /// </para>
+    /// </summary>
+    private void RenderInterface()
+    {
+        _uiRenderer.Render();
+
+        BlockIcons.Render(_cameraController.Camera);
+
+        // The icon pass leaves the blend state it found, but takes the depth test with it, so what follows is
+        // drawn under the same conditions the canvases above were.
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        _uiRenderer.RenderOverlays();
     }
 
     /// <summary>
@@ -278,9 +329,13 @@ public sealed class MasterRenderer
         _uiRenderer.RemoveCanvassesIn(RenderSpace.World);
 
         IngameCanvas.OnWorldUnloaded();
+        HotbarCanvas.OnWorldUnloaded();
         DebugHelper.OnWorldUnloaded();
         _heldItemRenderer.OnWorldUnloaded();
         Particles.OnWorldUnloaded();
+
+        // Anything queued on the last frame of the world being left would otherwise be drawn over the menu.
+        BlockIcons.Clear();
     }
 
     /// <summary>
@@ -739,6 +794,7 @@ public sealed class MasterRenderer
     {
         _screenQuad.AdjustToWindowSize(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
         _heldItemRenderer.OnWindowResized(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
+        BlockIcons.OnWindowResized(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
         UploadActiveCameraProjectionMatrix();
     }
 
@@ -760,6 +816,7 @@ public sealed class MasterRenderer
         _meshGenerationThread.Join(TimeSpan.FromSeconds(1));
 
         _heldItemRenderer.CleanUp();
+        BlockIcons.CleanUp();
         _particleRenderer.CleanUp();
         _basicShader.CleanUp();
         _entityShader.CleanUp();

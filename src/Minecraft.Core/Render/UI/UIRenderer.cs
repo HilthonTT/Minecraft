@@ -70,6 +70,10 @@ public sealed class UIRenderer
         }
     }
 
+    /// <summary>
+    /// Updates every canvas and draws all but the overlays, which are left for <see cref="RenderOverlays"/>
+    /// once the block icons have been laid down over this.
+    /// </summary>
     public void Render()
     {
         foreach (KeyValuePair<RenderSpace, List<UICanvas>> spaceCanvasses in _canvasses)
@@ -90,6 +94,17 @@ public sealed class UIRenderer
             }
         }
 
+        Draw(overlays: false);
+    }
+
+    /// <summary>
+    /// Draws the overlay canvases. Their components were already updated and cleaned by <see cref="Render"/>,
+    /// so this is only the second half of the same pass and is never called on its own.
+    /// </summary>
+    public void RenderOverlays() => Draw(overlays: true);
+
+    private void Draw(bool overlays)
+    {
         _uiShader.Start();
 
         foreach (KeyValuePair<RenderSpace, List<UICanvas>> spaceCanvasses in _canvasses)
@@ -107,7 +122,7 @@ public sealed class UIRenderer
 
             foreach (UICanvas canvas in spaceCanvasses.Value)
             {
-                if (canvas.IsEnabled)
+                if (canvas.IsEnabled && canvas.IsOverlay == overlays)
                 {
                     canvas.Render(_uiShader);
                 }

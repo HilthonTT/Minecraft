@@ -9,6 +9,7 @@ How the engine works. For building and playing it, see [README.md](README.md).
 - [Saved worlds](#saved-worlds)
 - [Settings](#settings)
 - [Lighting](#lighting)
+- [Inventory](#inventory)
 - [Rendering](#rendering)
 - [Particles](#particles)
 - [Mobs](#mobs)
@@ -29,6 +30,7 @@ Inside `Minecraft.Core`:
 | `Audio/`             | Sound loading, the mixer, and what decides when anything plays            |
 | `Entities/`          | Camera, the player on both sides of a connection, and the mobs            |
 | `Games/`             | Game loop, window, game state, menu flow, start argument parsing          |
+| `Inventories/`       | Stacks, the slots that hold them, and the catalogue of what can go in one  |
 | `IO/`                | Buffered binary reader and writer for network packets                     |
 | `Logging/`           | Levelled console logger                                                   |
 | `Network/`           | Client, server, sessions, packets and their handlers                      |
@@ -201,6 +203,53 @@ drops it.
 
 ![A narrow alley between village buildings, lit warm orange by a torch on the wall, with a torch held in the corner of the view](Screenshots/sample-5.png)
 
+## Inventory
+
+Thirty six slots — nine of hotbar and three rows of storage — held as one array rather than as two collections
+with a rule joining them. A stack moving from the storage down onto the hotbar is then an ordinary write to a
+slot, and the screen that moves it never has to know which half of the run it is writing into.
+
+An `ItemStack` is a value type, so a slot holds a pile rather than a reference to one: two slots that happen
+to contain the same block are still two separate piles of it, and copying one out of a slot cannot leave the
+two aliased.
+
+Nothing is spent. Placing a block does not take one out of the stack, because nothing yet drops one to put
+back, and an inventory that only ever emptied would be worse than none. What the counts are for is the shape:
+`Inventory.TryAdd` already pours a stack into the first slots that will take it, topping up piles of the same
+block before opening a new one, so the day breaking a block leaves something behind there is a door for it to
+come in by and every screen that reads a slot already knows how to draw it.
+
+That is also why the screen offers a list of every block rather than only what is carried: a slot has to be
+filled from somewhere. The same list is the bin — clicking it with a full cursor empties the cursor — and when
+items do start dropping, it is the only part of the screen that has to change.
+
+![The inventory screen open over a grassland at dusk: four rows holding every block in the game under the heading Blocks, three empty rows of storage under Carried, and the nine hotbar slots along the bottom each with a stack of sixty four](Screenshots/sample-12.png)
+
+The stack on the cursor lives on the inventory rather than on the screen showing it, so closing the screen
+mid-move cannot lose it; what is on the cursor is poured back into the slots on the way out.
+
+### Blocks in slots
+
+A slot could have shown a flat square of the block's texture, but half the blocks in the game are not squares
+— a torch, a flower, a cactus — and the ones that are read as the same grey tile as each other until they are
+turned. So a slot draws the real model, through an orthographic projection laid out in canvas pixels: the same
+geometry, atlas and face shading the world uses, seen from a fixed corner and lit by a flat daylight, so a
+slot reads the same at midnight as at noon.
+
+That is geometry with a depth buffer, which a canvas is not — a canvas is a stack of flat quads drawn in the
+order it was given them, and a cube needs to know which of its own faces is in front. So the interface is
+drawn in three parts: the panels, then the blocks standing in whichever of them are slots, then the counts and
+labels that have to be read over those blocks. A canvas says which of the two passes it belongs to, and the
+screens that own slots keep their numbers on an overlay while their panels stay behind the blocks.
+
+The projection puts its origin at the top left so that a screen laying its slots out in pixels can hand those
+same numbers straight over. That flips the winding of every face, so culling is off for the pass and the depth
+test alone decides which side of a block is seen — which the models made of thin quads needed anyway.
+
+Meshes are built once per block and kept, since an icon's light never changes. `HeldItemRenderer` builds its
+block the same way and through the same code, the difference being that what is in a hand is lit by where the
+player is standing and so is rebuilt when they carry it into a cave.
+
 ## Rendering
 
 ### Water
@@ -228,7 +277,11 @@ rather than as four straight edges.
 
 ### The block in hand
 
-The held block is drawn through the same shader the world is, with the view matrix set to the identity. That is
+The held block is whatever is in the selected hotbar slot, so this and the bar along the bottom of the screen
+are two views of the same thing: the slot says which block and how many are left of it, and this says what it
+looks like in the hand carrying it.
+
+It is drawn through the same shader the world is, with the view matrix set to the identity. That is
 what pins it to the screen: its vertices are already where the eye is looking from, so turning the head moves
 the world past it and leaves it where it was. The depth buffer is cleared first, so terrain the player is
 standing against can never cut into it, and it is drawn through a projection of its own at a fixed field of
@@ -239,6 +292,8 @@ for any of them to be buried against, and shades them by orientation with the sa
 mesher uses, so a block in the hand reads the same way one in the world does. The mesh is rebuilt only when the
 block, its state or the light where the player is standing changes, which is what lets a torch carried into a
 cave go dark with the room around it without rebuilding anything per frame.
+
+![A wide grassland of long grass and flowers under a clear sky with a plank platform built out across it, the hotbar along the bottom of the screen with a torch selected in the first slot and that torch held in the corner of the view](Screenshots/sample-11.png)
 
 ## Particles
 

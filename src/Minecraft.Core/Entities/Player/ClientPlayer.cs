@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Games;
+using Minecraft.Core.Inventories;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render;
@@ -31,8 +32,15 @@ public sealed class ClientPlayer : Player
 
     public Camera Camera { get; }
 
-    /// <summary>The block a right click would place. Also what is drawn in the player's own hand.</summary>
-    public BlockState SelectedBlock { get; private set; } = BlockRegistry.GetState(BlockRegistry.Tnt);
+    /// <summary>What this player is carrying, and which of the nine hotbar slots is in hand.</summary>
+    public Inventory Inventory { get; } = new();
+
+    /// <summary>
+    /// The block a right click would place, and what is drawn in the player's own hand. Kept as one instance
+    /// that only changes when the selected slot does, rather than built on demand: the renderer decides
+    /// whether its mesh is stale by comparing this against the one it last drew.
+    /// </summary>
+    public BlockState SelectedBlock { get; private set; } = BlockRegistry.GetState(BlockRegistry.Air);
 
     /// <summary>
     /// Raised when the player swings at the world — breaking, placing or interacting. Watched by the renderer
@@ -58,6 +66,23 @@ public sealed class ClientPlayer : Player
 
         OnToggleRunningHandler += OnRunningToggle;
         OnToggleCrouchingHandler += OnCrouchingToggle;
+
+        Inventory.OnChangedHandler += OnInventoryChanged;
+        OnInventoryChanged();
+    }
+
+    /// <summary>
+    /// Takes whatever is now in the selected slot as the block to build with. An empty slot leaves the player
+    /// holding air, which places nothing and draws nothing.
+    /// </summary>
+    private void OnInventoryChanged()
+    {
+        Block block = Inventory.Selected.Block ?? BlockRegistry.Air;
+
+        if (SelectedBlock.GetBlock() != block)
+        {
+            SelectedBlock = BlockRegistry.GetState(block);
+        }
     }
 
     /// <summary>Takes the field of view the player has chosen, for when they change it from the options.</summary>
@@ -87,6 +112,10 @@ public sealed class ClientPlayer : Player
 
         MouseOverObject = null;
         _elapsedSecondsSinceLastPositionUpdate = 0;
+
+        // Nothing carried follows a player out of a world, so the next one opens on the nine blocks every
+        // world starts with rather than on whatever was in hand when the last was left.
+        Inventory.ResetToDefaults();
 
         ResetMovementState();
         ForgetCurrentChunk();
@@ -185,6 +214,11 @@ public sealed class ClientPlayer : Player
                     _game.SoundDirector.OnTntLit(MouseOverObject.IntersectedBlockPos);
                 }
             }
+            else if (selected == BlockRegistry.Air)
+            {
+                // An empty slot is an empty hand. The swing above still happens, since reaching out at a
+                // block with nothing in hand is a thing somebody can do.
+            }
             else if (hitBlock.IsOverridable &&
                      selected.CanAddBlockAt(world, MouseOverObject.IntersectedBlockPos))
             {
@@ -203,10 +237,10 @@ public sealed class ClientPlayer : Player
 
         if (Game.Input.OnMousePress(MouseButton.Middle))
         {
-            BlockState picked = world.GetBlockAt(MouseOverObject.IntersectedBlockPos);
-            if (picked.GetBlock() != BlockRegistry.Air)
+            Block picked = world.GetBlockAt(MouseOverObject.IntersectedBlockPos).GetBlock();
+            if (picked != BlockRegistry.Air)
             {
-                SelectedBlock = picked;
+                Inventory.PickBlock(picked);
             }
         }
 
@@ -235,9 +269,9 @@ public sealed class ClientPlayer : Player
     }
 
     /// <summary>
-    /// Picks what to build with. The number keys reach straight for one of the palette, and the wheel steps
-    /// through it, which is what a hand on the mouse wants. What is currently held is not shown on a bar of
-    /// its own: it is in the player's hand, drawn in front of them.
+    /// Picks which of the nine hotbar slots is in hand. The number keys reach straight for one and the wheel
+    /// steps along the row, which is what a hand on the mouse wants. Neither changes what is in a slot: that
+    /// is the inventory screen's business.
     /// </summary>
     private void UpdateBlockSelectionInput()
     {
@@ -246,30 +280,22 @@ public sealed class ClientPlayer : Player
             return;
         }
 
-        for (int slot = 0; slot < BlockPalette.Blocks.Count; slot++)
+        for (int slot = 0; slot < Inventory.HotbarSlots; slot++)
         {
             if (Game.Input.OnKeyPress(Keys.D1 + slot))
             {
-                SelectedBlock = BlockRegistry.GetState(BlockPalette.Blocks[slot]);
+                Inventory.SelectHotbarSlot(slot);
                 return;
             }
         }
 
         float scroll = Game.Input.ScrollDelta.Y;
-        if (scroll == 0)
+        if (scroll != 0)
         {
-            return;
+            // Scrolling up moves towards the first slot, which is the direction the wheel turns away from the
+            // hand and the way round the game it is modelled on reads it.
+            Inventory.StepHotbarSelection(-Math.Sign(scroll));
         }
-
-        // Stepped from where the palette currently sits, or from its start when what is held was picked off
-        // the world with the middle button and is not in the palette at all.
-        int current = BlockPalette.IndexOf(SelectedBlock.GetBlock());
-        int count = BlockPalette.Blocks.Count;
-        int next = current < 0
-            ? (scroll > 0 ? 0 : count - 1)
-            : ((current - Math.Sign(scroll)) % count + count) % count;
-
-        SelectedBlock = BlockRegistry.GetState(BlockPalette.Blocks[next]);
     }
 
     private void UpdateKeyboardMovementInput()

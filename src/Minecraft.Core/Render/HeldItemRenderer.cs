@@ -17,8 +17,9 @@ namespace Minecraft.Core.Render;
 /// <summary>
 /// Draws the block the player is holding, in front of them and off to one side.
 /// <para>
-/// This is also the only place what is selected is shown at all. There is no bar of slots along the bottom of
-/// the screen, because there is no inventory behind one: what a player is carrying is simply in their hand.
+/// What is held is the selected hotbar slot, so this and the bar along the bottom of the screen are two views
+/// of the same thing: the slot says which block and how many are left of it, and this says what it looks like
+/// in the hand carrying it.
 /// </para>
 /// </summary>
 public sealed class HeldItemRenderer
@@ -59,16 +60,6 @@ public sealed class HeldItemRenderer
     /// Spawning covers an enormous distance in a single frame and would otherwise start a bob with it.
     /// </summary>
     private const float TeleportDistance = 4F;
-
-    // The same shading by orientation the chunk mesher uses, so a block in the hand is lit like one in the
-    // world rather than reading as a flat silhouette of itself.
-    private const uint TopBrightness = 60;
-    private const uint BottomBrightness = 36;
-    private const uint SideXBrightness = 44;
-    private const uint SideZBrightness = 52;
-
-    /// <summary>Lightmap values are 0..15 while the packed channels are 0..63, so samples are scaled up.</summary>
-    private const uint LightScale = 4;
 
     private readonly Game _game;
     private readonly BasicShader _shader;
@@ -267,7 +258,7 @@ public sealed class HeldItemRenderer
         }
 
         _model?.CleanUp();
-        _model = BuildModel(held, light);
+        _model = BlockIconMesh.Build(_blockModelRegistry, held, light);
         _meshedBlock = held.GetBlock();
         _meshedState = held;
         _meshedLight = packedLight;
@@ -287,104 +278,14 @@ public sealed class HeldItemRenderer
                 out Chunk? chunk))
         {
             Vector3i local = blockPos.ToChunkLocal();
-            return chunk.LightMap.GetLightColorAt((uint)local.X, (uint)local.Y, (uint)local.Z, LightScale);
+            return chunk.LightMap.GetLightColorAt(
+                (uint)local.X,
+                (uint)local.Y,
+                (uint)local.Z,
+                BlockIconMesh.LightScale);
         }
 
-        return new Light(0, 0, 0, 15 * LightScale, 0);
-    }
-
-    /// <summary>
-    /// Builds the block as a mesh of its own. Every face of it is taken, hidden ones included, since there is
-    /// no neighbouring block in a hand for any of them to be buried against.
-    /// </summary>
-    private VAOModel BuildModel(BlockState state, Light light)
-    {
-        BlockModel model = _blockModelRegistry.Models[state.GetBlock().Id];
-        List<BlockFace> faces = [];
-
-        foreach (Direction direction in Enum.GetValues<Direction>())
-        {
-            faces.AddRange(model.GetPartialVisibleFaces(state, Vector3i.Zero, direction));
-        }
-
-        faces.AddRange(model.GetAlwaysVisibleFaces(state, Vector3i.Zero));
-
-        int quadCount = faces.Count * (model.DoubleSidedFaces ? 2 : 1);
-        int vertexCount = quadCount * 6;
-
-        var layout = new ChunkBufferLayout
-        {
-            VertexPositions = new float[vertexCount * 3],
-            VertexNormals = new float[vertexCount * 3],
-            VertexUVs = new float[vertexCount * 2],
-            VertexLights = new uint[vertexCount],
-        };
-
-        foreach (BlockFace face in faces)
-        {
-            AddQuad(ref layout, face, light, flipWinding: false);
-
-            if (model.DoubleSidedFaces)
-            {
-                AddQuad(ref layout, face, light, flipWinding: true);
-            }
-        }
-
-        layout.IndicesCount = vertexCount;
-        return new VAOModel(layout);
-    }
-
-    private static void AddQuad(ref ChunkBufferLayout layout, BlockFace face, Light light, bool flipWinding)
-    {
-        ReadOnlySpan<int> order = flipWinding ? [1, 0, 3, 1, 3, 2] : [0, 1, 2, 0, 2, 3];
-
-        Vector3 normal = flipWinding ? -face.Normal : face.Normal;
-
-        light.SetBrightness(BrightnessFor(normal));
-        uint packedLight = light.GetStorage();
-
-        foreach (int index in order)
-        {
-            // Pulled back onto its own middle, so that turning the block spins it on the spot rather than
-            // swinging it around the corner its model is built from.
-            Vector3 position = face.Positions[index] - new Vector3(0.5F, 0.5F, 0.5F);
-
-            layout.VertexPositions[layout.PositionsPointer++] = position.X;
-            layout.VertexPositions[layout.PositionsPointer++] = position.Y;
-            layout.VertexPositions[layout.PositionsPointer++] = position.Z;
-
-            layout.VertexNormals[layout.NormalsPointer++] = normal.X;
-            layout.VertexNormals[layout.NormalsPointer++] = normal.Y;
-            layout.VertexNormals[layout.NormalsPointer++] = normal.Z;
-
-            layout.VertexUVs[layout.UVsPointer++] = face.TextureCoords[index].X;
-            layout.VertexUVs[layout.UVsPointer++] = face.TextureCoords[index].Y;
-
-            layout.VertexLights[layout.LightsPointer++] = packedLight;
-        }
-    }
-
-    /// <summary>Which of the fixed face shades an outward pointing normal falls under.</summary>
-    private static uint BrightnessFor(Vector3 normal)
-    {
-        if (normal.LengthSquared < 0.0001F)
-        {
-            return SideZBrightness;
-        }
-
-        Vector3 unit = Vector3.Normalize(normal);
-
-        if (unit.Y > 0.5F)
-        {
-            return TopBrightness;
-        }
-
-        if (unit.Y < -0.5F)
-        {
-            return BottomBrightness;
-        }
-
-        return MathF.Abs(unit.X) > MathF.Abs(unit.Z) ? SideXBrightness : SideZBrightness;
+        return BlockIconMesh.FullDaylight;
     }
 
     public void CleanUp()

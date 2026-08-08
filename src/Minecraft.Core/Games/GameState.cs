@@ -14,4 +14,11 @@ public enum GameState
 
     /// <summary>A world is loaded, but the pause menu is up and the controls belong to it.</summary>
     Paused,
+
+    /// <summary>
+    /// A world is loaded and the inventory screen is open over it. Distinct from <see cref="Paused"/>,
+    /// because the world is still there to be looked at behind it and Escape closes this rather than
+    /// opening the pause menu on top of it.
+    /// </summary>
+    Inventory,
 }

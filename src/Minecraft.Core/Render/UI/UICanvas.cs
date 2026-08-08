@@ -17,7 +17,14 @@ public class UICanvas
     /// Whether the canvas takes part in updating and drawing. A switched off canvas keeps its meshes, and is
     /// still cleaned, so turning it back on costs nothing and shows it exactly as it was left.
     /// </summary>
-    public bool IsEnabled { get; set; } = true;
+    public virtual bool IsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether this canvas is drawn after the block icons rather than before them. The icons are a three
+    /// dimensional pass spliced into the middle of the interface, so anything that has to sit on top of one —
+    /// the count in the corner of a slot, the name of what the cursor is over — belongs on an overlay.
+    /// </summary>
+    public bool IsOverlay { get; protected set; }
 
     public int PixelWidth { get; private set; }
 

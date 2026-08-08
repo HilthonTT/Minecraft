@@ -217,6 +217,32 @@ public sealed class Game
         EnterState(GameState.Playing);
     }
 
+    /// <summary>
+    /// Opens the inventory over the world, which stays running behind it. Unlike the pause menu this releases
+    /// the cursor without stopping anything, since the screen is worked with the mouse.
+    /// </summary>
+    public void OpenInventory()
+    {
+        if (State != GameState.Playing || IsChatOpen)
+        {
+            return;
+        }
+
+        EnterState(GameState.Inventory);
+    }
+
+    /// <summary>Closes the inventory, putting whatever was being carried on the cursor back into it.</summary>
+    public void CloseInventory()
+    {
+        if (State != GameState.Inventory)
+        {
+            return;
+        }
+
+        ClientPlayer.Inventory.ReturnCursorStack();
+        EnterState(GameState.Playing);
+    }
+
     /// <summary>Leaves the world, saving it on the way out, and returns to the main menu.</summary>
     public void QuitToTitle()
     {
@@ -257,6 +283,7 @@ public sealed class Game
         if (RunMode != RunMode.Server)
         {
             HandleEscape();
+            HandleInventoryKey();
 
             if (State != GameState.Playing)
             {
@@ -341,6 +368,10 @@ public sealed class Game
                 Pause();
                 break;
 
+            case GameState.Inventory:
+                CloseInventory();
+                break;
+
             case GameState.Paused:
                 // The options are reached from the pause menu, so Escape there has to step back to it rather
                 // than drop straight into the world with a screen still up over it.
@@ -353,6 +384,29 @@ public sealed class Game
 
             default:
                 Menu.OnEscape();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The inventory key opens the screen and closes it again, so the same key gets a player back out of it
+    /// without having to find Escape. An open chat swallows it, since there it is a letter being typed.
+    /// </summary>
+    private void HandleInventoryKey()
+    {
+        if (!Input.OnKeyPress(Keys.E) || IsChatOpen)
+        {
+            return;
+        }
+
+        switch (State)
+        {
+            case GameState.Playing:
+                OpenInventory();
+                break;
+
+            case GameState.Inventory:
+                CloseInventory();
                 break;
         }
     }
@@ -429,6 +483,12 @@ public sealed class Game
         Window.CursorState = state == GameState.Playing ? CursorState.Grabbed : CursorState.Normal;
 
         MasterRenderer.IngameCanvas.IsEnabled = state != GameState.MainMenu;
+
+        // The bar belongs to a world being played rather than to the interface. The pause menu is a screen
+        // over a game that has been stopped, and the inventory screen ends with the same nine slots drawn
+        // larger, so in both cases showing it as well would only be showing it twice.
+        MasterRenderer.HotbarCanvas.IsEnabled = state == GameState.Playing;
+        MasterRenderer.InventoryCanvas.IsEnabled = state == GameState.Inventory;
 
         if (state == GameState.Playing)
         {
