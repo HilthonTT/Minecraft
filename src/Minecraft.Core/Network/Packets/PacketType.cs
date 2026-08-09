@@ -17,5 +17,7 @@ public enum PacketType
     PlayerBlockInteraction,
     PlayerKeepAlive,
     Explosion,
-    PlayerSettings
+    PlayerSettings,
+    PlayerAttackEntity,
+    EntityHurt
 }

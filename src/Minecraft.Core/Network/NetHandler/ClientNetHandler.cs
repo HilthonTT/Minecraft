@@ -120,7 +120,34 @@ public sealed class ClientNetHandler : INetHandler
         }
     }
 
+    /// <summary>
+    /// A mob having been hit, which is all this side is told: it plays the mob's own cry and marks it red
+    /// for as long as the blow keeps it from being hit again. A death is followed by an ordinary despawn a
+    /// moment later, which is what actually takes the mob out of the world.
+    /// </summary>
+    public void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket)
+    {
+        // Nothing to show and nowhere to play it from. A mob can leave this client's range in the same
+        // update the blow that killed it was reported in.
+        if (!_game.World.LoadedEntities.TryGetValue(entityHurtPacket.EntityID, out Entity? entity))
+        {
+            return;
+        }
+
+        _game.SoundDirector.OnEntityHurt(entity, entityHurtPacket.Died);
+
+        if (entity is Mob mob)
+        {
+            mob.ShowHurt();
+        }
+    }
+
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)
+    {
+        throw new InvalidOperationException();
+    }
+
+    public void ProcessPlayerAttackEntityPacket(PlayerAttackEntityPacket playerAttackEntityPacket)
     {
         throw new InvalidOperationException();
     }

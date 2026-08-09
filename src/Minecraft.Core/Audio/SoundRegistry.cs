@@ -65,6 +65,11 @@ public sealed class SoundRegistry
         sounds[Sound.ZombieSay] = LoadGroup("mob/zombie", "say", ref loaded);
         sounds[Sound.ZombieStep] = LoadGroup("mob/zombie", "step", ref loaded);
 
+        sounds[Sound.PigDeath] = LoadGroup("mob/pig", "death", ref loaded);
+        sounds[Sound.CowHurt] = LoadGroup("mob/cow", "hurt", ref loaded);
+        sounds[Sound.ZombieHurt] = LoadGroup("mob/zombie", "hurt", ref loaded);
+        sounds[Sound.ZombieDeath] = LoadGroup("mob/zombie", "death", ref loaded);
+
         // The three are published together and only once every one of them is filled, so a lookup either
         // finds the whole set or finds nothing and stays quiet.
         _steps = steps;

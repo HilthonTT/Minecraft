@@ -268,10 +268,11 @@ public sealed class MobSpawner
     }
 
     /// <summary>
-    /// Whether a hostile mob has now stood in the daylight long enough to burn up. Nothing in the world has
-    /// any health to take away yet, so burning up is simply being removed after a few seconds of it; what
-    /// matters is that it happens wherever the sun reaches, so that a cave keeps whatever came out in it
-    /// however bright the day above has become, and nothing else does.
+    /// Whether a hostile mob has now stood in the daylight long enough to burn up. Removed outright rather
+    /// than burned down through the health a punch takes off: nobody is watching a health bar, and a mob
+    /// that vanished after a few seconds of sun and one that was whittled away over them look the same from
+    /// where the player stands. What matters is that it happens wherever the sun reaches, so that a cave
+    /// keeps whatever came out in it however bright the day above has become, and nothing else does.
     /// </summary>
     private bool IsBurningUpInSunlight(World world, Mob mob, bool isSunUp)
     {

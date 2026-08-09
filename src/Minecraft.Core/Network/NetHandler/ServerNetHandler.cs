@@ -1,4 +1,6 @@
-﻿using Minecraft.Core.Entities.Player;
+﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Entities.Mobs;
+using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
@@ -14,6 +16,20 @@ namespace Minecraft.Core.Network.NetHandler;
 /// </summary>
 public sealed class ServerNetHandler : INetHandler
 {
+    /// <summary>
+    /// What a bare fist takes off, which is what everyone is swinging: there is nothing to hold yet that
+    /// hits harder. The same figure the game this is modelled on gives an empty hand, so the mob healths
+    /// borrowed along with it come out at the number of punches they are supposed to.
+    /// </summary>
+    private const int PunchDamage = 1;
+
+    /// <summary>
+    /// How far from a player a mob may be and still be hit. Well beyond the arm's length a client will let
+    /// anyone aim at: the position held here for a player is a tenth of a second behind where they actually
+    /// are and the mob has moved since as well, so a check this side has to leave room for both.
+    /// </summary>
+    private const float MaxAttackReach = 6F;
+
     private readonly Game _game;
     private ServerSession _session = null!;
 
@@ -116,6 +132,63 @@ public sealed class ServerNetHandler : INetHandler
         }
     }
 
+    /// <summary>
+    /// A player swinging at a mob. Everything about the blow is decided here — the client is only reporting
+    /// what it aimed at — and what comes back out of it is a hurt packet to everyone who can see the mob,
+    /// followed by the mob itself if that was the last blow it had in it.
+    /// </summary>
+    public void ProcessPlayerAttackEntityPacket(PlayerAttackEntityPacket playerAttackEntityPacket)
+    {
+        if (_session.Player is not ServerPlayer attacker)
+        {
+            return;
+        }
+
+        if (!_game.Server.World.LoadedEntities.TryGetValue(playerAttackEntityPacket.EntityID, out Entity? target) ||
+            target is not Mob mob)
+        {
+            // A mob that died or wandered off between the swing and the packet arriving. Both are ordinary.
+            return;
+        }
+
+        if ((mob.Position - attacker.Position).LengthSquared > MaxAttackReach * MaxAttackReach)
+        {
+            Logger.Warn("Player " + attacker.ID + " swung at a mob out of reach.");
+            return;
+        }
+
+        // False while the mob is still inside the half second the last blow bought it, which is what a
+        // client holding the mouse button down runs into.
+        if (!mob.TryHurt(PunchDamage, attacker))
+        {
+            return;
+        }
+
+        BroadcastHurt(mob);
+
+        if (!mob.IsAlive)
+        {
+            _game.Server.World.DespawnEntity(mob.ID);
+        }
+    }
+
+    /// <summary>
+    /// Tells everyone near enough to see the mob that it was hit. Sent to the attacker as well as to the
+    /// onlookers: the client that swung applies nothing off its own bat, the same as with a block.
+    /// </summary>
+    private void BroadcastHurt(Mob mob)
+    {
+        var packet = new EntityHurtPacket(mob.ID, died: !mob.IsAlive);
+
+        foreach (ServerSession clientSession in _game.Server.ConnectedClients)
+        {
+            if (clientSession.IsChunkVisible(Worlds.World.GetChunkPosition(mob.Position.X, mob.Position.Z)))
+            {
+                clientSession.WritePacket(packet);
+            }
+        }
+    }
+
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)
     {
         _game.Server.UpdateKeepAliveFor(_session);
@@ -148,4 +221,7 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessEntityDespawnPacket(EntityDespawnPacket entityDespawnPacket) =>
         throw new InvalidOperationException("A server does not receive entity despawns.");
+
+    public void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket) =>
+        throw new InvalidOperationException("A server does not receive damage; it is the one that deals it.");
 }

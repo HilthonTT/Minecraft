@@ -28,6 +28,9 @@ public sealed class EntityShader : Shader
 
     public int LocationFogEnd { get; private set; }
 
+    /// <summary>How red the entity being drawn is, which is how recently it was hit.</summary>
+    public int LocationHurtFlash { get; private set; }
+
     protected override void BindAttributes()
     {
         BindAttribute(0, "vertexPosition");
@@ -46,5 +49,6 @@ public sealed class EntityShader : Shader
         LocationFogColor = GetUniformLocation("fogColor");
         LocationFogStart = GetUniformLocation("fogStart");
         LocationFogEnd = GetUniformLocation("fogEnd");
+        LocationHurtFlash = GetUniformLocation("hurtFlash");
     }
 }

@@ -13,7 +13,10 @@ public sealed class Cow : Animal
     public const float BodyHeight = 1.4F;
     public const float BodyLength = 0.9F;
 
-    public Cow(int id, World? world, Vector3 position) : base(id, world, position, EntityType.Cow)
+    public const int FullHealth = 10;
+
+    public Cow(int id, World? world, Vector3 position)
+        : base(id, world, position, EntityType.Cow, FullHealth)
     {
     }
 

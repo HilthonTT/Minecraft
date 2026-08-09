@@ -20,6 +20,10 @@ public interface INetHandler
 
     void ProcessEntityDespawnPacket(EntityDespawnPacket entityDespawnPacket);
 
+    void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket);
+
+    void ProcessPlayerAttackEntityPacket(PlayerAttackEntityPacket playerAttackEntityPacket);
+
     void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket);
 
     void ProcessJoinAcceptPacket(PlayerJoinAcceptPacket playerJoinAcceptPacket);

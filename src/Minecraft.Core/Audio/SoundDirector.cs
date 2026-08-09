@@ -58,6 +58,12 @@ public sealed class SoundDirector
     private const float CallVolume = 0.75F;
     private const float ExplosionVolume = 1.0F;
 
+    /// <summary>
+    /// A mob crying out at being hit, over the top of its ordinary call: it is the one sound that says
+    /// whether a swing connected, so it has to carry over whatever else is going on.
+    /// </summary>
+    private const float HurtVolume = 1.0F;
+
     /// <summary>Tracks one entity between frames, so movement can be measured without the entity holding it.</summary>
     private sealed class EntitySoundState
     {
@@ -112,6 +118,22 @@ public sealed class SoundDirector
     {
         _blockSoundsSilencedFor = SilenceAfterExplosionSeconds;
         _engine.PlayAt(_sounds.Get(Sound.Explode).Pick(_random), position, ExplosionVolume, RandomPitch());
+    }
+
+    /// <summary>
+    /// A mob crying out at a blow, played where it is standing. The one mob sound that is not worked out
+    /// from what the client can see: nothing about a mob's appearance says it has been hit, so the server
+    /// has to say so, and this is what it is saying it for.
+    /// </summary>
+    public void OnEntityHurt(Entity entity, bool died)
+    {
+        Sound? sound = died ? DeathSoundFor(entity.EntityType) : HurtSoundFor(entity.EntityType);
+        if (sound is null)
+        {
+            return;
+        }
+
+        _engine.PlayAt(_sounds.Get(sound.Value).Pick(_random), entity.Position, HurtVolume, RandomPitch());
     }
 
     /// <summary>Drops everything remembered about a world that has been left.</summary>
@@ -380,6 +402,29 @@ public sealed class SoundDirector
         EntityType.Pig => Sound.PigSay,
         EntityType.Cow => Sound.CowSay,
         EntityType.Zombie => Sound.ZombieSay,
+        _ => null,
+    };
+
+    /// <summary>
+    /// What a mob of this kind sounds like when it is hit. The sheep and the pig have no cry of their own
+    /// for it in the sound set and use their ordinary call, which is how the game it comes from does it.
+    /// </summary>
+    private static Sound? HurtSoundFor(EntityType entityType) => entityType switch
+    {
+        EntityType.Sheep => Sound.SheepSay,
+        EntityType.Pig => Sound.PigSay,
+        EntityType.Cow => Sound.CowHurt,
+        EntityType.Zombie => Sound.ZombieHurt,
+        _ => null,
+    };
+
+    /// <summary>The same for the blow that finishes it. A cow has no death recording either, only a cry.</summary>
+    private static Sound? DeathSoundFor(EntityType entityType) => entityType switch
+    {
+        EntityType.Sheep => Sound.SheepSay,
+        EntityType.Pig => Sound.PigDeath,
+        EntityType.Cow => Sound.CowHurt,
+        EntityType.Zombie => Sound.ZombieDeath,
         _ => null,
     };
 

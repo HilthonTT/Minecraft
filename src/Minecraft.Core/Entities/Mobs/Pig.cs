@@ -13,7 +13,10 @@ public sealed class Pig : Animal
     public const float BodyHeight = 0.9F;
     public const float BodyLength = 0.9F;
 
-    public Pig(int id, World? world, Vector3 position) : base(id, world, position, EntityType.Pig)
+    public const int FullHealth = 10;
+
+    public Pig(int id, World? world, Vector3 position)
+        : base(id, world, position, EntityType.Pig, FullHealth)
     {
     }
 

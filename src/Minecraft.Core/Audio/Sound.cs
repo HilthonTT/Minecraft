@@ -26,4 +26,14 @@ public enum Sound
     CowStep,
     ZombieSay,
     ZombieStep,
+
+    /// <summary>
+    /// Being hit, and the blow that finishes it. Not every mob has both on disk: the set is Minecraft's own,
+    /// and there a sheep and a pig cry out in their ordinary voice when struck rather than in one of their
+    /// own, so those two are missing from here and asked for as calls instead.
+    /// </summary>
+    PigDeath,
+    CowHurt,
+    ZombieHurt,
+    ZombieDeath,
 }

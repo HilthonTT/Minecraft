@@ -134,6 +134,16 @@ public sealed class PacketFactory
                 {
                     return new PlayerSettingsPacket(reader.ReadInt32());
                 }
+            case PacketType.PlayerAttackEntity:
+                {
+                    return new PlayerAttackEntityPacket(reader.ReadInt32());
+                }
+            case PacketType.EntityHurt:
+                {
+                    int entityId = reader.ReadInt32();
+                    bool died = reader.ReadBoolean();
+                    return new EntityHurtPacket(entityId, died);
+                }
             default: throw new Exception("Invalid packet type: " + packetType);
         }
     }

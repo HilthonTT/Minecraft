@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Games;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render.MeshGenerator;
@@ -42,6 +43,12 @@ public sealed class MasterRenderer
 
     /// <summary>Fully opaque, which is every pass except the water.</summary>
     private const float SolidAlpha = 1.0F;
+
+    /// <summary>
+    /// How far towards red a mob goes while it is showing a blow. Short of the whole way, so what is seen is
+    /// the animal under a red wash rather than a red silhouette of it.
+    /// </summary>
+    private const float HurtFlashStrength = 0.35F;
 
     /// <summary>
     /// The colour looking through water settles into. Deliberately not the colour of the water surface: what
@@ -481,6 +488,10 @@ public sealed class MasterRenderer
         // of the same kind come out of the collection together often enough for this to be worth it.
         int boundSkinTextureId = -1;
 
+        // The same, for the one uniform that changes per entity rather than per frame. Nothing is being hit
+        // on the overwhelming majority of frames, so tracking it means it is uploaded once and left alone.
+        float loadedHurtFlash = -1F;
+
         foreach (Entity entity in world.LoadedEntities.Values)
         {
             // The local player's own body would fill the camera, so it is not drawn.
@@ -498,6 +509,13 @@ public sealed class MasterRenderer
             {
                 _entityShader.LoadTexture(_entityShader.LocationSkinTexture, 0, entityMesh.SkinTextureId);
                 boundSkinTextureId = entityMesh.SkinTextureId;
+            }
+
+            float hurtFlash = entity is Mob { IsHurt: true } ? HurtFlashStrength : 0F;
+            if (loadedHurtFlash != hurtFlash)
+            {
+                _entityShader.LoadFloat(_entityShader.LocationHurtFlash, hurtFlash);
+                loadedHurtFlash = hurtFlash;
             }
 
             entityMesh.Mesh.BindVAO();

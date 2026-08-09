@@ -364,6 +364,52 @@ night they have the run of the surface as well, apart from wherever a torch is b
 
 ![Zombies scattered across a dark meadow at night, one of them close to the camera](Screenshots/sample-3.png)
 
+### Punching them
+
+A left click that finds a mob within arm's length hits it instead of breaking the block behind it. Which of
+the two the click meant is settled on the client, by measuring both: the mob is only taken if its hitbox is
+nearer along the eye line than whatever block is being looked at, so a punch never goes through a wall. Reach
+here is Minecraft's three blocks rather than the forty this game gives a block, because something that is a
+speck on the horizon is something to walk up to rather than something to hit from where you are standing.
+
+Nothing else about the blow is decided there. The client sends only who it aimed at; the server checks the
+distance again against a looser figure of its own — the position it holds for a player is a tenth of a second
+old and the mob has moved since — takes the health off, and broadcasts the result to everyone who can see it.
+That is the same shape as placing and breaking: a client asks, and applies nothing until it is told.
+
+| Mob    | Health | Punches |
+| ------ | ------ | ------- |
+| Sheep  | 8      | 8       |
+| Pig    | 10     | 10      |
+| Cow    | 10     | 10      |
+| Zombie | 20     | 20      |
+
+A bare fist takes off one, which is what an empty hand does in the game these figures come from, so the mob
+healths borrowed along with it come out at the number of blows they are supposed to. There is nothing to hold
+yet that hits harder; when there is, it is one constant in the server's handler.
+
+A blow leaves the mob alone for half a second, and that half second is also exactly how long it shows red for.
+One figure serves both because the flash is then telling the player when the next punch will land rather than
+merely that the last one did — and it is why a client is sent nothing but "this was hit", with the health
+behind it kept on the server, where the only thing that reads it lives.
+
+What the mob does about it is the difference between the two kinds. An animal has nothing to fight back with,
+so it bolts: for three seconds it runs at twice its grazing pace, aimed away from whoever hit it and re-aimed
+a little off that line each time, so it veers rather than running down a rail and is not simply walked after.
+A zombie does the opposite. Being hit is not a reason to back off but a reason to know exactly who did it, so
+it takes the attacker's id and keeps after that one player for ten seconds, further out than the distance it
+would have noticed anybody at in the first place. Backing out of its sight is not enough to end that.
+
+A death is broadcast as the last blow rather than as its own event, and the mob leaves by the ordinary despawn
+the entity tracker sends a moment later. The hurt packet carries the one thing a despawn cannot say — that
+the mob was killed and not merely walked out of range — which is the whole difference between a death cry and
+a mob quietly ceasing to be tracked.
+
+The sound set is Minecraft's, and it is not evenly stocked: a cow has recordings of being hurt but none of
+dying, and neither the sheep nor the pig has any of being hurt at all. That is not a gap to fill, it is how
+the game it came from sounds — a struck sheep bleats — so the ones with nothing of their own are pointed at
+their ordinary call.
+
 ## Sound
 
 Sounds are placed in the world: quieter the further off they are, weighted towards the ear they are on, and
@@ -383,13 +429,17 @@ ground does not read as the same handful of clips looping.
 | Breaking, placing | A block changing, in that block's own material         |
 | Splash, strokes   | Going into water, and swimming through it              |
 | Animals, zombies  | Their own calls on a timer, and their own footfalls    |
+| Hurt, death       | A mob being punched, and the blow that finishes it     |
 | Fuse, explosion   | TNT being struck, and the blast at the end of it       |
 
 A block says which of seven sets it belongs to — stone, grass, gravel, sand, wood, snow or cloth — rather than
 carrying sounds of its own, since a dozen kinds of stone all break the same way. The greenery sounds like the
 grass it grows out of; cloth is for the cactus, which gives under a blow rather than tearing.
 
-The blast is the one thing the server has to send, as an `Explosion` packet carrying where it went off. What a
+Two of them cannot be worked out that way. A mob being hit is one: nothing about how a mob looks or moves says
+a blow landed, so the packet that reports one is what the cry hangs off.
+
+The blast is the other, sent as an `Explosion` packet carrying where it went off. What a
 client would otherwise see of it is the hundreds of separate block removals it leaves behind, which arrive one
 at a time and are indistinguishable from somebody mining quickly. Those removals are then held silent for a
 moment, so what is heard is the bang rather than the terrain it destroyed being taken apart block by block.

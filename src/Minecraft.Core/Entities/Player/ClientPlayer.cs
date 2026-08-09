@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Games;
+﻿using Minecraft.Core.Entities.Mobs;
+using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Physics;
@@ -26,6 +27,13 @@ public sealed class ClientPlayer : Player
     private const float RunningFieldOfViewMultiplier = 1.10F;
     private const float CrouchingFieldOfViewMultiplier = 0.97F;
 
+    /// <summary>
+    /// How far a punch reaches. An arm's length, deliberately nothing like the reach this game gives a
+    /// block: something far enough off to be a speck on the horizon is something to walk up to rather than
+    /// something to hit from where you are standing.
+    /// </summary>
+    private const float MaxAttackReach = 3.0F;
+
     private readonly Game _game;
 
     private float _elapsedSecondsSinceLastPositionUpdate;
@@ -50,6 +58,13 @@ public sealed class ClientPlayer : Player
 
     /// <summary>The block the player is currently looking at, or null when out of reach.</summary>
     public RayTraceResult? MouseOverObject { get; private set; }
+
+    /// <summary>
+    /// The mob a punch would land on, or null when there is none under the crosshair within reach. Held
+    /// alongside <see cref="MouseOverObject"/> and worked out at the same moment, since which of the two a
+    /// left click means is decided by which of them is nearer.
+    /// </summary>
+    public Mob? MouseOverEntity { get; private set; }
 
     public ClientPlayer(Game game) : base(-1, string.Empty, null, new Vector3(-1, -1, -1))
     {
@@ -111,6 +126,7 @@ public sealed class ClientPlayer : Player
         ServerYaw = 0;
 
         MouseOverObject = null;
+        MouseOverEntity = null;
         _elapsedSecondsSinceLastPositionUpdate = 0;
 
         // Nothing carried follows a player out of a world, so the next one opens on the nine blocks every
@@ -171,6 +187,7 @@ public sealed class ClientPlayer : Player
 
         ApplyVelocityAndCheckCollision(deltaTime, world);
         MouseOverObject = new Ray(Camera.Position, Camera.Forward).TraceWorld(world, MaxBlockReach);
+        MouseOverEntity = FindMobUnderCrosshair(world);
 
         UpdateCameraPosition();
         UpdateMouseInput(world);
@@ -188,10 +205,66 @@ public sealed class ClientPlayer : Player
         }
     }
 
+    /// <summary>
+    /// The mob a punch would land on: the nearest one the eye line runs through, within arm's reach and in
+    /// front of whatever block is being looked at, since a punch does not go through a wall.
+    /// </summary>
+    private Mob? FindMobUnderCrosshair(World world)
+    {
+        var ray = new Ray(Camera.Position, Camera.Forward);
+
+        // A block in the way is as far as the swing gets. Nothing being looked at leaves the whole reach.
+        float nearest = MouseOverObject is null
+            ? MaxAttackReach
+            : MathF.Min(MaxAttackReach, (MouseOverObject.IntersectionPoint - Camera.Position).Length);
+
+        Mob? nearestMob = null;
+
+        foreach (Entity entity in world.LoadedEntities.Values)
+        {
+            if (entity is not Mob mob)
+            {
+                continue;
+            }
+
+            // The distance along the ray to the near face of the hitbox, or float.MaxValue for a miss.
+            float distance = mob.Hitbox.Intersects(ray);
+            if (distance < nearest)
+            {
+                nearest = distance;
+                nearestMob = mob;
+            }
+        }
+
+        return nearestMob;
+    }
+
     private void UpdateMouseInput(World world)
     {
-        // A click while the chat or a menu is open belongs to it, not to the block being looked at.
-        if (MouseOverObject is null || !_game.Window.IsFocused || !_game.IsGameplayInputEnabled)
+        // A click while the chat or a menu is open belongs to it, not to what is being looked at.
+        if (!_game.Window.IsFocused || !_game.IsGameplayInputEnabled)
+        {
+            return;
+        }
+
+        if (Game.Input.OnMousePress(MouseButton.Left))
+        {
+            OnSwingHandler?.Invoke();
+
+            // A mob standing in front of the block is what the swing lands on, and the block behind it is
+            // left alone. Nothing is applied here either way: both are requests, and the server answers.
+            if (MouseOverEntity is not null)
+            {
+                _game.Client.WritePacket(new PlayerAttackEntityPacket(MouseOverEntity.ID));
+            }
+            else if (MouseOverObject is not null)
+            {
+                _game.Client.WritePacket(new RemoveBlockPacket(MouseOverObject.IntersectedBlockPos));
+            }
+        }
+
+        // Everything below is aimed at a block, so there is nothing to do without one.
+        if (MouseOverObject is null)
         {
             return;
         }
@@ -242,12 +315,6 @@ public sealed class ClientPlayer : Player
             {
                 Inventory.PickBlock(picked);
             }
-        }
-
-        if (Game.Input.OnMousePress(MouseButton.Left))
-        {
-            OnSwingHandler?.Invoke();
-            _game.Client.WritePacket(new RemoveBlockPacket(MouseOverObject.IntersectedBlockPos));
         }
     }
 

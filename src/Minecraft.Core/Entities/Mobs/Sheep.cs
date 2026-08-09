@@ -10,7 +10,11 @@ public sealed class Sheep : Animal
     public const float BodyHeight = 1.3F;
     public const float BodyLength = 0.9F;
 
-    public Sheep(int id, World? world, Vector3 position) : base(id, world, position, EntityType.Sheep)
+    /// <summary>The frailest of the three, as it is in the game these figures are taken from.</summary>
+    public const int FullHealth = 8;
+
+    public Sheep(int id, World? world, Vector3 position)
+        : base(id, world, position, EntityType.Sheep, FullHealth)
     {
     }
 
