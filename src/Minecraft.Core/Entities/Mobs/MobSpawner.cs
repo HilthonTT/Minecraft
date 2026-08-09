@@ -69,11 +69,31 @@ public sealed class MobSpawner
     /// is what this used to do, spared exactly the ones the player could see: a zombie follows its target, so
     /// the ones near enough to be excused were the ones that then walked about in broad daylight all day.
     /// </para>
+    /// <para>
+    /// Short, because this is also the whole of what stops a mob that came up out of a cave from wandering
+    /// the daylight. Nothing draws it burning, so every second of this reads to a player as a zombie simply
+    /// being out at noon; the eight it used to have were long enough for a steady drip of them to look like
+    /// they were spawning in the sun.
+    /// </para>
     /// </summary>
-    private const int SunlightRoundsBeforeBurningUp = 8;
+    private const int SunlightRoundsBeforeBurningUp = 3;
 
     /// <summary>Mobs never appear closer to a player than this, so nothing is seen popping into existence.</summary>
     private const float MinDistanceFromPlayer = 14F;
+
+    /// <summary>
+    /// The same for a hostile mob, and much further out: a zombie is meant to be something come across
+    /// rather than something delivered. Deliberately clear of <see cref="Zombie"/>'s aggro radius rather
+    /// than equal to it, so one that appears in a cave nearby starts out wandering that cave instead of
+    /// locking onto whoever is standing above it on the tick it comes into existence.
+    /// <para>
+    /// This is what a day used to go wrong on. By day every hostile attempt aims underground, so they were
+    /// appearing in the caves under a player's feet, already within notice, and climbing out - a mob here
+    /// hops any step a player could - which put a fresh zombie in the open every few seconds at noon. None
+    /// of them had spawned in the daylight; every one of them had walked into it.
+    /// </para>
+    /// </summary>
+    private const float MinHostileDistanceFromPlayer = 28F;
 
     /// <summary>Nor further off than this, which keeps them inside the area somebody has loaded.</summary>
     private const float MaxDistanceFromPlayer = 44F;
@@ -463,7 +483,7 @@ public sealed class MobSpawner
 
         // Offset to the middle of the block, so the mob is not measured from the corner it will be standing
         // half a body away from.
-        return IsAtUsableDistanceFromPlayers(new Vector3(worldX + 0.5F, feetY, worldZ + 0.5F));
+        return IsAtUsableDistanceFromPlayers(new Vector3(worldX + 0.5F, feetY, worldZ + 0.5F), hostile);
     }
 
     /// <summary>
@@ -720,15 +740,16 @@ public sealed class MobSpawner
     /// Whether the spot is far enough from everybody to appear unseen, while still being near enough to
     /// somebody to be worth having.
     /// </summary>
-    private bool IsAtUsableDistanceFromPlayers(Vector3 position)
+    private bool IsAtUsableDistanceFromPlayers(Vector3 position, bool hostile)
     {
+        float minDistance = hostile ? MinHostileDistanceFromPlayer : MinDistanceFromPlayer;
         bool anyInRange = false;
 
         foreach (Player.Player player in _players)
         {
             float distanceSquared = (player.Position - position).LengthSquared;
 
-            if (distanceSquared < MinDistanceFromPlayer * MinDistanceFromPlayer)
+            if (distanceSquared < minDistance * minDistance)
             {
                 return false;
             }

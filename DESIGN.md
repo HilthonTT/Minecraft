@@ -355,6 +355,16 @@ starves the animals out — a hostile mob follows the player and so never wander
 while an animal drifts away and is cleared. Hostile mobs left over from the night burn up a few seconds after
 the sun finds them, wherever they are standing and whoever is watching.
 
+A hostile mob is also held much further off a player than an animal is — twenty eight blocks against fourteen,
+which is clear of the twenty four a zombie notices anybody at. That gap is load bearing rather than cosmetic.
+By day every hostile attempt aims underground, so a shorter one had them appearing in the caves directly under
+a player's feet, already within notice, and walking straight up out of them; a mob here hops any step a player
+could, so a cave mouth is no obstacle at all. What that looked like from the surface was a fresh zombie in the
+open every few seconds at noon — none of which had spawned in the daylight. Every one had walked into it, and
+then had eight unhurried seconds before the sun was allowed to take it. Holding them back past the distance
+they notice anybody means one that appears nearby starts out wandering its cave instead, and three seconds
+rather than eight means the few that still climb out do not get to stroll about while they do it.
+
 Zombies only appear in the dark. The server keeps no light map — those are built by the renderer on each client
 — so the spawner works out where the daylight falls from the heightmap every chunk already carries: the sun
 comes down each column that has nothing solid over it and then spreads out from where it lands, losing a step
