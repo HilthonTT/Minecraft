@@ -1,5 +1,6 @@
 using Minecraft.Core.Textures;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 
 namespace Minecraft.Core.Shapes;
 
@@ -48,8 +49,18 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.Dandelion.Id] = new BlockModelDandelion(textureAtlas);
         Models[BlockRegistry.RedMushroom.Id] = new BlockModelRedMushroom(textureAtlas);
         Models[BlockRegistry.BrownMushroom.Id] = new BlockModelBrownMushroom(textureAtlas);
-        Models[BlockRegistry.Water.Id] = new BlockModelWater(textureAtlas);
         Models[BlockRegistry.Torch.Id] = new TorchModel(textureAtlas);
+
+        // Water is registered once per depth it can stand at, and every one of those is drawn the same way
+        // to a different waterline, so they are filled in by walking the registry rather than by naming each
+        // of the nine in turn.
+        for (int id = 1; id <= BlockRegistry.Count; id++)
+        {
+            if (BlockRegistry.GetBlockFromIdentifier(id) is BlockWater water)
+            {
+                Models[id] = new BlockModelWater(textureAtlas, water.SurfaceHeight);
+            }
+        }
 
         // Air has no geometry, but the mesh generator still indexes the table by block id when it walks a
         // section, so the slot has to hold something that reports every side as see through.

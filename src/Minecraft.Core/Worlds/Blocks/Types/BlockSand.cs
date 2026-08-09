@@ -1,9 +1,9 @@
-﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Audio;
 using Minecraft.Core.Worlds.Blocks.States;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
 
-public sealed class BlockSand : Block
+public sealed class BlockSand : BlockFalling
 {
     public BlockSand(ushort id) : base(id)
     {

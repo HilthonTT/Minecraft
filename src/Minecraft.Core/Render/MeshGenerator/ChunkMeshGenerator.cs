@@ -2,6 +2,7 @@
 using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using Minecraft.Core.Worlds.Chunks;
 using Minecraft.Core.Worlds.Lighting;
 using OpenTK.Mathematics;
@@ -322,14 +323,20 @@ public sealed class ChunkMeshGenerator : MeshGenerator
 
     /// <summary>
     /// Whether a face between a block and the given neighbour needs drawing. A face is skipped when the
-    /// neighbour covers it, and also when both sides are the same liquid: the inside of a sea is not a
-    /// surface, and drawing it would fill every body of water with a grid of blended quads.
+    /// neighbour covers it, and also when both sides are water: the inside of a sea is not a surface, and
+    /// drawing it would fill every body of water with a grid of blended quads.
+    /// <para>
+    /// Water lying against shallower water is the one place where that does not hold. The two stand at
+    /// different heights, so the strip of side above the shallower one's waterline is open to the air and has
+    /// to be drawn, or a flow running downhill would be see through along every step of its way.
+    /// </para>
     /// </summary>
     private bool ShouldAddFaceTowards(Block block, BlockState neighbour, Direction facingBack)
     {
-        if (block.IsLiquid && neighbour.GetBlock() == block)
+        if (block is BlockWater water && neighbour.GetBlock() is BlockWater neighbourWater)
         {
-            return false;
+            return facingBack is not (Direction.Top or Direction.Bottom) &&
+                   neighbourWater.SurfaceHeight < water.SurfaceHeight;
         }
 
         return !_blockModelRegistry.Models[neighbour.GetBlock().Id].IsOpaqueOnSide(facingBack);

@@ -57,6 +57,16 @@ public abstract class Block
     {
     }
 
+    /// <summary>
+    /// Called once the delay asked for through <see cref="World.ScheduleBlockUpdate"/> has run out. This is
+    /// where a block that moves of its own accord does its work rather than in <see cref="OnTick"/>: water
+    /// and sand only have something to do in the moments after something around them changed, and a block
+    /// that asks to be looked at then costs nothing for all the ticks it spends at rest.
+    /// </summary>
+    public virtual void OnScheduledUpdate(BlockState blockState, World world, Vector3i blockPos)
+    {
+    }
+
     public virtual void OnAdd(BlockState blockState, World world, Vector3i blockPos)
     {
         NotifyNeighbours(blockState, world, blockPos);

@@ -136,6 +136,44 @@ neighbouring chunks it spans are not loaded while any one of them is being gener
 
 ![Plank and log houses stepping down a terraced meadow, sheep grazing between them, mountains on the horizon and a torch held in the corner of the view](Screenshots/sample-4.png)
 
+## Moving blocks
+
+Water runs and sand falls, and both are driven the same way. A block asks `World.ScheduleBlockUpdate` to be
+looked at again in so many ticks, and gets `OnScheduledUpdate` when the delay runs out. Nothing is polled: a
+cell earns an entry only when it is placed or when something next to it changed, so an ocean nobody has touched
+costs exactly nothing however many million cells of it are loaded. Only the server schedules — a client is told
+what came of an update rather than running the same simulation against block changes that arrive a moment apart
+and reaching a different answer.
+
+### Water
+
+How deep water stands in a cell is carried by *which block it is* rather than by a state hung off the side of
+it. A section stores a bare id per cell and keeps a full state only for the handful of blocks that need one, so
+a level held as state would put an object and a dictionary entry behind every cell of every ocean in view. Nine
+registry entries — a source, water on its way down a drop, and seven thinning levels of it — cost that once,
+and everything downstream reads the depth off the id it was already reading.
+
+A source never empties, which is what makes a lake a lake: breaking its wall floods what is beyond it rather
+than draining what is behind. Running water holds nothing of its own and is worked out afresh from what feeds
+it every time it is looked at, so cutting a flow off makes it retreat towards its source and dry up. Water
+pooled between two sources becomes one itself, which is what makes a pool dug between a pair of them worth
+drawing from. Water runs down before it runs sideways, so a drop is a column rather than a spray, and a fall
+reaching the floor spreads out from there as strongly as a source would.
+
+Anything with no body of its own — a flower, a torch, a tuft of grass — is washed out of the way. Anything that
+holds a body up holds water back. An entity in the water is carried along by it, read off how deep the water
+stands against the cells around it: still water cancels out to nothing from every side, and a run of it pushes
+towards its shallow end, which is the way it is going.
+
+### Sand and gravel
+
+A block with nothing holding it together drops a cell at a time rather than turning into a falling body of its
+own. A fall is therefore a run of ordinary block changes, which everything downstream already knows what to do
+with: the clients watching are told about it the way they are told about any other placement, and a pile that
+came down while nobody was near is on disk as the blocks it settled into rather than as something in flight.
+Somebody standing underneath holds the fall up where it is rather than being buried, since a placement into an
+entity is refused and the block would otherwise have gone from the world altogether.
+
 ## Saved worlds
 
 ```
@@ -269,9 +307,11 @@ after them and after the entities, blended over whatever ended up behind it, wit
 stretch of water does not cut a hole in the stretch behind it and with culling off so its surface is still
 there when looked at from underneath.
 
-Two cells of the same liquid share no face, so the inside of a sea carries no geometry at all: what is drawn is
-the skin where it meets the air. Under water the sky is left out entirely and the fog closes to a few blocks of
-dim blue, which is what reads as having gone under.
+Two cells of water share no face, so the inside of a sea carries no geometry at all: what is drawn is the skin
+where it meets the air. The one exception is water lying against shallower water, where the strip of side
+standing above the shallower one's waterline is open to the air and has to be drawn, or a flow running downhill
+would be see through along every step of its way. Under water the sky is left out entirely and the fog closes
+to a few blocks of dim blue, which is what reads as having gone under.
 
 ### Fog
 

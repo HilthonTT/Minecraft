@@ -7,7 +7,8 @@ namespace Minecraft.Core.Inventories;
 /// <para>
 /// Grouped by what a block is for rather than by the ids it was registered under, since the screen is read by
 /// somebody looking for a building material and not by somebody looking up a number. Air is left out, having
-/// nothing to show, and so is water, which is placed by the world rather than by hand and does not flow.
+/// nothing to show, and so is running water, which is only ever put down by a source spreading out from where
+/// one was placed and is not a thing to be laid by hand.
 /// </para>
 /// </summary>
 public static class BlockCatalogue
@@ -37,6 +38,7 @@ public static class BlockCatalogue
         (BlockRegistry.Clay, "Clay"),
         (BlockRegistry.Snow, "Snow"),
         (BlockRegistry.Ice, "Ice"),
+        (BlockRegistry.Water, "Water"),
         (BlockRegistry.OakLeaves, "Leaves"),
 
         // What is buried, and what burns.

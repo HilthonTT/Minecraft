@@ -3,6 +3,7 @@ using Minecraft.Core.Utilities;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
 
@@ -27,6 +28,15 @@ public abstract class Entity
 
     /// <summary>How far below the feet the ground is looked for.</summary>
     private const float GroundProbeDepth = 0.01F;
+
+    /// <summary>The four sides a current is read across. Held still so that reading one allocates nothing.</summary>
+    private static readonly Vector3i[] _liquidFlowSideOffsets =
+    [
+        Vector3iExtensions.NorthBasis,
+        Vector3iExtensions.SouthBasis,
+        Vector3iExtensions.EastBasis,
+        Vector3iExtensions.WestBasis,
+    ];
 
     private const float MovementFriction = -10.0F;
 
@@ -84,6 +94,12 @@ public abstract class Entity
     /// since a step covers a fraction of a block and the answer cannot change within one.
     /// </summary>
     protected bool _isInLiquid;
+
+    /// <summary>
+    /// Which way the water the entity is in is running, as a unit vector, or zero in still water and out of
+    /// water entirely. Sampled alongside <see cref="_isInLiquid"/> and on the same terms.
+    /// </summary>
+    protected Vector3 _liquidFlow;
 
     /// <summary>
     /// Whether the entity is stood on something rather than falling. Only means anything for the entities
@@ -247,6 +263,11 @@ public abstract class Entity
             TryApplyGravity(deltaTime);
         }
 
+        // Added to the velocity rather than to the acceleration, so that being carried along by a current
+        // does not also drag the entity's own steering with it: what a current does is push a body about,
+        // not change the direction it is trying to go.
+        Velocity += _liquidFlow * Constants.WATER_PUSH_FORCE * deltaTime;
+
         int steps = GetCollisionStepCount(deltaTime);
         float stepDeltaTime = deltaTime / steps;
 
@@ -278,10 +299,56 @@ public abstract class Entity
         if (world.IsOutsideBuildHeight(samplePos.Y))
         {
             _isInLiquid = false;
+            _liquidFlow = Vector3.Zero;
             return;
         }
 
         _isInLiquid = world.GetBlockAt(samplePos).GetBlock().IsLiquid;
+        _liquidFlow = _isInLiquid ? GetLiquidFlowAt(world, samplePos) : Vector3.Zero;
+    }
+
+    /// <summary>
+    /// Which way the water at the given cell falls away, read off how deep it stands against the cells
+    /// around it. Still water reads as nothing at all, every side cancelling out against its opposite, and
+    /// running water reads as a push towards its shallow end, which is the way it is going.
+    /// </summary>
+    private static Vector3 GetLiquidFlowAt(World world, Vector3i blockPos)
+    {
+        if (world.GetBlockAt(blockPos).GetBlock() is not BlockWater water)
+        {
+            return Vector3.Zero;
+        }
+
+        var flow = Vector3.Zero;
+
+        foreach (Vector3i sideOffset in _liquidFlowSideOffsets)
+        {
+            Vector3i sidePos = blockPos + sideOffset;
+            BlockState sideState = world.GetBlockAt(sidePos);
+            Block side = sideState.GetBlock();
+
+            float sideHeight;
+            if (side is BlockWater sideWater)
+            {
+                sideHeight = sideWater.SurfaceHeight;
+            }
+            else if (side.GetCollisionBox(sideState, sidePos).Length == 0)
+            {
+                // Open ground: the water has nothing on that side holding it in, so it is falling that way.
+                sideHeight = 0F;
+            }
+            else
+            {
+                // A wall. It pushes nothing, which it does by reading as exactly as deep as this cell.
+                sideHeight = water.SurfaceHeight;
+            }
+
+            flow += new Vector3(sideOffset.X, 0, sideOffset.Z) * (water.SurfaceHeight - sideHeight);
+        }
+
+        // Normalised, so that a current is as strong at the head of a flow, where the drop between one cell
+        // and the next is a whole block, as it is along the shallow run at the far end of it.
+        return flow.LengthSquared > 0.0001F ? Vector3.Normalize(flow) : Vector3.Zero;
     }
 
     /// <summary>How many steps this frame's movement is split into to keep every step below a block.</summary>

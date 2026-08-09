@@ -55,6 +55,12 @@ public static class Constants
     public const float WATER_MOVE_MULTIPLIER = 0.55F;
 
     /// <summary>
+    /// How hard running water carries a body along with it. Well short of what a swimmer can do under their
+    /// own power, so a current is something to be felt and swum out of rather than something to be caught in.
+    /// </summary>
+    public const float WATER_PUSH_FORCE = 14F;
+
+    /// <summary>
     /// The longest frame the game simulates in one go. A frame that took longer, because of a hitch or
     /// because the window was not being drawn, is simulated as if it took this long instead: catching up on
     /// all of it at once would move everything so far in a single step that it passes through the world.

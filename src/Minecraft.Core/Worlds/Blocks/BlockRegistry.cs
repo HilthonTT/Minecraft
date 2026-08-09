@@ -44,8 +44,20 @@ public static class BlockRegistry
     public static readonly Block Dandelion = new BlockPlant(33, () => [Dirt, Grass, SnowyGrass]);
     public static readonly Block RedMushroom = new BlockPlant(34, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
     public static readonly Block BrownMushroom = new BlockPlant(35, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
-    public static readonly Block Water = new BlockWater(36);
+    public static readonly Block Water = new BlockWater(36, level: 0, falling: false);
     public static readonly Block Torch = new BlockTorch(37);
+
+    // Running water, one block per depth it can stand at. How deep a cell of water is has to be readable
+    // from the cell alone — the mesher, the client and the disk all only ever see a block id — and a sea is
+    // far too many cells to hang a state off each of them. See BlockWater for the whole of the reasoning.
+    public static readonly Block WaterFalling = new BlockWater(38, level: 0, falling: true);
+    public static readonly Block WaterFlowing1 = new BlockWater(39, level: 1, falling: false);
+    public static readonly Block WaterFlowing2 = new BlockWater(40, level: 2, falling: false);
+    public static readonly Block WaterFlowing3 = new BlockWater(41, level: 3, falling: false);
+    public static readonly Block WaterFlowing4 = new BlockWater(42, level: 4, falling: false);
+    public static readonly Block WaterFlowing5 = new BlockWater(43, level: 5, falling: false);
+    public static readonly Block WaterFlowing6 = new BlockWater(44, level: 6, falling: false);
+    public static readonly Block WaterFlowing7 = new BlockWater(45, level: 7, falling: false);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -108,6 +120,14 @@ public static class BlockRegistry
             BrownMushroom,
             Water,
             Torch,
+            WaterFalling,
+            WaterFlowing1,
+            WaterFlowing2,
+            WaterFlowing3,
+            WaterFlowing4,
+            WaterFlowing5,
+            WaterFlowing6,
+            WaterFlowing7,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];
