@@ -73,9 +73,54 @@ public sealed class WorldServer : World
     /// Mobs live only as long as the server is running: nothing writes them to disk, so a world that is
     /// reloaded is repopulated from scratch.
     /// </summary>
+    private float _tntTestElapsed;
+    private int _tntTestsFired;
+
     protected override void OnTick(float deltaTime)
     {
         _mobSpawner.Tick(this);
+        TntTestHook(deltaTime);
+    }
+
+    private void TntTestHook(float deltaTime)
+    {
+        _tntTestElapsed += deltaTime;
+        if (_tntTestElapsed < 25F || _tntTestsFired >= 3)
+        {
+            return;
+        }
+
+        Mob? victim = null;
+        foreach (Entity e in LoadedEntities.Values)
+        {
+            if (e is Mob m && !m.IsHostile) { victim = m; break; }
+        }
+
+        if (victim is null)
+        {
+            return;
+        }
+
+        var at = new Vector3i(
+            (int)MathF.Floor(victim.Position.X),
+            (int)MathF.Floor(victim.Position.Y) + 3,
+            (int)MathF.Floor(victim.Position.Z));
+
+        if (GetBlockAt(at).GetBlock() != BlockRegistry.Air)
+        {
+            return;
+        }
+
+        _tntTestElapsed = 0F;
+        _tntTestsFired++;
+
+        QueueToAddBlockAt(at, BlockRegistry.GetState(BlockRegistry.Tnt));
+        ClearBlockAddBuffer();
+
+        BlockState placed = GetBlockAt(at);
+        Logging.Logger.Warn($"TNTTEST #{_tntTestsFired} placed {placed.GetBlock().GetType().Name} at {at} " +
+                            $"near {victim.EntityType} hp={victim.Health} at {victim.Position}");
+        placed.GetBlock().OnInteract(placed, at, this);
     }
 
     /// <summary>
@@ -254,6 +299,38 @@ public sealed class WorldServer : World
     {
         BlockState blockState = GetBlockAt(blockPos);
         return blockState.GetBlock().GetCollisionBox(blockState, blockPos).Length > 0;
+    }
+
+    /// <summary>
+    /// Hurts a mob, tells everyone who can see it, and takes it out of the world if that was the last blow
+    /// it had in it. The one road by which anything in the world loses health, so a punch and a blast are
+    /// reported to a client in the same words and neither has to know how the other goes about it.
+    /// <para>
+    /// Nothing happens for a blow that did not land — one inside the window a harder blow already opened —
+    /// so nothing is broadcast for it either, and a client is never told about a hit it should not show.
+    /// </para>
+    /// </summary>
+    public void HurtMob(Mob mob, int damage, Vector3 from, Entity? attacker = null, float knockbackMultiplier = 1F)
+    {
+        if (!mob.TryHurt(damage, from, attacker, knockbackMultiplier))
+        {
+            return;
+        }
+
+        var packet = new EntityHurtPacket(mob.ID, died: !mob.IsAlive);
+
+        foreach (ServerSession session in Game.Server.ConnectedClients)
+        {
+            if (session.IsChunkVisible(GetChunkPosition(mob.Position.X, mob.Position.Z)))
+            {
+                session.WritePacket(packet);
+            }
+        }
+
+        if (!mob.IsAlive)
+        {
+            DespawnEntity(mob.ID);
+        }
     }
 
     public int GenerateEntityId() => _entityIdTracker.GenerateId();

@@ -54,8 +54,15 @@ public sealed class Zombie : Mob
         _length = BodyLength;
     }
 
-    protected override void OnHurtBy(Entity attacker)
+    protected override void OnHurtBy(Vector3 from, Entity? attacker)
     {
+        // A blast has nobody behind it to bear a grudge against, so one leaves the zombie on whatever it was
+        // already doing rather than sending it off towards where the stick happened to be standing.
+        if (attacker is null)
+        {
+            return;
+        }
+
         _attackerId = attacker.ID;
         _huntingTicksRemaining = TicksHuntingAttacker;
     }

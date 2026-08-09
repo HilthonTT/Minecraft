@@ -54,9 +54,11 @@ public abstract class Animal : Mob
     protected sealed override float CurrentMoveSpeed =>
         _panicTicksRemaining > 0 ? MoveSpeed * PanicSpeedMultiplier : MoveSpeed;
 
-    protected sealed override void OnHurtBy(Entity attacker)
+    protected sealed override void OnHurtBy(Vector3 from, Entity? attacker)
     {
-        _fleeingFrom = attacker.Position;
+        // Wherever it came from is enough to run away from, so a blast sends the herd scattering out of the
+        // crater exactly the way a punch sends one animal off across the field.
+        _fleeingFrom = from;
         _panicTicksRemaining = PanicTicks;
 
         // Aimed here rather than left to the next tick, so the animal is already moving on the frame it is

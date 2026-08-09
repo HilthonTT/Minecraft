@@ -157,36 +157,10 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        // False while the mob is still inside the half second the last blow bought it, which is what a
-        // client holding the mouse button down runs into.
-        if (!mob.TryHurt(PunchDamage, attacker))
-        {
-            return;
-        }
-
-        BroadcastHurt(mob);
-
-        if (!mob.IsAlive)
-        {
-            _game.Server.World.DespawnEntity(mob.ID);
-        }
-    }
-
-    /// <summary>
-    /// Tells everyone near enough to see the mob that it was hit. Sent to the attacker as well as to the
-    /// onlookers: the client that swung applies nothing off its own bat, the same as with a block.
-    /// </summary>
-    private void BroadcastHurt(Mob mob)
-    {
-        var packet = new EntityHurtPacket(mob.ID, died: !mob.IsAlive);
-
-        foreach (ServerSession clientSession in _game.Server.ConnectedClients)
-        {
-            if (clientSession.IsChunkVisible(Worlds.World.GetChunkPosition(mob.Position.X, mob.Position.Z)))
-            {
-                clientSession.WritePacket(packet);
-            }
-        }
+        // Does nothing while the mob is still inside the window a blow of at least this weight already
+        // bought it, which is what a client holding the mouse button down runs into. Everything else —
+        // telling the onlookers, and taking a killed mob out of the world — belongs to the world.
+        _game.Server.World.HurtMob(mob, PunchDamage, attacker.Position, attacker);
     }
 
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)

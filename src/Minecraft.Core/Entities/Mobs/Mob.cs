@@ -37,6 +37,12 @@ public abstract class Mob : Entity
     private int _ticksUntilNextWanderDecision;
     private float _hurtSecondsRemaining;
 
+    /// <summary>
+    /// What the blow that opened the current window was worth. Only read while that window is open; see
+    /// <see cref="TryHurt"/> for what it is for.
+    /// </summary>
+    private int _lastDamageTaken;
+
     /// <summary>Whether the mob is currently on its way somewhere.</summary>
     protected bool HasTarget { get; private set; }
 
@@ -86,20 +92,30 @@ public abstract class Mob : Entity
     }
 
     /// <summary>
-    /// Takes a blow, on the server. Returns false when the mob is still inside the moment of grace the last
-    /// one bought it, which is what stops a held mouse button from emptying a mob in a single frame.
+    /// Takes a blow, on the server. Where it came from is a position rather than an entity, because not
+    /// everything that can hurt a mob is one: a blast has a centre and nobody behind it. An
+    /// <paramref name="attacker"/> is passed as well when there is one, for the mobs that care who it was.
+    /// <para>
+    /// A blow arriving inside the window the last one opened only lands if it is the harder of the two, and
+    /// then only for the difference. That is Minecraft's own rule and it earns its keep here: the window is
+    /// what stops a held mouse button from emptying a mob in a single frame, and without this exception it
+    /// would also let a mob shrug off a stick of TNT for having been punched a fraction of a second before.
+    /// </para>
     /// </summary>
-    public bool TryHurt(int damage, Entity attacker)
+    public bool TryHurt(int damage, Vector3 from, Entity? attacker = null, float knockbackMultiplier = 1F)
     {
-        if (!IsAlive || IsHurt)
+        if (!IsAlive || (IsHurt && damage <= _lastDamageTaken))
         {
             return false;
         }
 
-        Health = Math.Max(Health - damage, 0);
+        int landed = IsHurt ? damage - _lastDamageTaken : damage;
+        _lastDamageTaken = damage;
+
+        Health = Math.Max(Health - landed, 0);
         ShowHurt();
-        ThrowBackwardsAwayFrom(attacker.Position);
-        OnHurtBy(attacker);
+        ThrowBackwardsAwayFrom(from, knockbackMultiplier);
+        OnHurtBy(from, attacker);
         return true;
     }
 
@@ -110,18 +126,20 @@ public abstract class Mob : Entity
     public void ShowHurt() => _hurtSecondsRemaining = HurtSeconds;
 
     /// <summary>
-    /// How the mob takes being hit. Animals bolt; a zombie takes note of who did it. Called on the server
-    /// only, after the damage has been applied, so <see cref="IsAlive"/> already says whether it survived.
+    /// How the mob takes being hit. Animals bolt from wherever it came from; a zombie takes note of who did
+    /// it, when there is a who. Called on the server only, after the damage has been applied, so
+    /// <see cref="IsAlive"/> already says whether it survived.
     /// </summary>
-    protected virtual void OnHurtBy(Entity attacker)
+    protected virtual void OnHurtBy(Vector3 from, Entity? attacker)
     {
     }
 
     /// <summary>
     /// Throws the mob away from whatever struck it, and a little off the ground with it, so a blow reads as
-    /// having landed even on something that was standing still and goes back to standing still.
+    /// having landed even on something that was standing still and goes back to standing still. A blast
+    /// passes a multiplier well above one, since being caught by one should look nothing like being punched.
     /// </summary>
-    private void ThrowBackwardsAwayFrom(Vector3 source)
+    private void ThrowBackwardsAwayFrom(Vector3 source, float multiplier)
     {
         var away = new Vector3(Position.X - source.X, 0, Position.Z - source.Z);
 
@@ -129,14 +147,14 @@ public abstract class Mob : Entity
         // goes over whichever way it happened to be facing.
         away = away.LengthSquared < 0.0001F ? _moveForward : away.Normalized();
 
-        Velocity.X = away.X * KnockbackSpeed;
-        Velocity.Z = away.Z * KnockbackSpeed;
+        Velocity.X = away.X * KnockbackSpeed * multiplier;
+        Velocity.Z = away.Z * KnockbackSpeed * multiplier;
 
         // Only off the ground it is standing on. Adding lift to one already in the air would let a mob be
         // punched up a wall a blow at a time.
         if (!_isInAir)
         {
-            _verticalSpeed = KnockbackLift;
+            _verticalSpeed = KnockbackLift * multiplier;
             _isInAir = true;
         }
     }
