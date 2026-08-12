@@ -102,10 +102,18 @@ the menu instead, and never deletes anything.
 | `E`             | Open and close the inventory               |
 | `Enter`         | Open and send chat                         |
 | `Escape`        | Open the pause menu, or close the chat     |
+| `F5`            | Cycle first person, behind, and facing you |
+
+`F5` steps through the three views: out of your own eyes, from over your shoulder, and from in front looking
+back at you. Either of the two that show your body pulls the camera four blocks off along your line of sight,
+stopping short of anything solid so it never ends up inside a wall. What you are looking at does not move with
+the camera — a block is still broken and placed from where you are standing.
+
+![The player seen from the front, standing on a sandstone path across a terraced grassland, a sandstone and cobblestone shelter to the left, an oak tree and grazing sheep to the right, with the hotbar along the bottom of the screen](Screenshots/sample-13.png)
 
 Function keys drive the debug tools: `F1` hitboxes, `F2` debug readout, `F3` collect garbage, `F4` clear blocks
-around the player, `F5` chunk borders, `F6` detached overhead camera, `F7` light level overlay (`Up`/`Down`
-picks the level), `F8` fill a chunk layer with TNT, `F9` build a test room.
+around the player, `F6` detached overhead camera, `F7` light level overlay (`Up`/`Down` picks the level),
+`F8` fill a chunk layer with TNT, `F9` build a test room, `F10` chunk borders.
 
 ### Inventory and hotbar
 

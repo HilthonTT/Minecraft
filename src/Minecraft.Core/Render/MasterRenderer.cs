@@ -494,8 +494,9 @@ public sealed class MasterRenderer
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            // The local player's own body would fill the camera, so it is not drawn.
-            if (entity.ID == _game.ClientPlayer.ID)
+            // Out of the player's own eyes their body would fill the camera, so it is not drawn. Every other
+            // view is looking at them from somewhere else, and has to find them there.
+            if (entity.ID == _game.ClientPlayer.ID && !IsClientPlayerBodyVisible())
             {
                 continue;
             }
@@ -522,6 +523,15 @@ public sealed class MasterRenderer
             _entityShader.LoadMatrix(_entityShader.LocationTransformationMatrix, GetEntityTransformation(entity));
             GL.DrawArrays(PrimitiveType.Triangles, 0, entityMesh.Mesh.IndicesCount);
         }
+    }
+
+    /// <summary>
+    /// Whether the player's own body is drawn: in any view that is not out of their own eyes, which is a
+    /// third person perspective or the detached camera looking down at them.
+    /// </summary>
+    private bool IsClientPlayerBodyVisible()
+    {
+        return _game.ClientPlayer.IsBodyVisible || _cameraController.Camera != _game.ClientPlayer.Camera;
     }
 
     /// <summary>

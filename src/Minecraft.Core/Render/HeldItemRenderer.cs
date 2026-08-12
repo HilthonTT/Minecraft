@@ -158,9 +158,11 @@ public sealed class HeldItemRenderer
     /// </summary>
     public void Render(World world, Camera activeCamera)
     {
-        // Nobody is holding anything in the detached overhead camera, which is not looking out of the
-        // player's eyes at all.
-        if (activeCamera != _game.ClientPlayer.Camera)
+        // A hand held up in front of the eye only makes sense from behind that eye. The detached overhead
+        // camera is not looking out of it at all, and a third person view can see the body carrying the
+        // block, which would otherwise also be pinned to the screen in front of it.
+        if (activeCamera != _game.ClientPlayer.Camera ||
+            _game.ClientPlayer.Perspective != CameraPerspective.FirstPerson)
         {
             return;
         }
