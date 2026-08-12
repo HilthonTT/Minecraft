@@ -38,6 +38,31 @@ public sealed class TerrainSampler : ITerrainSampler
     private const float MoistureDomainOffset = 2555.5F;
 
     /// <summary>
+    /// How far the climate is dragged sideways before it is read, and how quickly that drag itself varies.
+    /// <para>
+    /// Sampled straight, a climate field gives biomes the shape of the field: rounded blobs meeting along
+    /// smooth curves. Displacing the point being asked about by a second field first bends those curves into
+    /// something that interlocks — a tongue of forest reaching into a plain, a bay of desert cut into the
+    /// savanna beside it — without changing how large a biome is or how much of the world it gets.
+    /// </para>
+    /// </summary>
+    private const double WarpDetail = 0.0013D;
+    private const double WarpStrength = 120D;
+    private const int WarpOctaves = 2;
+    private const float WarpDomainOffsetX = 1601.3F;
+    private const float WarpDomainOffsetZ = 9403.7F;
+
+    /// <summary>
+    /// The same, for the rivers, which are warped by a tighter and shorter field of their own. A river bends
+    /// far more sharply than a coastline does, and warping it with the climate's field would only shift the
+    /// whole network sideways along with the biomes it runs through.
+    /// </summary>
+    private const double RiverWarpDetail = 0.0042D;
+    private const double RiverWarpStrength = 34D;
+    private const float RiverWarpDomainOffsetX = 3307.7F;
+    private const float RiverWarpDomainOffsetZ = 6113.1F;
+
+    /// <summary>
     /// How quickly land gives way to sea. Much broader than the climate, because an ocean has to be wide
     /// enough that standing on one shore does not show the other.
     /// </summary>
@@ -113,17 +138,28 @@ public sealed class TerrainSampler : ITerrainSampler
 
     public TerrainColumn SampleColumn(int worldX, int worldZ)
     {
+        // The climate is read at a point dragged off this one, so biome borders wander and interlock rather
+        // than following the smooth curves of the field underneath them.
+        (double climateX, double climateZ) = Warp(
+            worldX,
+            worldZ,
+            WarpDetail,
+            WarpStrength,
+            WarpOctaves,
+            WarpDomainOffsetX,
+            WarpDomainOffsetZ);
+
         double temperature = TerrainNoise.Spread01(
             Noise2DPerlinOctave.Noise(
-                (float)(worldZ * TemperatureDetail),
-                (float)(worldX * TemperatureDetail),
+                (float)(climateZ * TemperatureDetail),
+                (float)(climateX * TemperatureDetail),
                 ClimateOctaves),
             ClimateSoftness);
 
         double moisture = TerrainNoise.Spread01(
             Noise2DPerlinOctave.Noise(
-                (float)(worldZ * MoistureDetail) + MoistureDomainOffset,
-                (float)(worldX * MoistureDetail) + MoistureDomainOffset,
+                (float)(climateZ * MoistureDetail) + MoistureDomainOffset,
+                (float)(climateX * MoistureDetail) + MoistureDomainOffset,
                 ClimateOctaves),
             ClimateSoftness);
 
@@ -204,9 +240,20 @@ public sealed class TerrainSampler : ITerrainSampler
     /// </returns>
     private static double CarveRiverAt(int worldX, int worldZ, double height)
     {
+        // Warped before it is read, which is what turns the long sweeping contour of a low frequency field
+        // into a channel that meanders.
+        (double riverX, double riverZ) = Warp(
+            worldX,
+            worldZ,
+            RiverWarpDetail,
+            RiverWarpStrength,
+            WarpOctaves,
+            RiverWarpDomainOffsetX,
+            RiverWarpDomainOffsetZ);
+
         float channel = Noise2DPerlinOctave.Noise(
-            (float)(worldZ * RiverDetail) + RiverDomainOffset,
-            (float)(worldX * RiverDetail) + RiverDomainOffset,
+            (float)(riverZ * RiverDetail) + RiverDomainOffset,
+            (float)(riverX * RiverDetail) + RiverDomainOffset,
             RiverOctaves);
 
         // One at the middle of the channel, falling to nothing at its banks.
@@ -223,6 +270,35 @@ public sealed class TerrainSampler : ITerrainSampler
         }
 
         return height + ((bed - height) * strength);
+    }
+
+    /// <summary>
+    /// Drags a world position sideways by a pair of noise fields, so that whatever is sampled at the result
+    /// comes out bent rather than following the shape of its own field.
+    /// </summary>
+    /// <param name="strength">How far the point can be moved, in blocks.</param>
+    private static (double X, double Z) Warp(
+        int worldX,
+        int worldZ,
+        double detail,
+        double strength,
+        int octaves,
+        float domainOffsetX,
+        float domainOffsetZ)
+    {
+        // Two samples of the one shared field, taken far enough apart in its domain to be unrelated, so the
+        // displacement swirls instead of running everything along a single diagonal.
+        float offsetX = Noise2DPerlinOctave.Noise(
+            (float)(worldZ * detail) + domainOffsetX,
+            (float)(worldX * detail) + domainOffsetX,
+            octaves);
+
+        float offsetZ = Noise2DPerlinOctave.Noise(
+            (float)(worldZ * detail) + domainOffsetZ,
+            (float)(worldX * detail) + domainOffsetZ,
+            octaves);
+
+        return (worldX + (offsetX * strength), worldZ + (offsetZ * strength));
     }
 
     /// <summary>A value eased from zero at <paramref name="edge0"/> to one at <paramref name="edge1"/>.</summary>

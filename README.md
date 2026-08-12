@@ -7,8 +7,9 @@
 
 A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https://opentk.net/).
 
-Infinite procedurally generated terrain across six biomes, with oceans and the rivers that run down to them,
-ridged mountain ranges under snow and ice, buried ore, caves and villages. Coloured block lighting with smooth
+Infinite procedurally generated terrain across ten biomes, with oceans and the rivers that meander down to
+them, ridged mountain ranges under snow and ice, banded mesas, marshes, buried ore, caves that open out of
+hillsides, ravines with springs coming down their walls, and villages. Coloured block lighting with smooth
 per vertex ambient occlusion, placeable torches, particles, distance fog, positional sound, a day/night cycle,
 mobs, an inventory and hotbar, and a client/server architecture that the singleplayer mode also runs through.
 

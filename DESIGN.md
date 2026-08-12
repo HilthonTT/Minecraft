@@ -76,14 +76,31 @@ Which biome a column belongs to is read off a climate map — temperature and mo
 field. The surface blocks come from whichever biome dominates, but the height is a blend of all of them, so a
 border comes out as a slope rather than as a step.
 
-| Biome       | Surface             | Character                                                     |
-| ----------- | ------------------- | ------------------------------------------------------------- |
-| Plains      | Grass over dirt     | Open and gentle, flowers through the grass, few trees          |
-| Forest      | Grass over dirt     | Rolling, thick with oak and birch, mushrooms in the shade      |
-| Savanna     | Grass over dirt     | Flat topped plateaus with a scramble between one and the next  |
-| Desert      | Sand over sandstone | Dunes marching across a broad basin, cactus and dead bush      |
-| Mountain    | Bare stone          | Ridged spines and gullies, patched with gravel and moss        |
-| Snowy peaks | Snowy grass         | The highest ground there is, pine over its lower shoulders     |
+The climate is not read at the column being asked about but at a point dragged off it by a second, slower
+field. Read straight, a climate field gives biomes the shape of the field itself: rounded blobs meeting along
+smooth curves. Displacing the sample first bends those curves into something that interlocks — a tongue of
+forest reaching into a plain, a bay of desert cut into the savanna beside it — without changing how large a
+biome is or what share of the world it gets. The rivers are warped the same way, by a tighter field of their
+own, which is what makes them meander.
+
+| Biome        | Surface              | Character                                                     |
+| ------------ | -------------------- | ------------------------------------------------------------- |
+| Plains       | Grass over dirt      | Open and gentle, flowers through the grass, few trees          |
+| Forest       | Grass over dirt      | Rolling, thick with oak and birch, mushrooms in the shade      |
+| Taiga        | Grass over dirt      | Close pine forest on long low swells, moss and mushrooms       |
+| Swamp        | Grass over dirt      | Lies about the waterline, so it comes out as pools and reeds   |
+| Savanna      | Grass over dirt      | Flat topped plateaus with a scramble between one and the next  |
+| Desert       | Sand over sandstone  | Dunes marching across a broad basin, cactus and dead bush      |
+| Badlands     | Banded sand and clay | Mesas cut into level tables, walls striped by the beds of rock |
+| Mountain     | Bare stone           | Ridged spines and gullies, patched with gravel and moss        |
+| Snowy peaks  | Snowy grass          | The highest ground there is, pine over its lower shoulders     |
+| Snowy plains | Snowy grass          | Flat cold country at sea level, lone pines and drifts          |
+
+Two of them take something beyond a surface block from the biome. A swamp holds its own ground down to the
+water rather than being washed to sand the way a shore is — beached wherever it met its own water it would be
+a field of sand with puddles in it. The badlands lay their surface down in beds by height rather than by
+depth, so a band runs level all the way around a mesa and carries on at the same height on the next one along,
+and the wall between two tables is what puts those beds on show.
 
 ![Grassland running back to pine covered outcrops with grey mountains on the horizon, an oak village and its fenced wheat field in the middle distance](Screenshots/sample-2.png)
 
@@ -122,6 +139,31 @@ and clay, and the occasional seam of glowstone that lights a cave when one break
 the chunk its centre falls in but is laid down by every chunk it reaches into, so it comes out whole instead of
 sheared off at a border. Caves are carved after the veins, so a tunnel cutting through one leaves its face
 showing in the wall, and the floor of the world is bedrock.
+
+A tunnel is normally pinched shut as it comes near the surface, which is what keeps the ground from being
+riddled with holes. Where a slow mask field is high that pinch is lifted, so any tunnel that happens to pass
+close by breaks out of the hillside as a mouth. Doing it that way rather than digging shafts down to meet the
+caves is what makes an entrance read as one: the cave behind it was already going that way, where shafts dug
+from above all arrive as the same round hole.
+
+Ravines are cut afterwards, along the line where a low frequency field crosses zero — the same trick the
+rivers use, so a gorge wanders for hundreds of blocks and never ends in a wall. A second, broader field
+decides which stretches of that line actually gave way, which is what keeps them rare. The walls lean in as
+they go down, so a ravine has a mouth wider than its base, and its floor wanders along its length rather than
+bottoming out at one height. Cut after the caves, a gorge deep enough opens the tunnels it crosses into its
+own wall.
+
+### Springs
+
+Wet country with a wall in it gets water coming down that wall: a spring at the lip, a ribbon on its way down
+and a pool at the foot. Mostly the wall is the side of a ravine, since terrain noise on its own is far too
+smooth to drop six blocks between one column and the next, and sometimes it is the mouth of a cave.
+
+The whole fall is written out rather than a source left for the water physics to run. Terrain is written into
+a chunk that is not part of a world yet, so nothing generated is ever ticked; and a chunk nobody has touched
+is thrown away and regenerated rather than stored, so what is generated has to be what the physics would have
+settled on anyway. It is: a spring feeds the cell below it, water coming down a face feeds the next one, and
+both hand on what a source would.
 
 ![A wide cave chamber lit by torches along its floor, a seam of coal showing in the far wall and a pocket of dirt broken into overhead](Screenshots/sample-10.png)
 

@@ -73,54 +73,9 @@ public sealed class WorldServer : World
     /// Mobs live only as long as the server is running: nothing writes them to disk, so a world that is
     /// reloaded is repopulated from scratch.
     /// </summary>
-    private float _tntTestElapsed;
-    private int _tntTestsFired;
-
     protected override void OnTick(float deltaTime)
     {
         _mobSpawner.Tick(this);
-        TntTestHook(deltaTime);
-    }
-
-    private void TntTestHook(float deltaTime)
-    {
-        _tntTestElapsed += deltaTime;
-        if (_tntTestElapsed < 25F || _tntTestsFired >= 3)
-        {
-            return;
-        }
-
-        Mob? victim = null;
-        foreach (Entity e in LoadedEntities.Values)
-        {
-            if (e is Mob m && !m.IsHostile) { victim = m; break; }
-        }
-
-        if (victim is null)
-        {
-            return;
-        }
-
-        var at = new Vector3i(
-            (int)MathF.Floor(victim.Position.X),
-            (int)MathF.Floor(victim.Position.Y) + 3,
-            (int)MathF.Floor(victim.Position.Z));
-
-        if (GetBlockAt(at).GetBlock() != BlockRegistry.Air)
-        {
-            return;
-        }
-
-        _tntTestElapsed = 0F;
-        _tntTestsFired++;
-
-        QueueToAddBlockAt(at, BlockRegistry.GetState(BlockRegistry.Tnt));
-        ClearBlockAddBuffer();
-
-        BlockState placed = GetBlockAt(at);
-        Logging.Logger.Warn($"TNTTEST #{_tntTestsFired} placed {placed.GetBlock().GetType().Name} at {at} " +
-                            $"near {victim.EntityType} hp={victim.Health} at {victim.Position}");
-        placed.GetBlock().OnInteract(placed, at, this);
     }
 
     /// <summary>
