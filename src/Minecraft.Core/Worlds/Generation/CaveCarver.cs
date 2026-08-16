@@ -50,6 +50,26 @@ public sealed class CaveCarver
     private const float PairDomainOffset = 4271.3F;
 
     /// <summary>
+    /// Where the ground is broken enough for a cave to reach open air. A slow field over the world: above
+    /// <see cref="EntranceThreshold"/> the pinch that otherwise seals a tunnel below the surface is lifted,
+    /// so any tunnel that happens to pass near the surface there breaks out of a hillside as a mouth.
+    /// <para>
+    /// A mask rather than a shaft dug down to meet the caves: what makes an entrance read as one is that the
+    /// cave behind it was already going that way. Dug in from above they all arrive as the same round hole.
+    /// </para>
+    /// </summary>
+    private const float EntranceDetail = 0.0045F;
+    private const float EntranceDomainOffset = 2903.7F;
+
+    /// <summary>
+    /// How much of the world the mask covers, and over what part of its range it opens. Only a fraction of
+    /// what it covers becomes a mouth, since a tunnel still has to pass close by for there to be anything to
+    /// open — which is what keeps entrances something come across rather than a field of holes.
+    /// </summary>
+    private const float EntranceThreshold = 0.62F;
+    private const float EntranceFullyOpen = 0.86F;
+
+    /// <summary>
     /// One family of tunnels. Several are layered so that the world holds both cramped passages and the
     /// occasional wide open cavern instead of the same tunnel everywhere.
     /// </summary>
@@ -115,12 +135,13 @@ public sealed class CaveCarver
                 int worldX = chunk.GridX * chunkDim + localX;
                 int worldZ = chunk.GridZ * chunkDim + localZ;
                 int surfaceY = surfaceHeights[localX, localZ];
+                float entrance = EntranceOpennessAt(worldX, worldZ);
 
                 // Carved from the bottom up, so the topmost block of the column is only ever recomputed
                 // once, on the last removal that can reach it.
                 for (int y = LowestCaveY; y <= surfaceY; y++)
                 {
-                    if (!IsHollowAt(worldX, y, worldZ, surfaceY))
+                    if (!IsHollowAt(worldX, y, worldZ, surfaceY, entrance))
                     {
                         continue;
                     }
@@ -137,11 +158,33 @@ public sealed class CaveCarver
     }
 
     /// <summary>
+    /// How far the ground at a column is open to whatever runs below it, from nothing over most of the world
+    /// to one where a cave is free to reach the surface.
+    /// </summary>
+    private static float EntranceOpennessAt(int worldX, int worldZ)
+    {
+        float mask = Noise2DPerlin.Noise01(
+            worldX * EntranceDetail + EntranceDomainOffset,
+            worldZ * EntranceDetail + EntranceDomainOffset);
+
+        return Math.Clamp((mask - EntranceThreshold) / (EntranceFullyOpen - EntranceThreshold), 0F, 1F);
+    }
+
+    /// <summary>
     /// Whether the given world position falls inside a cave of any layer.
     /// </summary>
-    private bool IsHollowAt(int worldX, int worldY, int worldZ, int surfaceY)
+    /// <param name="entranceOpenness">
+    /// How far this column is allowed to break through to the surface, from
+    /// <see cref="EntranceOpennessAt"/>. Zero leaves the tunnel pinched shut below the ground the way it is
+    /// over most of the world.
+    /// </param>
+    private bool IsHollowAt(int worldX, int worldY, int worldZ, int surfaceY, float entranceOpenness)
     {
-        float surfaceFade = Math.Clamp((surfaceY + 1 - worldY) / SurfaceFadeDepth, 0F, 1F);
+        float depthFade = Math.Clamp((surfaceY + 1 - worldY) / SurfaceFadeDepth, 0F, 1F);
+
+        // Eased towards its full thickness by the mask, so a tunnel running under a hillside that is open
+        // holds its size right up to the daylight instead of closing before it gets there.
+        float surfaceFade = depthFade + ((1F - depthFade) * entranceOpenness);
 
         foreach (TunnelLayer layer in _layers)
         {

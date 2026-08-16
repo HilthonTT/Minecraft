@@ -80,6 +80,8 @@ public sealed class WorldGenerator
     private readonly Biome[] _registeredBiomes;
     private readonly TerrainSampler _terrainSampler;
     private readonly CaveCarver _caveCarver = new();
+    private readonly RavineCarver _ravineCarver = new();
+    private readonly WaterfallGenerator _waterfallGenerator = new();
     private readonly DepositGenerator _depositGenerator;
     private readonly StructureGenerator _structureGenerator;
 
@@ -110,10 +112,14 @@ public sealed class WorldGenerator
         [
             new PlainsBiome(),
             new ForestBiome(),
+            new TaigaBiome(),
+            new SwampBiome(),
             new SavannaBiome(),
             new DesertBiome(),
+            new BadlandsBiome(),
             new MountainBiome(),
             new SnowyPeaksBiome(),
+            new SnowyPlainsBiome(),
         ];
 
         _terrainSampler = new TerrainSampler(_registeredBiomes, SeaLevel, BedrockDepth + GradientDepth + 1);
@@ -258,8 +264,16 @@ public sealed class WorldGenerator
         // a tree or a flower hanging over the hole it opened.
         _caveCarver.Carve(chunk, surfaceHeights);
 
-        // After the caves, so that a tunnel opening into the side of a lake does not fill up through it.
+        // After the caves, so that a gorge cutting down through one opens its side into the ravine rather
+        // than the tunnel being carved back out of the wall the gorge left.
+        _ravineCarver.Carve(chunk, surfaceHeights);
+
+        // After both, so that a tunnel opening into the side of a lake does not fill up through it.
         FillWaterUpToSeaLevel(chunk, surfaceHeights);
+
+        // After the water, so a spring reads what is standing in the cliff below it, and before the
+        // decoration, which leaves alone anything a fall has already landed in.
+        _waterfallGenerator.PlaceWaterfallsIn(chunk, surfaceHeights, surfaceBiomes, SeaLevel, random);
 
         for (int localX = 0; localX < chunkDim; localX++)
         {
@@ -388,13 +402,15 @@ public sealed class WorldGenerator
         // snow, because snow does not lie on a wall either.
         if (slope >= CliffSlope)
         {
-            return (biome.CliffBlock, biome.CliffBlock);
+            Block cliff = biome.CliffAt(surfaceY);
+            return (cliff, cliff);
         }
 
         // Anything the water reaches is washed down to bare sand, whichever biome it nominally belongs to,
         // which is what puts a beach around every sea and lake instead of grass running into the water. The
         // deep floor further out is gravel, so a sea reads as getting deeper rather than as one flat basin.
-        if (surfaceY <= seaLevel + BeachHeight)
+        // The wetlands are the exception: their water is the biome rather than a sea they happen to meet.
+        if (surfaceY <= seaLevel + BeachHeight && biome.HasShoreline)
         {
             return surfaceY < seaLevel - SeabedGravelDepth
                 ? (BlockRegistry.Gravel, BlockRegistry.Gravel)
@@ -414,7 +430,7 @@ public sealed class WorldGenerator
             return (cover, BlockRegistry.Stone);
         }
 
-        return (biome.TopBlock, biome.GradientBlock);
+        return biome.SurfaceAt(surfaceY);
     }
 
     /// <summary>

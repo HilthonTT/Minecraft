@@ -4,6 +4,7 @@ using Minecraft.Core.Inventories;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render;
+using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Mathematics;
@@ -39,6 +40,18 @@ public sealed class ClientPlayer : Player
     /// takes to play, so that mining reads as a run of blows rather than as one long reach.
     /// </summary>
     private const float SecondsBetweenMiningSwings = 0.3F;
+
+    /// <summary>How far behind — or in front of — the player the camera stands in a third person view.</summary>
+    private const float ThirdPersonDistance = 4.0F;
+
+    /// <summary>
+    /// How far short of a wall the camera stops when something is in the way. Without it the eye would sit
+    /// exactly on the face of the block, which is close enough for the near plane to cut into it.
+    /// </summary>
+    private const float ThirdPersonWallMargin = 0.25F;
+
+    /// <summary>How finely the way back to the camera is walked when looking for something in the way.</summary>
+    private const float ThirdPersonStep = 0.1F;
 
     private readonly Game _game;
 
@@ -78,6 +91,18 @@ public sealed class ClientPlayer : Player
     /// around it brightening, and zero whenever nothing is being dug.
     /// </summary>
     public float BreakProgress { get; private set; }
+
+    /// <summary>Where the player is looking from, which is the camera only while in first person.</summary>
+    public Vector3 EyePosition { get; private set; }
+
+    /// <summary>
+    /// Which of the three views the world is being watched from. Nothing about the player changes with it:
+    /// the eye stays where it is, and only where the picture is taken from moves.
+    /// </summary>
+    public CameraPerspective Perspective { get; private set; } = CameraPerspective.FirstPerson;
+
+    /// <summary>Whether the player's own body should be drawn, which is whenever it is not in the way.</summary>
+    public bool IsBodyVisible => Perspective != CameraPerspective.FirstPerson;
 
     /// <summary>What this player is carrying, and which of the nine hotbar slots is in hand.</summary>
     public Inventory Inventory { get; } = new();
@@ -173,7 +198,12 @@ public sealed class ClientPlayer : Player
         ResetMovementState();
         ResetFallTracking();
         StopBreaking();
-        UpdateCameraPosition();
+
+        // Moved with the body rather than left to the next frame, so the view is at the spawn on the frame
+        // the death is reported. A third person camera needs the world to know what it may back away
+        // through, and this runs while a packet is being handled, so it is taken from the game rather than
+        // handed in.
+        UpdateCameraPosition(_game.World);
 
         _game.Client.WritePacket(new EntityDataPacket(ID, Position, Velocity, Yaw));
     }
@@ -202,6 +232,10 @@ public sealed class ClientPlayer : Player
         _elapsedSecondsSinceLastPositionUpdate = 0;
 
         Health = Constants.PLAYER_MAX_HEALTH;
+
+        // A world is always entered out of your own eyes, whichever view the last one was left in.
+        Perspective = CameraPerspective.FirstPerson;
+        Camera.SetViewReversed(false);
 
         // Nothing carried follows a player out of a world, so the next one opens on whatever its own mode
         // starts a player with rather than on what was in hand when the last was left.
@@ -238,13 +272,84 @@ public sealed class ClientPlayer : Player
         }
     }
 
-    private void UpdateCameraPosition()
+    /// <summary>
+    /// Steps the view through the three perspectives, the way the same key does in the game this one is
+    /// modelled on: out of the player's eyes, over their shoulder, then facing them.
+    /// </summary>
+    private void CycleCameraPerspective()
     {
-        Vector3 cameraPosition = Position;
-        cameraPosition.X += Constants.PLAYER_WIDTH / 2.0F;
-        cameraPosition.Y += Constants.PLAYER_CAMERA_HEIGHT;
-        cameraPosition.Z += Constants.PLAYER_LENGTH / 2.0F;
-        Camera.SetPosition(cameraPosition);
+        Perspective = Perspective switch
+        {
+            CameraPerspective.FirstPerson => CameraPerspective.ThirdPersonBack,
+            CameraPerspective.ThirdPersonBack => CameraPerspective.ThirdPersonFront,
+            _ => CameraPerspective.FirstPerson,
+        };
+    }
+
+    /// <summary>
+    /// Puts the camera where this frame's view is taken from. The eye is worked out first and kept whatever
+    /// the perspective is, since it is what the player reaches out at the world from; a third person view
+    /// then backs away from it along the line of sight, stopping short of anything solid in the way.
+    /// </summary>
+    private void UpdateCameraPosition(World world)
+    {
+        Vector3 eye = Position;
+        eye.X += Constants.PLAYER_WIDTH / 2.0F;
+        eye.Y += Constants.PLAYER_CAMERA_HEIGHT;
+        eye.Z += Constants.PLAYER_LENGTH / 2.0F;
+        EyePosition = eye;
+
+        // The front view looks back down the same line, so both third person views stand off along it and
+        // only differ in which end of it the camera sits at.
+        bool front = Perspective == CameraPerspective.ThirdPersonFront;
+        Camera.SetViewReversed(front);
+
+        if (Perspective == CameraPerspective.FirstPerson)
+        {
+            Camera.SetPosition(eye);
+            return;
+        }
+
+        Vector3 away = front ? Camera.LookDirection : -Camera.LookDirection;
+        Camera.SetPosition(eye + away * FindUnobstructedCameraDistance(world, eye, away));
+    }
+
+    /// <summary>
+    /// How far the camera can be taken from the eye before it would end up inside something. Walked out a
+    /// short step at a time rather than traced as a ray, since what matters is that the camera does not pass
+    /// through a wall on the way rather than what it eventually hits.
+    /// </summary>
+    private static float FindUnobstructedCameraDistance(World world, Vector3 eye, Vector3 direction)
+    {
+        for (float distance = ThirdPersonStep; distance <= ThirdPersonDistance; distance += ThirdPersonStep)
+        {
+            if (!IsPositionSolid(world, eye + direction * distance))
+            {
+                continue;
+            }
+
+            // Back off to the last step that was clear, and a little further so the near plane clears the
+            // face of the block as well.
+            return Math.Max(0F, distance - ThirdPersonStep - ThirdPersonWallMargin);
+        }
+
+        return ThirdPersonDistance;
+    }
+
+    /// <summary>
+    /// Whether the camera would be inside something at this point. Water and plants are not, so swimming or
+    /// standing in long grass leaves the view where it is instead of dragging it onto the player's back.
+    /// </summary>
+    private static bool IsPositionSolid(World world, Vector3 position)
+    {
+        Vector3i blockPos = position.ToBlockPos();
+        if (world.IsOutsideBuildHeight(blockPos.Y))
+        {
+            return false;
+        }
+
+        BlockState state = world.GetBlockAt(blockPos);
+        return state.GetBlock().GetCollisionBox(state, blockPos).Length > 0;
     }
 
     public override void Update(float deltaTime, World world)
@@ -259,19 +364,25 @@ public sealed class ClientPlayer : Player
         if (_game.IsGameplayInputEnabled)
         {
             UpdateBlockSelectionInput();
+            UpdatePerspectiveInput();
         }
 
         ApplyVelocityAndCheckCollision(deltaTime, world);
+
+        // Straight after the move is resolved, since what tells this a fall has ended is the feet coming to
+        // rest, and the very next thing to touch the position is the camera following it.
         UpdateFallTracking();
 
-        MouseOverObject = new Ray(Camera.Position, Camera.Forward).TraceWorld(world, MaxBlockReach);
+        // Before the traces below, which are aimed from the eye this works out.
+        UpdateCameraPosition(world);
+
+        MouseOverObject = new Ray(EyePosition, Camera.LookDirection).TraceWorld(world, MaxBlockReach);
         MouseOverEntity = FindMobUnderCrosshair(world);
 
-        UpdateCameraPosition();
         UpdateMouseInput(world);
         UpdateBreaking(deltaTime, world);
 
-        _realForward = Camera.Forward;
+        _realForward = Camera.LookDirection;
         // The movement basis ignores pitch, so looking up does not slow the player down.
         Yaw = Camera.Yaw;
         UpdateMovementBasisFromYaw();
@@ -290,12 +401,12 @@ public sealed class ClientPlayer : Player
     /// </summary>
     private Mob? FindMobUnderCrosshair(World world)
     {
-        var ray = new Ray(Camera.Position, Camera.Forward);
+        var ray = new Ray(EyePosition, Camera.LookDirection);
 
         // A block in the way is as far as the swing gets. Nothing being looked at leaves the whole reach.
         float nearest = MouseOverObject is null
             ? MaxAttackReach
-            : MathF.Min(MaxAttackReach, (MouseOverObject.IntersectionPoint - Camera.Position).Length);
+            : MathF.Min(MaxAttackReach, (MouseOverObject.IntersectionPoint - EyePosition).Length);
 
         Mob? nearestMob = null;
 
@@ -589,6 +700,15 @@ public sealed class ClientPlayer : Player
             // Scrolling up moves towards the first slot, which is the direction the wheel turns away from the
             // hand and the way round the game it is modelled on reads it.
             Inventory.StepHotbarSelection(-Math.Sign(scroll));
+        }
+    }
+
+    /// <summary>Steps the view on to the next perspective, on the key the game this one follows uses for it.</summary>
+    private void UpdatePerspectiveInput()
+    {
+        if (_game.Window.IsFocused && Game.Input.OnKeyPress(Keys.F5))
+        {
+            CycleCameraPerspective();
         }
     }
 

@@ -109,10 +109,6 @@ public sealed class DebugHelper
         {
             ClearBlocksAroundPlayer();
         }
-        else if (Game.Input.OnKeyPress(Keys.F5))
-        {
-            _renderChunkBorders = !_renderChunkBorders;
-        }
         else if (Game.Input.OnKeyPress(Keys.F6))
         {
             ToggleDebugCamera();
@@ -128,6 +124,13 @@ public sealed class DebugHelper
         else if (Game.Input.OnKeyPress(Keys.F9))
         {
             BuildTestRoom();
+        }
+
+        // Off the end of the run above rather than in the middle of it: F5 is the view the player is watched
+        // from, which the player owns rather than the debug tools.
+        else if (Game.Input.OnKeyPress(Keys.F10))
+        {
+            _renderChunkBorders = !_renderChunkBorders;
         }
     }
 
