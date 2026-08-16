@@ -51,4 +51,6 @@ public interface INetHandler
     void ProcessItemSpawnPacket(ItemSpawnPacket itemSpawnPacket);
 
     void ProcessItemPickupPacket(ItemPickupPacket itemPickupPacket);
+
+    void ProcessPlayerDropItemPacket(PlayerDropItemPacket playerDropItemPacket);
 }

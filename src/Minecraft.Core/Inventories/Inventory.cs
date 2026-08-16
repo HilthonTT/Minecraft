@@ -173,6 +173,27 @@ public sealed class Inventory
     }
 
     /// <summary>
+    /// Takes up to <paramref name="count"/> out of the slot in hand and hands back what came out, which is
+    /// what throwing something down does. Unlike <see cref="TryConsumeSelected"/> this really empties the
+    /// slot in either mode, because what it takes out has to end up somewhere: it becomes a stack lying on
+    /// the ground, and one conjured out of a bottomless creative hand would be a way of printing blocks.
+    /// </summary>
+    public ItemStack TakeFromSelected(int count)
+    {
+        ItemStack selected = _slots[_selectedHotbarSlot];
+        if (selected.IsEmpty || count <= 0)
+        {
+            return ItemStack.Empty;
+        }
+
+        int taken = Math.Min(count, selected.Count);
+        _slots[_selectedHotbarSlot] = selected.WithCount(selected.Count - taken);
+        OnChangedHandler?.Invoke();
+
+        return selected.WithCount(taken);
+    }
+
+    /// <summary>
     /// Takes one of whatever is in hand, which is what placing a block costs in survival. Reports whether
     /// there was one to take; a creative hand is bottomless and always says yes without spending anything.
     /// </summary>

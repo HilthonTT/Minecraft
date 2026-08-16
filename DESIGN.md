@@ -326,6 +326,18 @@ apart. Only a player swinging at a block has earned anything, and the handler is
 swing is what this was. A removal carrying more than one position is a debug tool clearing a volume rather
 than a break, and pays out nothing.
 
+A player can also put one there on purpose, with `Q`. That travels the other way along the same seam: the
+stack leaves the inventory on the client, which is the only thing that has one, and the server is told what
+was thrown so it can put it in the world. What it is asked to throw is taken on trust for exactly that
+reason — there is no second copy here to check it against — so what the server does check is that the stack
+is a possible one at all, since a count out of range or an id naming no block would otherwise put something
+impossible into the world. Throwing is survival's alone: a creative slot has a bottomless supply behind it,
+so a stack thrown out of one is a stack made from nothing.
+
+A thrown stack cannot be collected for two seconds, against the fifth of a second a broken block's drop
+waits. Both numbers are the same idea — long enough that what happens next reads as a separate event — but a
+throw has to outlast the walk away from it, or the key would hand the stack straight back.
+
 Pickup is the one seam where the two sides hold different halves of one fact. The server owns the item lying
 in the world and decides who collected it; the inventory it lands in lives on the client and nowhere else. So
 the item leaves the world on the server and the player is told what they now have. Anything that will not fit

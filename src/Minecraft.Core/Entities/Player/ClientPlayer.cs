@@ -365,6 +365,7 @@ public sealed class ClientPlayer : Player
         {
             UpdateBlockSelectionInput();
             UpdatePerspectiveInput();
+            UpdateDropInput();
         }
 
         ApplyVelocityAndCheckCollision(deltaTime, world);
@@ -701,6 +702,41 @@ public sealed class ClientPlayer : Player
             // hand and the way round the game it is modelled on reads it.
             Inventory.StepHotbarSelection(-Math.Sign(scroll));
         }
+    }
+
+    /// <summary>
+    /// Throws down what is in hand, on the key the game this one follows uses for it: one on its own, or the
+    /// whole stack with a modifier held.
+    /// <para>
+    /// Survival only. A creative slot has a bottomless supply behind it, so throwing one down would be a way
+    /// of printing blocks into a world other people are playing in rather than a way of getting rid of
+    /// something. The server turns it down there as well; this only saves asking.
+    /// </para>
+    /// <para>
+    /// The stack leaves the inventory here rather than when the server answers, for the same reason placing
+    /// a block spends it here: the inventory is this side's, so this side is where it changes, and waiting
+    /// for a round trip would leave the hotbar a beat behind the key.
+    /// </para>
+    /// </summary>
+    private void UpdateDropInput()
+    {
+        if (!_game.Window.IsFocused || IsCreative || !Game.Input.OnKeyPress(Keys.Q))
+        {
+            return;
+        }
+
+        // The same modifier the game this follows uses for it, which is also the sprint key here — so a
+        // stack thrown while running is thrown whole. That is what it does there too.
+        bool wholeStack = Game.Input.OnKeyDown(Keys.LeftControl) || Game.Input.OnKeyDown(Keys.RightControl);
+
+        ItemStack thrown = Inventory.TakeFromSelected(wholeStack ? ItemStack.MaxCount : 1);
+        if (thrown.IsEmpty)
+        {
+            return;
+        }
+
+        _game.Client.WritePacket(new PlayerDropItemPacket(thrown.Block!.Id, thrown.Count));
+        OnSwingHandler?.Invoke();
     }
 
     /// <summary>Steps the view on to the next perspective, on the key the game this one follows uses for it.</summary>

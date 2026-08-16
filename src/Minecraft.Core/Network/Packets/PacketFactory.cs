@@ -13,7 +13,7 @@ public sealed class PacketFactory
         BinaryReader reader = session.Connection.Reader;
 
         int packetType = reader.ReadInt32();
-        PacketType type = (PacketType)packetType;
+        var type = (PacketType)packetType;
 
         switch (type)
         {
@@ -179,6 +179,12 @@ public sealed class PacketFactory
                     int count = reader.ReadInt32();
                     return new ItemPickupPacket(entityId, blockId, count);
                 }
+            case PacketType.PlayerDropItem:
+                {
+                    ushort blockId = reader.ReadUInt16();
+                    int count = reader.ReadInt32();
+                    return new PlayerDropItemPacket(blockId, count);
+                }
             default: throw new Exception("Invalid packet type: " + packetType);
         }
     }
@@ -186,7 +192,7 @@ public sealed class PacketFactory
     private static Vector3 ReadVector3(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
     private static Vector3i ReadVector3i(BinaryReader reader) => new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
 
-    private string ReadUtf8String(BinaryReader reader)
+    private static string ReadUtf8String(BinaryReader reader)
     {
         int byteCount = reader.ReadInt32();
         byte[] messageBytes = reader.ReadBytes(byteCount);

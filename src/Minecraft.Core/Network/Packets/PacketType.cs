@@ -25,5 +25,6 @@ public enum PacketType
     PlayerRespawn,
     PlayerFell,
     ItemSpawn,
-    ItemPickup
+    ItemPickup,
+    PlayerDropItem
 }

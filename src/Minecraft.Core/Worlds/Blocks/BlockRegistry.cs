@@ -154,4 +154,14 @@ public static class BlockRegistry
 
         return _registeredBlocks[arrayId];
     }
+
+    /// <summary>
+    /// The block with the given id, or null when there is none. For ids that came off the wire from a
+    /// client, where an unknown one is something to turn down rather than something to fall over.
+    /// </summary>
+    public static Block? TryGetBlockFromIdentifier(int id)
+    {
+        int arrayId = id - 1;
+        return arrayId < 0 || arrayId >= _registeredBlocks.Length ? null : _registeredBlocks[arrayId];
+    }
 }

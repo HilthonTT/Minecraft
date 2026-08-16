@@ -45,6 +45,26 @@ public sealed class WorldServer : World
     /// </summary>
     private const float DropTossLift = 12F;
 
+    /// <summary>
+    /// How hard a player throws something down, in blocks per second. Movement here is damped hard enough
+    /// that a body keeps about a tenth of a second of whatever speed it is given, so this comes out as a
+    /// throw of roughly two blocks — which is what it has to be. Anything shorter lands inside the reach a
+    /// stack is picked up from, and the key would only hand it back the moment the throw wore off.
+    /// </summary>
+    private const float ThrowSpeed = 20F;
+
+    /// <summary>
+    /// The lift on a throw, which arcs it out rather than skidding it along the floor. Against this world's
+    /// gravity it tops out about half a block up, so a stack goes over a fence rather than into it.
+    /// </summary>
+    private const float ThrowLift = 20F;
+
+    /// <summary>
+    /// How far up a player's body a throw leaves from, as a share of their height. About chest high, so a
+    /// stack arcs out of the hands rather than off the boots.
+    /// </summary>
+    private const float ThrowHeightFraction = 0.7F;
+
     /// <summary>Reused when sweeping up the items that have been collected or have lain there too long.</summary>
     private readonly List<DroppedItem> _itemsToClear = [];
 
@@ -412,6 +432,49 @@ public sealed class WorldServer : World
         {
             _dropsAwaitingRemoval[blockPos] = stack;
         }
+    }
+
+    /// <summary>
+    /// Throws a stack out in front of a player, which is what the drop key does.
+    /// <para>
+    /// Along the way they are facing and nothing more: the server is told a yaw every tenth of a second and
+    /// is not told a pitch at all, so a throw goes out level rather than wherever the head happens to be
+    /// pointing. That is the better of the two anyway — a throw that followed the eye would bury a stack in
+    /// the floor whenever somebody happened to be looking down at the time.
+    /// </para>
+    /// <para>
+    /// It leaves from inside the thrower rather than a step in front of them, because a step in front can be
+    /// inside a wall. Starting where the player is standing is the one place known to be clear, and the
+    /// throw carries it out of there under the ordinary collision every entity gets.
+    /// </para>
+    /// </summary>
+    public void ThrowDroppedItem(ServerPlayer thrower, ItemStack stack)
+    {
+        if (stack.IsEmpty)
+        {
+            return;
+        }
+
+        var from = new Vector3(
+            thrower.Position.X + (thrower.Width / 2F) - (DroppedItem.BodySize / 2F),
+            thrower.Position.Y + (thrower.Height * ThrowHeightFraction),
+            thrower.Position.Z + (thrower.Length / 2F) - (DroppedItem.BodySize / 2F));
+
+        // The same basis a player walks along, so a throw goes where they are facing rather than a quarter
+        // turn off it.
+        var forward = new Vector3(MathF.Sin(thrower.Yaw), 0F, MathF.Cos(thrower.Yaw));
+
+        var item = new DroppedItem(
+            GenerateEntityId(),
+            this,
+            from,
+            stack,
+            DroppedItem.ThrownPickupDelaySeconds)
+        {
+            Velocity = new Vector3(forward.X * ThrowSpeed, ThrowLift, forward.Z * ThrowSpeed),
+        };
+
+        SpawnEntity(item);
     }
 
     /// <summary>

@@ -65,6 +65,7 @@ between them.
 | Breaking a block | Held down, and takes as long as the block is hard | Instant |
 | A broken block | Falls where it stood, to be walked over | Leaves nothing |
 | Placing a block | Comes out of the stack in hand | Costs nothing |
+| Throwing one down | `Q`, or `Ctrl` + `Q` for the stack | Nothing to throw away |
 | Inventory screen | The rows you are carrying | Those, plus every block in the game to take from |
 | Health | Ten hearts above the hotbar, and zombies and long falls take them | None; nothing can touch you |
 | Flying | No | Double tap `Space` |
@@ -73,6 +74,11 @@ between them.
 Typing `/gamemode survival` or `/gamemode creative` into the chat moves between the two while playing —
 `/gm s` and `/gm c` do the same — and the world remembers which it was left in. Switching empties what you
 are carrying, since a hotbar filled from creative's supply is not one survival ever had to earn.
+
+`Q` throws down one of whatever is in hand and `Ctrl` + `Q` throws the whole stack, a couple of blocks out in
+front of you. What lands cannot be picked up again for two seconds, which is long enough to turn round and
+walk off without it following you back into the hotbar. Creative has no use for it — there is nothing to be
+rid of when every slot is bottomless — so the key does nothing there.
 
 A blow leaves ten seconds' grace and then the bar mends itself a half heart every four seconds, because there
 is nothing to eat yet. Dying puts you back at the world spawn with everything you were carrying.
@@ -125,6 +131,8 @@ name, seed and mode from the menu instead, and never deletes anything.
 | Middle click    | Pick the block being looked at             |
 | `1`–`9`         | Choose a hotbar slot to build with         |
 | Scroll wheel    | Step along the same nine                   |
+| `Q`             | Throw down one of what you are holding     |
+| `Ctrl` + `Q`    | Throw down the whole stack                 |
 | `E`             | Open and close the inventory               |
 | `Enter`         | Open and send chat                         |
 | `Escape`        | Open the pause menu, or close the chat     |

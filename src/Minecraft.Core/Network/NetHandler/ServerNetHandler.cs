@@ -288,6 +288,47 @@ public sealed class ServerNetHandler : INetHandler
         }
     }
 
+    /// <summary>
+    /// A player throwing down what they were holding. What was thrown is taken on trust, because it has to
+    /// be: the inventory it came out of lives on that client and this side has no copy of it to check
+    /// against. That is the same trust picking something up already runs on, and closing it means moving the
+    /// inventory to the server rather than second guessing it here.
+    /// <para>
+    /// What is checked is that the stack is a real one. A count out of range or an id that names no block
+    /// would otherwise put something impossible into the world, or take the server down reading it.
+    /// </para>
+    /// </summary>
+    public void ProcessPlayerDropItemPacket(PlayerDropItemPacket playerDropItemPacket)
+    {
+        if (_session.Player is not ServerPlayer thrower)
+        {
+            return;
+        }
+
+        // Creative has a bottomless supply behind every slot, so a stack thrown out of one is a stack made
+        // from nothing. Throwing is survival's alone for the same reason the block list is creative's.
+        if (thrower.IsCreative)
+        {
+            Logger.Warn("Player " + thrower.ID + " tried to throw an item down in creative.");
+            return;
+        }
+
+        if (playerDropItemPacket.Count is <= 0 or > ItemStack.MaxCount)
+        {
+            Logger.Warn("Player " + thrower.ID + " tried to throw " + playerDropItemPacket.Count + " of something.");
+            return;
+        }
+
+        Block? block = BlockRegistry.TryGetBlockFromIdentifier(playerDropItemPacket.BlockId);
+        if (block is null || block == BlockRegistry.Air)
+        {
+            Logger.Warn("Player " + thrower.ID + " tried to throw block id " + playerDropItemPacket.BlockId + ".");
+            return;
+        }
+
+        _game.Server.World.ThrowDroppedItem(thrower, new ItemStack(block, playerDropItemPacket.Count));
+    }
+
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)
     {
         _game.Server.UpdateKeepAliveFor(_session);

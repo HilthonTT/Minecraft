@@ -20,10 +20,18 @@ public sealed class DroppedItem : Entity
     public const float BodySize = 0.25F;
 
     /// <summary>
-    /// How long before it can be picked up, in seconds. Without it a block breaks and vanishes in the same
-    /// frame, and what the player sees is a block disappearing rather than a block dropping something.
+    /// How long before something a broken block left behind can be picked up, in seconds. Without it a block
+    /// breaks and vanishes in the same frame, and what the player sees is a block disappearing rather than a
+    /// block dropping something.
     /// </summary>
-    private const float PickupDelaySeconds = 0.4F;
+    public const float BrokenPickupDelaySeconds = 0.4F;
+
+    /// <summary>
+    /// The same for something a player threw down on purpose, which has to be long enough to turn round and
+    /// walk away from. At the delay a broken block gets, throwing something away lands it at your feet and
+    /// hands it straight back, and the key would do nothing at all.
+    /// </summary>
+    public const float ThrownPickupDelaySeconds = 2.0F;
 
     /// <summary>
     /// How long it lies there before it is cleared, in seconds. Five minutes, which is long enough to walk
@@ -37,16 +45,28 @@ public sealed class DroppedItem : Entity
     /// <summary>What is lying there. Never empty: an empty stack is not a thing to drop in the first place.</summary>
     public ItemStack Stack { get; }
 
+    private readonly float _pickupDelaySeconds;
+
     private float _ageSeconds;
 
-    public DroppedItem(int id, World? world, Vector3 position, ItemStack stack)
+    /// <param name="pickupDelaySeconds">
+    /// How long it has to lie there before anyone can collect it. Only the server ever reads this, so a
+    /// client building one out of a spawn packet is not told which of the two delays it was given.
+    /// </param>
+    public DroppedItem(
+        int id,
+        World? world,
+        Vector3 position,
+        ItemStack stack,
+        float pickupDelaySeconds = BrokenPickupDelaySeconds)
         : base(id, world, position, EntityType.DroppedItem)
     {
         Stack = stack;
+        _pickupDelaySeconds = pickupDelaySeconds;
     }
 
     /// <summary>Whether enough time has gone by for somebody standing over it to pick it up.</summary>
-    public bool CanBePickedUp => _ageSeconds >= PickupDelaySeconds;
+    public bool CanBePickedUp => _ageSeconds >= _pickupDelaySeconds;
 
     /// <summary>Whether it has lain there long enough to be cleared away.</summary>
     public bool HasExpired => _ageSeconds >= LifetimeSeconds;

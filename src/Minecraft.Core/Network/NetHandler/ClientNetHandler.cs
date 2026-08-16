@@ -240,6 +240,11 @@ public sealed class ClientNetHandler : INetHandler
         throw new InvalidOperationException("A client does not receive falls; it is the one that reports them.");
     }
 
+    public void ProcessPlayerDropItemPacket(PlayerDropItemPacket playerDropItemPacket)
+    {
+        throw new InvalidOperationException("A client does not receive drops; it is the one that throws them.");
+    }
+
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)
     {
         throw new InvalidOperationException();
