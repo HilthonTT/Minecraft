@@ -23,6 +23,7 @@ public sealed class BlockTorch : Block
     {
         IsOpaque = false;
         SoundMaterial = BlockSoundMaterial.Wood;
+        SecondsToBreak = 0F;
 
         // Every torch remembers which way it was put down, so no two of them can share one state.
         HasCustomState = true;

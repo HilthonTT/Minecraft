@@ -111,6 +111,7 @@ public sealed class MasterRenderer
     private volatile bool _isRunning = true;
 
     private readonly HeldItemRenderer _heldItemRenderer;
+    private readonly DroppedItemRenderer _droppedItemRenderer;
     private readonly ParticleSystem _particleSystem = new();
     private readonly ParticleRenderer _particleRenderer;
 
@@ -154,6 +155,7 @@ public sealed class MasterRenderer
         DitherTextureId = TextureLoader.LoadDitherTexture();
         _skydome = new Skydome(game);
         _heldItemRenderer = new HeldItemRenderer(game, _basicShader, _blockModelRegistry, _textureAtlas);
+        _droppedItemRenderer = new DroppedItemRenderer(_basicShader, _blockModelRegistry, _textureAtlas);
         _particleRenderer = new ParticleRenderer(_basicShader, _textureAtlas);
         Particles = new ParticleDirector(game, _particleSystem, _blockModelRegistry);
 
@@ -238,6 +240,10 @@ public sealed class MasterRenderer
 
         RenderChunks(world);
         RenderEntities(world);
+
+        // After the mobs, since it puts back the program and the texture the entity pass leaves bound, and
+        // before the water, so a stack that has fallen into a stream is seen through its surface.
+        _droppedItemRenderer.Render(world, _cameraController.Camera, _fogColor, _fogStart, _fogEnd);
 
         // Before the water, so that a splash thrown up out of a lake is seen through its surface rather than
         // painted over it, and after the solid world, which is what hides the specks behind terrain.
@@ -605,6 +611,7 @@ public sealed class MasterRenderer
         RemeshChunkIfMeshAvailable();
         _cameraController.Update();
         _heldItemRenderer.Update(deltaTime);
+        _droppedItemRenderer.Update(deltaTime);
     }
 
     private void RemeshChunkIfMeshAvailable()
@@ -833,6 +840,7 @@ public sealed class MasterRenderer
         _meshGenerationThread.Join(TimeSpan.FromSeconds(1));
 
         _heldItemRenderer.CleanUp();
+        _droppedItemRenderer.CleanUp();
         BlockIcons.CleanUp();
         _particleRenderer.CleanUp();
         _basicShader.CleanUp();

@@ -8,6 +8,7 @@ public sealed class BlockGravel : BlockFalling
     public BlockGravel(ushort id) : base(id)
     {
         SoundMaterial = BlockSoundMaterial.Gravel;
+        SecondsToBreak = 0.6F;
     }
 
     public override BlockState GetNewDefaultState()

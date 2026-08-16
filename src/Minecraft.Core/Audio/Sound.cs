@@ -36,4 +36,13 @@ public enum Sound
     CowHurt,
     ZombieHurt,
     ZombieDeath,
+
+    /// <summary>
+    /// The player themselves being hurt, whatever did it. One sound for a zombie's swing and for a landing
+    /// from a height, since what it is telling the player is that the bar has moved and not what moved it.
+    /// </summary>
+    PlayerHurt,
+
+    /// <summary>A stack being swept up off the ground.</summary>
+    ItemPickup,
 }

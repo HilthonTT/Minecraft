@@ -6,8 +6,9 @@ using Minecraft.Core.Worlds;
 namespace Minecraft.Core.Network.Session;
 
 /// <summary>
-/// Keeps one player's client up to date on the mobs around them: which ones it has been told about, and
-/// where they have moved since. Every session has its own, the same way chunk loading does.
+/// Keeps one player's client up to date on the entities around them — the mobs and the stacks lying on the
+/// ground — which ones it has been told about, and where they have moved since. Every session has its own,
+/// the same way chunk loading does.
 /// </summary>
 public sealed class EntityTracker
 {
@@ -59,21 +60,34 @@ public sealed class EntityTracker
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            if (entity is not Mob mob || !IsInRange(mob))
+            // Only what a client can be told about and knows how to build. Players have their own join and
+            // leave packets, since they carry a name as well, and nothing else here is ever spawned.
+            if (entity is not (Mob or DroppedItem) || !IsInRange(entity))
             {
                 continue;
             }
 
-            _entitiesInRange.Add(mob.ID);
+            _entitiesInRange.Add(entity.ID);
 
-            if (_trackedEntities.Add(mob.ID))
+            if (!_trackedEntities.Add(entity.ID))
             {
-                _session.WritePacket(new EntitySpawnPacket(mob.EntityType, mob.ID, mob.Position, mob.Yaw));
+                _session.WritePacket(new EntityDataPacket(entity.ID, entity.Position, entity.Velocity, entity.Yaw));
+                continue;
             }
-            else
+
+            // A stack on the ground says what it is a stack of, which is more than an entity type can
+            // carry, so it is announced by a spawn packet of its own.
+            if (entity is DroppedItem item)
             {
-                _session.WritePacket(new EntityDataPacket(mob.ID, mob.Position, mob.Velocity, mob.Yaw));
+                _session.WritePacket(new ItemSpawnPacket(
+                    item.ID,
+                    item.Position,
+                    item.Stack.Block!.Id,
+                    item.Stack.Count));
+                continue;
             }
+
+            _session.WritePacket(new EntitySpawnPacket(entity.EntityType, entity.ID, entity.Position, entity.Yaw));
         }
     }
 

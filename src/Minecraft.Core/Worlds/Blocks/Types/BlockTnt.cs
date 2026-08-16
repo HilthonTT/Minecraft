@@ -1,6 +1,7 @@
 ﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Entities;
 using Minecraft.Core.Entities.Mobs;
+using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;
@@ -32,6 +33,7 @@ public sealed class BlockTnt : Block
         IsInteractable = true;
         HasCustomState = true;
         SoundMaterial = BlockSoundMaterial.Grass;
+        SecondsToBreak = 0.1F;
     }
 
     public override BlockState GetNewDefaultState()
@@ -67,8 +69,6 @@ public sealed class BlockTnt : Block
     public override void OnInteract(BlockState blockState, Vector3i blockPos, World world)
     {
         var tnt = (BlockStateTnt)blockState;
-        Logging.Logger.Warn($"LIT at {blockPos} (was trigger={tnt.Trigger} elapsed={tnt.ElapsedSecondsSinceTrigger:F2} " +
-                            $"storedPos={tnt.BlockPosition}) hash={tnt.GetHashCode()} world={world.GetType().Name}");
         tnt.Trigger = ExplosionTrigger.PlayerInteraction;
         tnt.BlockPosition = blockPos;
     }
@@ -117,7 +117,7 @@ public sealed class BlockTnt : Block
             source.BlockPosition.Y + 0.5F,
             source.BlockPosition.Z + 0.5F);
 
-        HurtMobsCaughtInBlast(world, centre);
+        HurtEverythingCaughtInBlast(world, centre);
 
         // Sent as the event itself. What the clients would otherwise get is the hundreds of separate block
         // removals it leaves behind, which arrive one at a time and are indistinguishable from mining.
@@ -142,46 +142,68 @@ public sealed class BlockTnt : Block
     /// the world, so a mob could only ever be sheltered by a wall that is about to stop existing.
     /// </para>
     /// </summary>
-    private static void HurtMobsCaughtInBlast(WorldServer world, Vector3 centre)
+    private static void HurtEverythingCaughtInBlast(WorldServer world, Vector3 centre)
     {
-        // Gathered before a single blow is dealt. Killing a mob takes it out of the collection, and that is
-        // the collection being walked.
-        List<Mob> caught = [];
+        // Gathered before a single blow is dealt. Killing a mob takes it out of the collection, and a player
+        // who dies is moved to the spawn, and that is the collection being walked.
+        List<Mob> caughtMobs = [];
+        List<ServerPlayer> caughtPlayers = [];
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            if (entity is Mob mob && (MiddleOf(mob) - centre).Length <= ExplosionRadius)
+            if ((MiddleOf(entity) - centre).Length > ExplosionRadius)
             {
-                caught.Add(mob);
+                continue;
+            }
+
+            if (entity is Mob mob)
+            {
+                caughtMobs.Add(mob);
+            }
+            else if (entity is ServerPlayer player)
+            {
+                caughtPlayers.Add(player);
             }
         }
 
-        Logging.Logger.Warn($"BLAST at {centre} caught {caught.Count} mobs");
-
-        foreach (Mob mob in caught)
+        foreach (Mob mob in caughtMobs)
         {
-            // How far into the blast the mob is: one at the centre of it, nothing at the edge.
-            float impact = 1F - ((MiddleOf(mob) - centre).Length / ExplosionRadius);
-            var damage = (int)(((impact * impact) + impact) / 2F * MaxBlastDamage) + 1;
+            world.HurtMob(
+                mob,
+                DamageAt(MiddleOf(mob), centre),
+                centre,
+                knockbackMultiplier: BlastKnockbackMultiplier * ImpactAt(MiddleOf(mob), centre));
+        }
 
-            int before = mob.Health;
-            Vector3 velBefore = mob.Velocity;
-            world.HurtMob(mob, damage, centre, knockbackMultiplier: BlastKnockbackMultiplier * impact);
-            Logging.Logger.Warn(
-                $"  {mob.EntityType} dist={(MiddleOf(mob) - centre).Length:F1} impact={impact:F2} " +
-                $"dmg={damage} hp {before}->{mob.Health} died={!mob.IsAlive} " +
-                $"vel {velBefore.Length:F1}->{mob.Velocity.Length:F1} " +
-                $"stillLoaded={world.LoadedEntities.ContainsKey(mob.ID)}");
+        // Nobody is thrown by it. A player's body is simulated on their own machine and only reported here,
+        // so there is nothing on this side to add a velocity to; what a blast does to somebody standing in
+        // one is take the bar off them, which is the half of it that is this side's to decide.
+        foreach (ServerPlayer player in caughtPlayers)
+        {
+            world.HurtPlayer(player, DamageAt(MiddleOf(player), centre));
         }
     }
 
+    /// <summary>How far into the blast a body is: one at the centre of it, nothing at the edge.</summary>
+    private static float ImpactAt(Vector3 middle, Vector3 centre)
+    {
+        return 1F - ((middle - centre).Length / ExplosionRadius);
+    }
+
+    /// <summary>What the blast is worth at that distance, falling away towards the lip of the crater.</summary>
+    private static int DamageAt(Vector3 middle, Vector3 centre)
+    {
+        float impact = ImpactAt(middle, centre);
+        return (int)(((impact * impact) + impact) / 2F * MaxBlastDamage) + 1;
+    }
+
     /// <summary>
-    /// The middle of a mob's body, which is what the blast is measured to. Its position is where its feet
+    /// The middle of a body, which is what the blast is measured to. An entity's position is where its feet
     /// are, and measuring to those would have a blast going off at head height read as further away from a
     /// tall mob than from a short one standing beside it.
     /// </summary>
-    private static Vector3 MiddleOf(Mob mob)
+    private static Vector3 MiddleOf(Entity entity)
     {
-        return mob.Position + new Vector3(mob.Width / 2F, mob.Height / 2F, mob.Length / 2F);
+        return entity.Position + new Vector3(entity.Width / 2F, entity.Height / 2F, entity.Length / 2F);
     }
 }

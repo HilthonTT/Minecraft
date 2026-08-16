@@ -1,3 +1,5 @@
+using Minecraft.Core.Games;
+
 namespace Minecraft.Core.Worlds.Storage;
 
 /// <summary>
@@ -29,4 +31,15 @@ public sealed class WorldMetadata
     /// of the night.
     /// </summary>
     public float CurrentTime { get; set; } = World.MiddayTimeSeconds;
+
+    /// <summary>
+    /// Which mode the world is played in, chosen when it is created and moved afterwards only by
+    /// <c>/gamemode</c>, which writes it back here so a world reopens in the mode it was left in.
+    /// <para>
+    /// Creative when a save does not name one, which is every world made before there was anything else to
+    /// be: an unknown key reads as the fallback rather than as a broken file, so no version bump is needed
+    /// and no existing world changes underfoot.
+    /// </para>
+    /// </summary>
+    public GameMode GameMode { get; set; } = GameMode.Creative;
 }

@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Worlds;
+﻿using Minecraft.Core.Games;
+using Minecraft.Core.Worlds;
 using OpenTK.Mathematics;
 using System.Diagnostics;
 
@@ -6,7 +7,21 @@ namespace Minecraft.Core.Entities.Player;
 
 public abstract class Player : Entity
 {
-    protected const int MaxBlockReach = 40;
+    /// <summary>
+    /// How far a creative player can reach a block, in blocks. Far beyond an arm's length on purpose: what
+    /// this mode is for is laying out something large, and half of that is done from a distance.
+    /// </summary>
+    private const int CreativeBlockReach = 40;
+
+    /// <summary>
+    /// The same in survival, which is Minecraft's own reach. Short, and it has to be: a block broken is a
+    /// block that falls where it stood, and one broken from forty blocks away would be one nobody could
+    /// pick up. Reaching a thing and collecting it are the same distance, so they are the same number.
+    /// </summary>
+    private const int SurvivalBlockReach = 5;
+
+    /// <summary>How far this player can reach a block, which is one of the two figures above.</summary>
+    protected int MaxBlockReach => IsCreative ? CreativeBlockReach : SurvivalBlockReach;
 
     /// <summary>Two jumps within this window toggle flight.</summary>
     private const long DoubleJumpWindowMilliseconds = 300;
@@ -14,9 +29,30 @@ public abstract class Player : Entity
     public string Name { get; set; }
 
     protected bool _isFlying;
-    protected bool _isInCreativeMode = true;
     protected bool _isCrouching;
     protected bool _isRunning;
+
+    /// <summary>
+    /// Which of the two ways this player is playing. The server owns it — a client is told what it is on the
+    /// way in and again whenever it changes — so both sides read the same field and neither decides it alone.
+    /// </summary>
+    public GameMode GameMode { get; private set; } = GameMode.Survival;
+
+    public bool IsCreative => GameMode == GameMode.Creative;
+
+    /// <summary>
+    /// Puts the player into the given mode. Leaving creative also puts them back on the ground: flight is
+    /// creative's alone, and somebody switched to survival mid-air would otherwise stay hanging there.
+    /// </summary>
+    public virtual void SetGameMode(GameMode gameMode)
+    {
+        GameMode = gameMode;
+
+        if (gameMode != GameMode.Creative)
+        {
+            _isFlying = false;
+        }
+    }
 
     /// <summary>Whether the player is sprinting, which is the one thing that kicks dust up off the ground.</summary>
     public bool IsRunning => _isRunning;
@@ -57,7 +93,7 @@ public abstract class Player : Entity
 
     protected void TryStartRunning()
     {
-        if (_isRunning || (!_isInCreativeMode && _isInAir))
+        if (_isRunning || (!IsCreative && _isInAir))
         {
             return;
         }
@@ -80,7 +116,7 @@ public abstract class Player : Entity
     protected void TryToggleFlying()
     {
         _jumpStopWatch.Stop();
-        if (_jumpStopWatch.ElapsedMilliseconds < DoubleJumpWindowMilliseconds && _isInCreativeMode)
+        if (_jumpStopWatch.ElapsedMilliseconds < DoubleJumpWindowMilliseconds && IsCreative)
         {
             _isFlying = !_isFlying;
             _verticalSpeed = 0;

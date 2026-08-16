@@ -2,6 +2,7 @@
 using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
+using Minecraft.Core.Inventories;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
 using Minecraft.Core.Worlds.Blocks;
@@ -33,20 +34,50 @@ public sealed class WorldServer : World
 
     private float _elapsedSecondsSinceAutoSave;
 
+    /// <summary>How hard a drop is tossed out of the block it came from, in blocks per second.</summary>
+    private const float DropTossSpeed = 2.2F;
+
+    /// <summary>
+    /// The lift on that toss, so a drop hops out of its cell rather than sliding along the floor. A speed
+    /// rather than the force a jump is expressed as, since it is written straight into the velocity: against
+    /// this world's gravity it comes out as a hop of about an eighth of a block, which is what a block
+    /// coming loose should look like rather than something being thrown into the air.
+    /// </summary>
+    private const float DropTossLift = 12F;
+
+    /// <summary>Reused when sweeping up the items that have been collected or have lain there too long.</summary>
+    private readonly List<DroppedItem> _itemsToClear = [];
+
+    /// <summary>
+    /// What each cell is to leave behind when the block in it goes, put here by whatever asked for the
+    /// removal and taken out again by the removal itself. See <see cref="DropWhenRemoved"/>.
+    /// </summary>
+    private readonly Dictionary<Vector3i, ItemStack> _dropsAwaitingRemoval = [];
+
     /// <summary>
     /// The seed the terrain came out of. Read back rather than taken from what was asked for, since a world
     /// that already existed keeps its own and one left to choose picked its own.
     /// </summary>
     public int Seed => _metadata.Seed;
 
-    public WorldServer(Game game, WorldStorage storage, int? seed) : base(game)
+    /// <summary>
+    /// Which mode this world is played in, which is what anyone joining is put into. Fixed when the world is
+    /// created, the same way its seed is, and moved afterwards only by <c>/gamemode</c>.
+    /// </summary>
+    public GameMode DefaultGameMode
+    {
+        get => _metadata.GameMode;
+        set => _metadata.GameMode = value;
+    }
+
+    public WorldServer(Game game, WorldStorage storage, int? seed, GameMode? gameMode) : base(game)
     {
         OnBlockPlacedHandler += OnBlockPlacedServer;
         OnBlockRemovedHandler += OnBlockRemovedServer;
         OnEntityDespawnedHandler += OnEntityDespawnedServer;
 
         _storage = storage;
-        _metadata = storage.LoadOrCreateMetadata(seed);
+        _metadata = storage.LoadOrCreateMetadata(seed, gameMode);
         Environment.CurrentTime = _metadata.CurrentTime;
 
         _worldGenerator = new WorldGenerator(this, storage, _metadata.Seed);
@@ -61,6 +92,12 @@ public sealed class WorldServer : World
     {
         base.Update(deltaTimeSeconds);
 
+        // Every removal queued for this frame has been carried out by the time the base call returns, so
+        // anything still waiting here is for a removal that was refused — an unloaded chunk, or a cell that
+        // turned out to be air already. Forgotten rather than kept, or it would pay out the next time
+        // something entirely different was broken in that same cell.
+        _dropsAwaitingRemoval.Clear();
+
         _elapsedSecondsSinceAutoSave += deltaTimeSeconds;
         if (_elapsedSecondsSinceAutoSave >= AutoSaveIntervalSeconds)
         {
@@ -73,54 +110,79 @@ public sealed class WorldServer : World
     /// Mobs live only as long as the server is running: nothing writes them to disk, so a world that is
     /// reloaded is repopulated from scratch.
     /// </summary>
-    private float _tntTestElapsed;
-    private int _tntTestsFired;
-
     protected override void OnTick(float deltaTime)
     {
         _mobSpawner.Tick(this);
-        TntTestHook(deltaTime);
+        TickDroppedItems();
+        TickPlayerRecovery(deltaTime);
     }
 
-    private void TntTestHook(float deltaTime)
+    /// <summary>
+    /// Hands every item lying on the ground to whoever is standing over it, and clears away whatever nobody
+    /// came back for. Walked once a tick rather than watched per player, since there are far fewer items in
+    /// a world than there are frames in a second.
+    /// </summary>
+    private void TickDroppedItems()
     {
-        _tntTestElapsed += deltaTime;
-        if (_tntTestElapsed < 25F || _tntTestsFired >= 3)
+        _itemsToClear.Clear();
+
+        foreach (Entity entity in LoadedEntities.Values)
         {
-            return;
+            if (entity is not DroppedItem item)
+            {
+                continue;
+            }
+
+            if (item.HasExpired)
+            {
+                _itemsToClear.Add(item);
+                continue;
+            }
+
+            ServerPlayer? collector = item.FindCollector(this);
+            if (collector is null)
+            {
+                continue;
+            }
+
+            // What the item is worth goes to the one player who picked it up, since only their client holds
+            // the inventory it lands in. Everyone else simply sees it stop being there.
+            SessionOf(collector)?.WritePacket(
+                new ItemPickupPacket(item.ID, item.Stack.Block!.Id, item.Stack.Count));
+
+            _itemsToClear.Add(item);
         }
 
-        Mob? victim = null;
-        foreach (Entity e in LoadedEntities.Values)
+        foreach (DroppedItem item in _itemsToClear)
         {
-            if (e is Mob m && !m.IsHostile) { victim = m; break; }
+            DespawnEntity(item.ID);
+        }
+    }
+
+    /// <summary>Mends the players who have been left alone long enough, and tells them so.</summary>
+    private void TickPlayerRecovery(float deltaTime)
+    {
+        foreach (ServerSession session in Game.Server.ConnectedClients)
+        {
+            if (session.Player is ServerPlayer player && player.TryRegenerate(deltaTime))
+            {
+                session.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: false));
+            }
+        }
+    }
+
+    /// <summary>The connection a given player is at the other end of, or null once they have left.</summary>
+    private ServerSession? SessionOf(ServerPlayer player)
+    {
+        foreach (ServerSession session in Game.Server.ConnectedClients)
+        {
+            if (ReferenceEquals(session.Player, player))
+            {
+                return session;
+            }
         }
 
-        if (victim is null)
-        {
-            return;
-        }
-
-        var at = new Vector3i(
-            (int)MathF.Floor(victim.Position.X),
-            (int)MathF.Floor(victim.Position.Y) + 3,
-            (int)MathF.Floor(victim.Position.Z));
-
-        if (GetBlockAt(at).GetBlock() != BlockRegistry.Air)
-        {
-            return;
-        }
-
-        _tntTestElapsed = 0F;
-        _tntTestsFired++;
-
-        QueueToAddBlockAt(at, BlockRegistry.GetState(BlockRegistry.Tnt));
-        ClearBlockAddBuffer();
-
-        BlockState placed = GetBlockAt(at);
-        Logging.Logger.Warn($"TNTTEST #{_tntTestsFired} placed {placed.GetBlock().GetType().Name} at {at} " +
-                            $"near {victim.EntityType} hp={victim.Health} at {victim.Position}");
-        placed.GetBlock().OnInteract(placed, at, this);
+        return null;
     }
 
     /// <summary>
@@ -333,6 +395,83 @@ public sealed class WorldServer : World
         }
     }
 
+    /// <summary>
+    /// Says what the block in a cell is to leave behind when it is taken away.
+    /// <para>
+    /// Asked for rather than done, because a removal is queued and does not happen until the end of the
+    /// world update it was asked for in — and the caller is the packet handler, which runs after that, so a
+    /// drop thrown out there would exist for a whole frame inside a block that is still solid. What happens
+    /// to a body inside a block is that the world lifts it out onto the top of it, four cells if it has to,
+    /// so breaking the bottom log of a tree would shoot the drop up the trunk and leave it on the canopy.
+    /// Hanging it off the removal instead means the cell is already air by the time anything is put in it.
+    /// </para>
+    /// </summary>
+    public void DropWhenRemoved(Vector3i blockPos, ItemStack stack)
+    {
+        if (!stack.IsEmpty)
+        {
+            _dropsAwaitingRemoval[blockPos] = stack;
+        }
+    }
+
+    /// <summary>
+    /// Throws a stack out onto the ground at the middle of the given cell, tossed a little off centre so
+    /// that a run of drops from a seam of ore spreads out instead of stacking into one point.
+    /// </summary>
+    public void SpawnDroppedItem(Vector3i blockPos, ItemStack stack)
+    {
+        if (stack.IsEmpty)
+        {
+            return;
+        }
+
+        // Placed at the middle of the cell less half the item's own body, so it starts centred rather than
+        // with its corner on the middle: an entity is built out from its minimum corner.
+        var position = new Vector3(
+            blockPos.X + 0.5F - (DroppedItem.BodySize / 2F),
+            blockPos.Y + 0.5F - (DroppedItem.BodySize / 2F),
+            blockPos.Z + 0.5F - (DroppedItem.BodySize / 2F));
+
+        var item = new DroppedItem(GenerateEntityId(), this, position, stack)
+        {
+            Velocity = new Vector3(
+                ((float)Random.Shared.NextDouble() - 0.5F) * DropTossSpeed,
+                DropTossLift,
+                ((float)Random.Shared.NextDouble() - 0.5F) * DropTossSpeed),
+        };
+
+        SpawnEntity(item);
+    }
+
+    /// <summary>
+    /// Hurts a player and tells them, and puts them back at the spawn if that was the last of it. The one
+    /// road by which a player loses health, so a zombie's swing and a landing from a great height are
+    /// reported in the same words, and neither has to know how the other goes about it.
+    /// </summary>
+    public void HurtPlayer(ServerPlayer player, int damage)
+    {
+        if (!player.TryHurt(damage))
+        {
+            return;
+        }
+
+        ServerSession? session = SessionOf(player);
+        session?.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: true));
+
+        if (player.IsAlive)
+        {
+            return;
+        }
+
+        // Nothing is dropped on death, and the inventory survives it. There is no crafting yet, so losing
+        // everything to a fall would cost hours of digging with no way to make any of it back quickly.
+        Vector3 spawn = GenerateAndGetValidSpawn();
+        player.Respawn(spawn);
+
+        session?.WritePacket(new PlayerRespawnPacket(spawn));
+        session?.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: false));
+    }
+
     public int GenerateEntityId() => _entityIdTracker.GenerateId();
 
     public void RequestGenerationOfChunk(int playerId, Vector2 gridPosition, Action<GenerateChunkOutput> callback)
@@ -369,6 +508,12 @@ public sealed class WorldServer : World
 
     private void OnBlockRemovedServer(World world, Chunk chunk, Vector3i blockPos, BlockState oldState)
     {
+        // The cell is already air by the time this runs, which is the whole point of waiting for it.
+        if (_dropsAwaitingRemoval.Remove(blockPos, out ItemStack dropped))
+        {
+            SpawnDroppedItem(blockPos, dropped);
+        }
+
         RemoveBlockPacket packet = new(new Vector3i[] { blockPos });
         foreach (ServerSession session in Game.Server.ConnectedClients)
         {

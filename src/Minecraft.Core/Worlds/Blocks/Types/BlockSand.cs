@@ -8,6 +8,7 @@ public sealed class BlockSand : BlockFalling
     public BlockSand(ushort id) : base(id)
     {
         SoundMaterial = BlockSoundMaterial.Sand;
+        SecondsToBreak = 0.55F;
     }
 
     public override BlockState GetNewDefaultState()

@@ -17,6 +17,7 @@ public sealed class BlockWheat : Block
         IsOpaque = false;
         HasCustomState = true;
         SoundMaterial = BlockSoundMaterial.Grass;
+        SecondsToBreak = 0F;
     }
 
     public override BlockState GetNewDefaultState()

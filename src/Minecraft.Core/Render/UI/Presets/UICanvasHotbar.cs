@@ -28,6 +28,18 @@ public sealed class UICanvasHotbar : UICanvas
 
     private const float NameScale = 0.34F;
 
+    /// <summary>
+    /// How many hearts the bar is drawn as. Each one is two of what the server counts, which is what makes a
+    /// zombie's three point swing land as a heart and a half.
+    /// </summary>
+    private const int Hearts = Constants.PLAYER_MAX_HEALTH / 2;
+
+    private const float HeartSize = 9F;
+    private const float HeartGap = 3F;
+
+    /// <summary>How far above the bar the hearts sit, and how far above them the block name then goes.</summary>
+    private const float HeartMargin = 7F;
+
     /// <summary>How far above the bar the name of the selected block sits.</summary>
     private const float NameMargin = 12F;
 
@@ -39,11 +51,18 @@ public sealed class UICanvasHotbar : UICanvas
     private static readonly Vector3 _selectionColor = new(0.92F, 0.92F, 0.95F);
     private static readonly Vector3 _nameColor = new(0.96F, 0.96F, 0.96F);
 
+    // Three shades rather than two, so a heart that is half gone reads as half rather than as gone: the
+    // dimmed red is still recognisably a heart with something in it.
+    private static readonly Vector3 _fullHeartColor = new(0.86F, 0.16F, 0.18F);
+    private static readonly Vector3 _halfHeartColor = new(0.52F, 0.11F, 0.13F);
+    private static readonly Vector3 _emptyHeartColor = new(0.14F, 0.09F, 0.10F);
+
     private const float BackdropTransparency = 0.62F;
 
     private readonly Game _game;
     private readonly UIImage _backdrop;
     private readonly UIImage _selection;
+    private readonly UIImage[] _hearts = new UIImage[Hearts];
     private readonly UIText _name;
     private readonly UISlotGrid _slots;
     private readonly Font _font;
@@ -101,6 +120,19 @@ public sealed class UICanvasHotbar : UICanvas
             SlotSize,
             SlotGap);
 
+        // On the panel canvas rather than the overlay: nothing is ever drawn standing in a heart, so there
+        // is nothing for it to have to be read over.
+        for (int heart = 0; heart < Hearts; heart++)
+        {
+            _hearts[heart] = new UIImage(this, Vector2.Zero, new Vector2(HeartSize, HeartSize), UITextures.White)
+            {
+                Color = _emptyHeartColor,
+                IsVisible = false,
+            };
+
+            AddComponentToRender(_hearts[heart]);
+        }
+
         _name = new UIText(Overlay, _font, Vector2.Zero, new Vector2(NameScale, NameScale), string.Empty)
         {
             Color = _nameColor,
@@ -130,10 +162,43 @@ public sealed class UICanvasHotbar : UICanvas
             inventory.GetSlot,
             hoveredIndex: inventory.SelectedHotbarSlot);
 
+        UpdateHearts();
         UpdateSelectedName(inventory);
 
         // Written to on the line above and on a canvas that may already have been cleaned this frame.
         Overlay.Clean();
+    }
+
+    /// <summary>
+    /// Draws what the player has left, above the bar. Hidden entirely in creative, where nothing can take
+    /// any of it: a bar that is always full says nothing, and takes up the room the block name is read in.
+    /// </summary>
+    private void UpdateHearts()
+    {
+        if (_game.ClientPlayer.IsCreative)
+        {
+            foreach (UIImage heart in _hearts)
+            {
+                heart.IsVisible = false;
+            }
+
+            return;
+        }
+
+        int health = _game.ClientPlayer.Health;
+
+        for (int heart = 0; heart < Hearts; heart++)
+        {
+            int halvesInThisHeart = Math.Clamp(health - (heart * 2), 0, 2);
+
+            _hearts[heart].IsVisible = true;
+            _hearts[heart].Color = halvesInThisHeart switch
+            {
+                2 => _fullHeartColor,
+                1 => _halfHeartColor,
+                _ => _emptyHeartColor,
+            };
+        }
     }
 
     /// <summary>
@@ -189,6 +254,16 @@ public sealed class UICanvasHotbar : UICanvas
             SlotSize + (2 * SelectionOutline),
             SlotSize + (2 * SelectionOutline));
 
+        // The row of hearts sits just above the bar, its left edge lined up with the bar's own, so the two
+        // read as one thing rather than as an overlay that happens to be nearby.
+        float heartsTop = top - BackdropPadding - HeartMargin - HeartSize;
+        for (int heart = 0; heart < Hearts; heart++)
+        {
+            _hearts[heart].PixelPositionInCanvas = new Vector2(
+                left + (heart * (HeartSize + HeartGap)),
+                heartsTop);
+        }
+
         CentreName();
     }
 
@@ -199,7 +274,10 @@ public sealed class UICanvasHotbar : UICanvas
         // Sat on the line above the bar by where the ink ends rather than by where the text box does, since
         // glyphs hang below their box by an offset that changes with the font.
         (_, float inkBottom) = _font.MeasureVerticalBounds(_name.Text, NameScale);
-        float baseline = PixelHeight - BottomMargin - _slots.Height - BackdropPadding - NameMargin;
+
+        // Above the hearts as well as the bar, so the two never overlap in a world that has both.
+        float baseline = PixelHeight - BottomMargin - _slots.Height - BackdropPadding
+                         - HeartMargin - HeartSize - NameMargin;
 
         _name.PixelPositionInCanvas = new Vector2((PixelWidth - width) / 2F, baseline - inkBottom);
     }

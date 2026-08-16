@@ -1,3 +1,4 @@
+using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Worlds.Chunks;
@@ -251,15 +252,23 @@ public sealed class WorldStorage : IDisposable
     /// Reads the metadata of an existing world, or describes a new one seeded from <paramref name="seed"/>
     /// when there is nothing on disk yet. Nothing is written until <see cref="SaveMetadata"/> is called.
     /// </summary>
-    public WorldMetadata LoadOrCreateMetadata(int? seed)
+    /// <param name="gameMode">
+    /// Which mode to create the world in. Ignored, with a warning, for a world that already exists — the same
+    /// rule the seed follows, and for a weaker but real version of the same reason: a world built up in
+    /// creative and reopened in survival is a world whose contents were never earned.
+    /// </param>
+    public WorldMetadata LoadOrCreateMetadata(int? seed, GameMode? gameMode)
     {
         string path = Path.Combine(_worldDirectory, MetadataFileName);
 
         if (!File.Exists(path))
         {
             int newSeed = seed ?? Random.Shared.Next();
-            Logger.Info("Creating world '" + Path.GetFileName(_worldDirectory) + "' with seed " + newSeed + ".");
-            return new WorldMetadata { Seed = newSeed };
+            GameMode newGameMode = gameMode ?? GameMode.Survival;
+            Logger.Info(
+                "Creating world '" + Path.GetFileName(_worldDirectory) + "' with seed " + newSeed +
+                " in " + newGameMode.ToString().ToLowerInvariant() + " mode.");
+            return new WorldMetadata { Seed = newSeed, GameMode = newGameMode };
         }
 
         try
@@ -279,6 +288,9 @@ public sealed class WorldStorage : IDisposable
                 Version = version,
                 Seed = ReadInt(fields, "seed", 0),
                 CurrentTime = ReadFloat(fields, "time", World.MiddayTimeSeconds),
+
+                // Creative when the key is absent, which is every world saved before there was a choice.
+                GameMode = ReadGameMode(fields, "gamemode", GameMode.Creative),
             };
 
             // An explicit seed cannot be honoured for a world that already exists; its terrain is fixed.
@@ -287,6 +299,13 @@ public sealed class WorldStorage : IDisposable
                 Logger.Warn(
                     "Ignoring seed " + seed.Value + ": world '" + Path.GetFileName(_worldDirectory) +
                     "' already exists with seed " + metadata.Seed + ".");
+            }
+
+            if (gameMode.HasValue && gameMode.Value != metadata.GameMode)
+            {
+                Logger.Warn(
+                    "Ignoring game mode " + gameMode.Value + ": world '" + Path.GetFileName(_worldDirectory) +
+                    "' already exists in " + metadata.GameMode + " mode.");
             }
 
             Logger.Info("Loaded world '" + Path.GetFileName(_worldDirectory) + "' with seed " + metadata.Seed + ".");
@@ -311,6 +330,7 @@ public sealed class WorldStorage : IDisposable
                 "version=" + metadata.Version.ToString(CultureInfo.InvariantCulture),
                 "seed=" + metadata.Seed.ToString(CultureInfo.InvariantCulture),
                 "time=" + metadata.CurrentTime.ToString("0.###", CultureInfo.InvariantCulture),
+                "gamemode=" + metadata.GameMode.ToString().ToLowerInvariant(),
             ];
 
             WriteFileAtomically(path, stream =>
@@ -515,6 +535,22 @@ public sealed class WorldStorage : IDisposable
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
             ? parsed
             : throw new FormatException($"'{key}' is not a whole number: '{value}'.");
+    }
+
+    /// <summary>
+    /// Reads a game mode by name. Written as a name rather than a number so that <c>level.dat</c> stays
+    /// something a person can read and change by hand, which is the whole reason it is plain text.
+    /// </summary>
+    private static GameMode ReadGameMode(Dictionary<string, string> fields, string key, GameMode fallback)
+    {
+        if (!fields.TryGetValue(key, out string? value))
+        {
+            return fallback;
+        }
+
+        return Enum.TryParse(value, ignoreCase: true, out GameMode parsed)
+            ? parsed
+            : throw new FormatException($"'{key}' is not a game mode: '{value}'.");
     }
 
     private static float ReadFloat(Dictionary<string, string> fields, string key, float fallback)

@@ -7,13 +7,13 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 namespace Minecraft.Core.Render.UI.Presets;
 
 /// <summary>
-/// The inventory screen: every block in the game across the top, the three rows the player is carrying under
-/// it, and the same nine hotbar slots at the bottom that the bar on the world screen shows.
+/// The inventory screen: the three rows the player is carrying, the same nine hotbar slots at the bottom that
+/// the bar on the world screen shows, and — in creative only — every block in the game across the top.
 /// <para>
-/// The block list is a supply rather than a container. Nothing drops an item yet, so a slot has to be filled
-/// from somewhere, and a list of everything is also where a stack goes to be thrown away — clicking it with a
-/// full cursor empties the cursor. When breaking a block starts leaving something behind, the three rows in
-/// the middle are already where it will land and this list becomes the only part that has to change.
+/// That top section is a supply rather than a container: it hands out whole stacks of anything, and it is
+/// also where a stack goes to be thrown away, since clicking it with a full cursor empties the cursor. In
+/// survival there is nothing for it to be. Blocks come out of the ground there, so the list would be a way of
+/// helping yourself to the things the mode is about earning, and it is left off the screen entirely.
 /// </para>
 /// </summary>
 public sealed class UICanvasInventory : UICanvas
@@ -62,6 +62,12 @@ public sealed class UICanvasInventory : UICanvas
 
     /// <summary>Where the name of the hovered block sits, worked out by the layout and centred on demand.</summary>
     private float _hoveredNameTop;
+
+    /// <summary>
+    /// Whether the block list is on the screen, which is the one thing about this layout that changes while
+    /// the game is running: <c>/gamemode</c> moves it, and the panel has to be measured again when it does.
+    /// </summary>
+    private bool _showsBlockList = true;
 
     public UIOverlayCanvas Overlay { get; }
 
@@ -148,16 +154,26 @@ public sealed class UICanvasInventory : UICanvas
         Inventory inventory = _game.ClientPlayer.Inventory;
         Vector2 mouse = Game.Input.MousePosition;
 
-        int hoveredBlock = _blocks.IndexAt(mouse);
+        // The one thing about this screen that can change without the window being resized.
+        if (_showsBlockList != inventory.HasEndlessSupply)
+        {
+            _showsBlockList = inventory.HasEndlessSupply;
+            LayOut();
+        }
+
+        int hoveredBlock = _showsBlockList ? _blocks.IndexAt(mouse) : -1;
         int hoveredStorage = _storage.IndexAt(mouse);
         int hoveredHotbar = _hotbar.IndexAt(mouse);
 
         HandleClicks(inventory, hoveredBlock, hoveredStorage, hoveredHotbar);
 
-        _blocks.Refresh(
-            _game.MasterRenderer.BlockIcons,
-            index => new ItemStack(BlockCatalogue.BlockAt(index), 1),
-            hoveredBlock);
+        if (_showsBlockList)
+        {
+            _blocks.Refresh(
+                _game.MasterRenderer.BlockIcons,
+                index => new ItemStack(BlockCatalogue.BlockAt(index), 1),
+                hoveredBlock);
+        }
 
         _storage.Refresh(
             _game.MasterRenderer.BlockIcons,
@@ -293,6 +309,9 @@ public sealed class UICanvasInventory : UICanvas
 
     private void LayOut()
     {
+        _blocks.SetVisible(_showsBlockList);
+        _blocksHeading.IsVisible = _showsBlockList;
+
         float headingHeight = InkHeight(_blocksHeading.Text, HeadingScale);
         float titleHeight = InkHeight(_title.Text, TitleScale);
 
@@ -300,10 +319,16 @@ public sealed class UICanvasInventory : UICanvas
         // with whichever block happens to be under the cursor.
         float nameHeight = InkHeight("Ag", HoveredNameScale);
 
-        float contentWidth = _blocks.Width;
+        // The block list is the widest thing on the screen, so a survival panel is measured on the carried
+        // rows instead and comes out narrower as well as shorter rather than opening onto empty space.
+        float contentWidth = _showsBlockList ? _blocks.Width : _storage.Width;
+        float blockListHeight = _showsBlockList
+            ? headingHeight + HeadingGap + _blocks.Height + SectionGap
+            : 0F;
+
         float contentHeight =
             titleHeight + SectionGap
-            + headingHeight + HeadingGap + _blocks.Height + SectionGap
+            + blockListHeight
             + headingHeight + HeadingGap + _storage.Height + HotbarGap
             + _hotbar.Height + SectionGap + nameHeight;
 
@@ -325,11 +350,14 @@ public sealed class UICanvasInventory : UICanvas
         PlaceLabel(_title, TitleScale, left, cursor);
         cursor += titleHeight + SectionGap;
 
-        PlaceLabel(_blocksHeading, HeadingScale, left, cursor);
-        cursor += headingHeight + HeadingGap;
+        if (_showsBlockList)
+        {
+            PlaceLabel(_blocksHeading, HeadingScale, left, cursor);
+            cursor += headingHeight + HeadingGap;
 
-        _blocks.SetOrigin(new Vector2(left, cursor));
-        cursor += _blocks.Height + SectionGap;
+            _blocks.SetOrigin(new Vector2(left, cursor));
+            cursor += _blocks.Height + SectionGap;
+        }
 
         PlaceLabel(_carriedHeading, HeadingScale, left, cursor);
         cursor += headingHeight + HeadingGap;

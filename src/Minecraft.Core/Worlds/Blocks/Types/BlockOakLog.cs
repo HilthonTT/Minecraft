@@ -8,6 +8,7 @@ public sealed class BlockOakLog : Block
     public BlockOakLog(ushort id) : base(id)
     {
         SoundMaterial = BlockSoundMaterial.Wood;
+        SecondsToBreak = 1.5F;
     }
 
     public override BlockState GetNewDefaultState()

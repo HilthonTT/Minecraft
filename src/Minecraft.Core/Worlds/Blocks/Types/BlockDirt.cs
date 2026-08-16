@@ -8,6 +8,7 @@ public sealed class BlockDirt : Block
     public BlockDirt(ushort id) : base(id)
     {
         SoundMaterial = BlockSoundMaterial.Gravel;
+        SecondsToBreak = 0.55F;
     }
 
     public override BlockState GetNewDefaultState()

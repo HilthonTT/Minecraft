@@ -106,7 +106,9 @@ public sealed class PacketFactory
                     string playerName = ReadUtf8String(reader);
                     Vector3 position = ReadVector3(reader);
                     float currentTime = reader.ReadSingle();
-                    return new PlayerJoinAcceptPacket(playerName, playerId, position, currentTime);
+                    var gameMode = (Games.GameMode)reader.ReadInt32();
+                    int health = reader.ReadInt32();
+                    return new PlayerJoinAcceptPacket(playerName, playerId, position, currentTime, gameMode, health);
                 }
             case PacketType.PlayerJoin:
                 {
@@ -143,6 +145,39 @@ public sealed class PacketFactory
                     int entityId = reader.ReadInt32();
                     bool died = reader.ReadBoolean();
                     return new EntityHurtPacket(entityId, died);
+                }
+            case PacketType.PlayerGameMode:
+                {
+                    return new PlayerGameModePacket((Games.GameMode)reader.ReadInt32());
+                }
+            case PacketType.PlayerHealth:
+                {
+                    int health = reader.ReadInt32();
+                    bool wasHurt = reader.ReadBoolean();
+                    return new PlayerHealthPacket(health, wasHurt);
+                }
+            case PacketType.PlayerRespawn:
+                {
+                    return new PlayerRespawnPacket(ReadVector3(reader));
+                }
+            case PacketType.PlayerFell:
+                {
+                    return new PlayerFellPacket(reader.ReadSingle());
+                }
+            case PacketType.ItemSpawn:
+                {
+                    int entityId = reader.ReadInt32();
+                    Vector3 position = ReadVector3(reader);
+                    ushort blockId = reader.ReadUInt16();
+                    int count = reader.ReadInt32();
+                    return new ItemSpawnPacket(entityId, position, blockId, count);
+                }
+            case PacketType.ItemPickup:
+                {
+                    int entityId = reader.ReadInt32();
+                    ushort blockId = reader.ReadUInt16();
+                    int count = reader.ReadInt32();
+                    return new ItemPickupPacket(entityId, blockId, count);
                 }
             default: throw new Exception("Invalid packet type: " + packetType);
         }

@@ -76,6 +76,12 @@ public sealed class Game
     /// <summary>Seed for a newly created world, or null to pick one at random.</summary>
     public int? WorldSeed { get; private set; }
 
+    /// <summary>
+    /// Which mode a newly created world is played in, or null to take the default. Like the seed, this only
+    /// ever decides a world that does not exist yet: an existing one carries its own.
+    /// </summary>
+    public GameMode? WorldGameMode { get; private set; }
+
     /// <summary>Whether the world is discarded and regenerated when the server starts.</summary>
     public bool FreshWorld { get; private set; }
 
@@ -85,6 +91,7 @@ public sealed class Game
         RunMode = startArgs.RunMode;
         WorldName = startArgs.WorldName;
         WorldSeed = startArgs.Seed;
+        WorldGameMode = startArgs.GameMode;
         FreshWorld = startArgs.FreshWorld;
 
         // Loaded here rather than at start up, since the camera and the audio engine are built from it.
@@ -172,10 +179,12 @@ public sealed class Game
     /// singleplayer game and one other players can join. Reports whether that worked.
     /// </summary>
     /// <param name="seed">Seeds a world being created. Null leaves it to be picked at random.</param>
-    public bool StartHostedGame(string worldName, int? seed)
+    /// <param name="gameMode">The mode a world being created is played in. Null takes the default.</param>
+    public bool StartHostedGame(string worldName, int? seed, GameMode? gameMode)
     {
         WorldName = worldName;
         WorldSeed = seed;
+        WorldGameMode = gameMode;
 
         // A world started from the menu is never discarded first. The menu offers a name nothing is saved
         // under when a new world is what is wanted, so deleting one here could only ever lose a game.

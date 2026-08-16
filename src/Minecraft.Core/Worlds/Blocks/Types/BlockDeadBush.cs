@@ -12,6 +12,7 @@ public sealed class BlockDeadBush : Block
     {
         IsOpaque = false;
         SoundMaterial = BlockSoundMaterial.Grass;
+        SecondsToBreak = 0F;
     }
 
     public override BlockState GetNewDefaultState()

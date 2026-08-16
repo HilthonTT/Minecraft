@@ -10,7 +10,8 @@ A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https:
 Infinite procedurally generated terrain across six biomes, with oceans and the rivers that run down to them,
 ridged mountain ranges under snow and ice, buried ore, caves and villages. Coloured block lighting with smooth
 per vertex ambient occlusion, placeable torches, particles, distance fog, positional sound, a day/night cycle,
-mobs, an inventory and hotbar, and a client/server architecture that the singleplayer mode also runs through.
+mobs, an inventory and hotbar, survival and creative modes, and a client/server architecture that the
+singleplayer mode also runs through.
 
 ![Sheep grazing on a terraced meadow scattered with roses and dandelions, oak trees to either side and a bare stone mountain rising behind it under a clear sky](Screenshots/sample-1.png)
 
@@ -45,12 +46,35 @@ straight into a game without the menu.
 
 The name offered on the create screen is one nothing is saved under yet, so pressing play generates a world;
 type the name of a world you already have and it is carried on instead. The screen says which of the two it
-would do, because a seed only ever decides a world that does not exist yet — an existing one keeps the seed it
-was made with.
+would do, because a seed and a game mode only ever decide a world that does not exist yet — an existing one
+keeps the ones it was made with.
 
 The seed box takes a number, or any words, which are hashed into one. Leave it empty for a random seed;
 `Random` fills one in so you can read it off first. Either way the seed is repeated in the chat on the way in,
 so a world worth revisiting can be written down.
+
+### Survival and creative
+
+The create screen also picks which of the two the world is played in, and the button under `Game mode` moves
+between them.
+
+| | Survival | Creative |
+| --- | --- | --- |
+| Starting inventory | Empty | The nine blocks along the hotbar |
+| Breaking a block | Held down, and takes as long as the block is hard | Instant |
+| A broken block | Falls where it stood, to be walked over | Leaves nothing |
+| Placing a block | Comes out of the stack in hand | Costs nothing |
+| Inventory screen | The rows you are carrying | Those, plus every block in the game to take from |
+| Health | Ten hearts above the hotbar, and zombies and long falls take them | None; nothing can touch you |
+| Flying | No | Double tap `Space` |
+| Reach | Five blocks, which is as far as a drop can be picked up from | Forty |
+
+Typing `/gamemode survival` or `/gamemode creative` into the chat moves between the two while playing —
+`/gm s` and `/gm c` do the same — and the world remembers which it was left in. Switching empties what you
+are carrying, since a hotbar filled from creative's supply is not one survival ever had to earn.
+
+A blow leaves ten seconds' grace and then the bar mends itself a half heart every four seconds, because there
+is nothing to eat yet. Dying puts you back at the world spawn with everything you were carrying.
 
 ### Playing together
 
@@ -71,18 +95,19 @@ Every argument is optional; anything left out uses its default.
 | `port`     | `1`–`65535`                        | `25565`        |                                         |
 | `world`    | Save directory name                | `world`        | Which world to load or create           |
 | `seed`     | Any whole number                   | random         | Only used when creating a new world     |
+| `gamemode` | `survival`, `creative`             | `survival`     | Only used when creating a new world     |
 | `menu`     | `true`, `false`                    | `true`         | `false` skips the main menu             |
 | `fresh`    | `true`, `false`                    | `false`        | Deletes `world` first, then regenerates |
 | `loglevel` | `packet`, `info`, `warn`, `error`  | `error`        | `packet` traces network traffic         |
 
 ```sh
 dotnet run --project src/Minecraft.App -- mode=server port=25565 loglevel=info
-dotnet run --project src/Minecraft.App -- world=canyons seed=12345
+dotnet run --project src/Minecraft.App -- world=canyons seed=12345 gamemode=creative
 ```
 
-`server` runs headless. `client` connects to a server started separately. `world`, `seed` and `fresh` describe
-the world a game started from the arguments opens; a game started from the menu takes its name and seed from
-the menu instead, and never deletes anything.
+`server` runs headless. `client` connects to a server started separately. `world`, `seed`, `gamemode` and
+`fresh` describe the world a game started from the arguments opens; a game started from the menu takes its
+name, seed and mode from the menu instead, and never deletes anything.
 
 ## Controls
 
@@ -94,7 +119,7 @@ the menu instead, and never deletes anything.
 | `Space` twice   | Toggle flying                              |
 | `Shift`         | Crouch, or descend while flying            |
 | `Ctrl`          | Sprint                                     |
-| Left click      | Break block                                |
+| Left click      | Punch a mob, or hold to break a block      |
 | Right click     | Place block, or interact (TNT)             |
 | Middle click    | Pick the block being looked at             |
 | `1`–`9`         | Choose a hotbar slot to build with         |
@@ -110,24 +135,27 @@ picks the level), `F8` fill a chunk layer with TNT, `F9` build a test room.
 ### Inventory and hotbar
 
 Nine slots run along the bottom of the screen. Whichever is selected is also drawn in your hand, and its name
-fades in above the bar as you reach for it. A new world starts you carrying a torch, planks, cobblestone,
-stone, dirt, sand, an oak log, glowstone and TNT.
+fades in above the bar as you reach for it. A creative world starts you carrying a torch, planks, cobblestone,
+stone, dirt, sand, an oak log, glowstone and TNT; a survival one starts you with nothing and the row fills as
+you dig.
 
 ![A wide grassland of long grass and flowers under a clear sky with a plank platform built out across it, the hotbar along the bottom of the screen with a torch selected in the first slot and that torch held in the corner of the view](Screenshots/sample-11.png)
 
-`E` opens the inventory: every block in the game across the top, three rows of storage under it, and the same
-nine hotbar slots at the bottom. Left click picks a whole stack up onto the cursor and puts it down again,
-right click takes half or places one at a time, and dropping a stack onto a slot that already holds the same
-block pours the two together. Clicking the block list with a full cursor throws that stack away.
+`E` opens the inventory: three rows of storage, the same nine hotbar slots at the bottom, and — in creative —
+every block in the game across the top. Left click picks a whole stack up onto the cursor and puts it down
+again, right click takes half or places one at a time, and dropping a stack onto a slot that already holds the
+same block pours the two together. Clicking the block list with a full cursor throws that stack away.
+
+That list is a supply with nothing behind it, so survival leaves it off the screen altogether: blocks come out
+of the ground there, and a list of everything would be a way of helping yourself to the things the mode is
+about earning.
 
 ![The inventory screen open over a grassland at dusk: four rows holding every block in the game under the heading Blocks, three empty rows of storage under Carried, and the nine hotbar slots along the bottom each with a stack of sixty four](Screenshots/sample-12.png)
 
 Pointing at something in the world and clicking the middle mouse button still reaches for it directly: if it
-is already on the hotbar that slot is selected, and otherwise it is put into the slot in hand.
-
-Nothing is spent yet — building does not take a block out of the stack — because nothing yet drops one to put
-back. The counts are real all the same, so the day breaking a block leaves something behind, it has somewhere
-to land.
+is already on the hotbar that slot is selected, and in creative it is otherwise put into the slot in hand. In
+survival the second half of that would be a stack conjured out of the ground by looking at it, so there it
+only ever selects a slot that already holds the block.
 
 ![A pig standing in long grass on a terraced hillside, an oak log held in the corner of the view and the outline of the block being pointed at in the middle of the screen](Screenshots/sample-7.png)
 

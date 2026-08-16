@@ -10,12 +10,15 @@ public sealed class BlockAir : Block
     {
         IsOpaque = false;
         IsOverridable = true;
+        SecondsToBreak = 0F;
     }
 
     public override BlockState GetNewDefaultState()
     {
         return new BlockStateAir();
     }
+
+    public override Block? GetDroppedBlock(BlockState blockState) => null;
 
     public override AxisAlignedBox[] GetCollisionBox(BlockState state, Vector3i blockPos)
     {

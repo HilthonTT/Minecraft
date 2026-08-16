@@ -19,5 +19,11 @@ public enum PacketType
     Explosion,
     PlayerSettings,
     PlayerAttackEntity,
-    EntityHurt
+    EntityHurt,
+    PlayerGameMode,
+    PlayerHealth,
+    PlayerRespawn,
+    PlayerFell,
+    ItemSpawn,
+    ItemPickup
 }

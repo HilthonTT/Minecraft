@@ -39,4 +39,16 @@ public interface INetHandler
     void ProcessExplosionPacket(ExplosionPacket explosionPacket);
 
     void ProcessPlayerSettingsPacket(PlayerSettingsPacket playerSettingsPacket);
+
+    void ProcessPlayerGameModePacket(PlayerGameModePacket playerGameModePacket);
+
+    void ProcessPlayerHealthPacket(PlayerHealthPacket playerHealthPacket);
+
+    void ProcessPlayerRespawnPacket(PlayerRespawnPacket playerRespawnPacket);
+
+    void ProcessPlayerFellPacket(PlayerFellPacket playerFellPacket);
+
+    void ProcessItemSpawnPacket(ItemSpawnPacket itemSpawnPacket);
+
+    void ProcessItemPickupPacket(ItemPickupPacket itemPickupPacket);
 }

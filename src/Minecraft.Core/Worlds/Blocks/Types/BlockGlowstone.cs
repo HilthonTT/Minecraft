@@ -8,6 +8,7 @@ public sealed class BlockGlowstone : Block
     public BlockGlowstone(ushort id) : base(id)
     {
         SoundMaterial = BlockSoundMaterial.Stone;
+        SecondsToBreak = 0.4F;
     }
 
     public override BlockState GetNewDefaultState()

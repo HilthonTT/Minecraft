@@ -142,7 +142,8 @@ public sealed class MenuController
                 break;
 
             case MenuAction.PlaySelected:
-                Play(_worldList.SelectedWorld, seed: null);
+                // A world that already exists carries its own seed and mode, so neither is offered here.
+                Play(_worldList.SelectedWorld, seed: null, gameMode: null);
                 break;
 
             case MenuAction.CreateWorld:
@@ -152,7 +153,7 @@ public sealed class MenuController
                 break;
 
             case MenuAction.Play:
-                Play(_worldSetup.WorldName, SeedParser.Parse(_worldSetup.SeedText));
+                Play(_worldSetup.WorldName, SeedParser.Parse(_worldSetup.SeedText), _worldSetup.GameMode);
                 break;
 
             case MenuAction.RenameSelected:
@@ -203,7 +204,7 @@ public sealed class MenuController
         SetScreen(Screen.WorldList);
     }
 
-    private void Play(string worldName, int? seed)
+    private void Play(string worldName, int? seed, GameMode? gameMode)
     {
         string trimmed = worldName.Trim();
         if (trimmed.Length == 0)
@@ -212,7 +213,7 @@ public sealed class MenuController
             return;
         }
 
-        if (_game.StartHostedGame(trimmed, seed))
+        if (_game.StartHostedGame(trimmed, seed, gameMode))
         {
             SetScreen(Screen.None);
             return;

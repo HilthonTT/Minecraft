@@ -24,6 +24,7 @@ public sealed class BlockPlant : Block
         _growsOnSelector = growsOn;
         IsOpaque = false;
         SoundMaterial = BlockSoundMaterial.Grass;
+        SecondsToBreak = 0F;
     }
 
     public override BlockState GetNewDefaultState()

@@ -1,3 +1,4 @@
+using Minecraft.Core.Games;
 using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Inventories;
@@ -7,10 +8,10 @@ namespace Minecraft.Core.Inventories;
 /// them, addressed as one run so that a slot can be moved from either into the other without either side
 /// having to know which is which.
 /// <para>
-/// Nothing is spent yet — placing a block does not take one out of the stack — because nothing drops one to
-/// put back. What the counts are here for is the shape of the thing: when breaking a block starts leaving
-/// something behind, it lands in <see cref="TryAdd"/> and every screen that reads a slot already knows how to
-/// show it.
+/// In creative it is a drawing board with an endless supply behind it: the hotbar opens filled, placing a
+/// block costs nothing, and the block list on the inventory screen hands out whole stacks. In survival it is
+/// a container and nothing else — it opens empty, a placement comes out of a stack, and the only way anything
+/// gets in is <see cref="TryAdd"/>, which is where a block that has just been broken lands.
 /// </para>
 /// </summary>
 public sealed class Inventory
@@ -62,6 +63,16 @@ public sealed class Inventory
     /// </summary>
     public event Action? OnChangedHandler;
 
+    /// <summary>
+    /// Which mode the player carrying this is in. Held here rather than reached for through the player,
+    /// because the screens that draw slots ask it on every frame and the answer decides whether a click on
+    /// the block list is a supply or a no-op.
+    /// </summary>
+    public GameMode GameMode { get; private set; } = GameMode.Creative;
+
+    /// <summary>Whether blocks can be taken out of thin air, which is what creative means for a container.</summary>
+    public bool HasEndlessSupply => GameMode == GameMode.Creative;
+
     public Inventory() => ResetToDefaults();
 
     public ItemStack GetSlot(int index) => _slots[index];
@@ -76,21 +87,45 @@ public sealed class Inventory
     public static bool IsHotbarSlot(int index) => index is >= 0 and < HotbarSlots;
 
     /// <summary>
-    /// Puts the hotbar back to the nine blocks a new player starts with and empties everything else. Called
-    /// when a world is left, so the next one does not open on what was being carried around the last.
+    /// Empties everything and refills the hotbar with what the current mode starts a player carrying. Called
+    /// when a world is left, so the next one does not open on what was being carried around the last, and
+    /// again the moment the server says which mode the world being joined is played in.
     /// </summary>
     public void ResetToDefaults()
     {
         Array.Clear(_slots);
         CursorStack = ItemStack.Empty;
 
-        for (int slot = 0; slot < BlockPalette.Blocks.Count && slot < HotbarSlots; slot++)
+        // Survival starts with nothing at all. The nine blocks are a drawing board's worth of materials, and
+        // handing them over would settle in advance every question the first night is supposed to ask.
+        if (HasEndlessSupply)
         {
-            _slots[slot] = new ItemStack(BlockPalette.Blocks[slot], ItemStack.MaxCount);
+            for (int slot = 0; slot < BlockPalette.Blocks.Count && slot < HotbarSlots; slot++)
+            {
+                _slots[slot] = new ItemStack(BlockPalette.Blocks[slot], ItemStack.MaxCount);
+            }
         }
 
         _selectedHotbarSlot = 0;
         OnChangedHandler?.Invoke();
+    }
+
+    /// <summary>
+    /// Takes the mode the server says this player is in and starts them over on what that mode carries.
+    /// <para>
+    /// Emptying on the way into survival is the point: a hotbar filled by creative would otherwise be a
+    /// hundred blocks of building material that survival never has to earn, and a stack of TNT with it.
+    /// </para>
+    /// </summary>
+    public void ApplyGameMode(GameMode gameMode)
+    {
+        if (GameMode == gameMode)
+        {
+            return;
+        }
+
+        GameMode = gameMode;
+        ResetToDefaults();
     }
 
     public void SelectHotbarSlot(int slot)
@@ -109,8 +144,13 @@ public sealed class Inventory
 
     /// <summary>
     /// Reaches for the given block, as the middle mouse button does. A hotbar slot already holding it is
-    /// selected rather than filled again; otherwise it is put into whichever slot is in hand, so that
-    /// pointing at something in the world and clicking always ends with it held.
+    /// selected rather than filled again; otherwise, in creative, it is put into whichever slot is in hand,
+    /// so that pointing at something in the world and clicking always ends with it held.
+    /// <para>
+    /// In survival the second half of that is a way of conjuring a stack out of the ground by looking at it,
+    /// so there it reaches no further than the hotbar: it selects a slot that already holds the block, and
+    /// otherwise does nothing.
+    /// </para>
     /// </summary>
     public void PickBlock(Block block)
     {
@@ -123,16 +163,43 @@ public sealed class Inventory
             }
         }
 
+        if (!HasEndlessSupply)
+        {
+            return;
+        }
+
         _slots[_selectedHotbarSlot] = new ItemStack(block, ItemStack.MaxCount);
         OnChangedHandler?.Invoke();
+    }
+
+    /// <summary>
+    /// Takes one of whatever is in hand, which is what placing a block costs in survival. Reports whether
+    /// there was one to take; a creative hand is bottomless and always says yes without spending anything.
+    /// </summary>
+    public bool TryConsumeSelected()
+    {
+        if (HasEndlessSupply)
+        {
+            return true;
+        }
+
+        ItemStack selected = _slots[_selectedHotbarSlot];
+        if (selected.IsEmpty)
+        {
+            return false;
+        }
+
+        _slots[_selectedHotbarSlot] = selected.WithCount(selected.Count - 1);
+        OnChangedHandler?.Invoke();
+        return true;
     }
 
     /// <summary>
     /// Pours a stack into the first slots that will take it, topping up piles of the same block before
     /// opening a new one. Returns whatever would not fit.
     /// <para>
-    /// Nothing calls this yet: it is the door items come in by, and it is here so that the thing which
-    /// eventually drops them has somewhere to put them.
+    /// The door everything comes in by: a block walked over on the ground arrives here, and so does whatever
+    /// was left on the cursor when the inventory screen was closed.
     /// </para>
     /// </summary>
     public ItemStack TryAdd(ItemStack stack)
@@ -242,9 +309,17 @@ public sealed class Inventory
         CursorStack = slot;
     }
 
-    /// <summary>Takes a stack out of thin air onto the cursor, which is what the block list on the screen is.</summary>
+    /// <summary>
+    /// Takes a stack out of thin air onto the cursor, which is what the block list on the screen is. Does
+    /// nothing in survival, where there is no thin air to take one out of.
+    /// </summary>
     public void TakeFromSupply(Block block, int count)
     {
+        if (!HasEndlessSupply)
+        {
+            return;
+        }
+
         CursorStack = new ItemStack(block, count);
         OnChangedHandler?.Invoke();
     }

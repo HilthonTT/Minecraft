@@ -14,6 +14,8 @@ public static class ArgsParser
           port=<1-65535>                    Defaults to 25565.
           world=<name>                      Save directory under saves/. Defaults to world.
           seed=<number>                     Seeds a new world. Ignored if the world already exists.
+          gamemode=survival|creative        Mode for a new world. Ignored if the world already exists.
+                                            Defaults to survival.
           fresh=true|false                  Deletes the world first, so each launch generates new
                                             terrain. Defaults to false.
           menu=true|false                   Open on the main menu. Turn it off to start playing
@@ -32,7 +34,11 @@ public static class ArgsParser
 
     public const string DefaultWorldName = "world";
 
-    private static readonly string[] _knownKeys = ["mode", "ip", "port", "world", "seed", "fresh", "menu", "loglevel"];
+    /// <summary>What a world is created in when nothing says otherwise.</summary>
+    public const GameMode DefaultGameMode = GameMode.Survival;
+
+    private static readonly string[] _knownKeys =
+        ["mode", "ip", "port", "world", "seed", "gamemode", "fresh", "menu", "loglevel"];
 
     /// <summary>
     /// Parses <c>key=value</c> start arguments. Every argument is optional; anything left out falls back to
@@ -73,6 +79,7 @@ public static class ArgsParser
             LogLevel = GetLogLevel(parsedArgs),
             WorldName = GetWorldName(parsedArgs),
             Seed = GetSeed(parsedArgs),
+            GameMode = GetGameMode(parsedArgs),
             FreshWorld = GetFreshWorld(parsedArgs),
             ShowMenu = GetShowMenu(parsedArgs),
         };
@@ -173,6 +180,22 @@ public static class ArgsParser
         }
 
         return seed;
+    }
+
+    private static GameMode? GetGameMode(Dictionary<string, string> startArgs)
+    {
+        if (!startArgs.TryGetValue("gamemode", out string? value))
+        {
+            return null;
+        }
+
+        if (!Enum.TryParse(value, ignoreCase: true, out GameMode gameMode) || !Enum.IsDefined(gameMode))
+        {
+            throw new ArgumentException(
+                "Invalid game mode '" + value + "'. Expected survival or creative.");
+        }
+
+        return gameMode;
     }
 
     private static LogLevel GetLogLevel(Dictionary<string, string> startArgs)

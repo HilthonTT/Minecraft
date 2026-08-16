@@ -13,6 +13,7 @@ public sealed class BlockGrassBlade : Block
         IsOpaque = false;
         IsOverridable = true;
         SoundMaterial = BlockSoundMaterial.Grass;
+        SecondsToBreak = 0F;
     }
 
     public override BlockState GetNewDefaultState()

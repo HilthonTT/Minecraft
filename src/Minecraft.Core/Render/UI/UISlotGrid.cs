@@ -205,6 +205,20 @@ public sealed class UISlotGrid
         _countShadows[slot].PixelPositionInCanvas = position + new Vector2(CountShadowOffset, CountShadowOffset);
     }
 
+    /// <summary>
+    /// Shows or hides the whole block of slots. Used by the inventory screen, which has a section that only
+    /// one of the two game modes has any use for.
+    /// </summary>
+    public void SetVisible(bool isVisible)
+    {
+        for (int slot = 0; slot < Count; slot++)
+        {
+            _panels[slot].IsVisible = isVisible;
+            _counts[slot].IsVisible = isVisible;
+            _countShadows[slot].IsVisible = isVisible;
+        }
+    }
+
     /// <summary>Hides every count, for a grid that is being taken off the screen.</summary>
     public void ClearCounts()
     {

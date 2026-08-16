@@ -432,6 +432,13 @@ public class World
 
         foreach (Entity entity in _loadedEntities.Values)
         {
+            // A stack on the ground is not in anybody's way: it is swept up by walking over it, and a block
+            // built over one would otherwise be refused for a thing the builder cannot even push aside.
+            if (entity is DroppedItem)
+            {
+                continue;
+            }
+
             if (collisionBoxes.Any(entity.Hitbox.Intersects))
             {
                 return true;

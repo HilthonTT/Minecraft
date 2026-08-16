@@ -64,6 +64,12 @@ public sealed class SoundDirector
     /// </summary>
     private const float HurtVolume = 1.0F;
 
+    /// <summary>
+    /// Picking something up. Quiet, because a seam of ore broken out in a run is a dozen of these within a
+    /// few seconds and the point of the sound is only that it happened.
+    /// </summary>
+    private const float PickupVolume = 0.35F;
+
     /// <summary>Tracks one entity between frames, so movement can be measured without the entity holding it.</summary>
     private sealed class EntitySoundState
     {
@@ -136,6 +142,21 @@ public sealed class SoundDirector
         _engine.PlayAt(_sounds.Get(sound.Value).Pick(_random), entity.Position, HurtVolume, RandomPitch());
     }
 
+    /// <summary>
+    /// The player being hurt, which the server has to say: nothing about a body that has just been walked
+    /// into by a zombie or landed hard looks any different from one that has not.
+    /// </summary>
+    public void OnPlayerHurt(Vector3 position)
+    {
+        _engine.PlayAt(_sounds.Get(Sound.PlayerHurt).Pick(_random), position, HurtVolume, RandomPitch());
+    }
+
+    /// <summary>A stack swept up off the ground, played where the player who collected it is standing.</summary>
+    public void OnItemPickedUp(Vector3 position)
+    {
+        _engine.PlayAt(_sounds.Get(Sound.ItemPickup).Pick(_random), position, PickupVolume, RandomPitch());
+    }
+
     /// <summary>Drops everything remembered about a world that has been left.</summary>
     public void OnWorldUnloaded()
     {
@@ -151,6 +172,14 @@ public sealed class SoundDirector
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
+            // A stack lying on the ground has no feet and nothing to say. It is still moved about by the
+            // toss that threw it out and by any water it lands in, and every one of those is a stride as
+            // far as the measurements below can tell.
+            if (entity is DroppedItem)
+            {
+                continue;
+            }
+
             EntitySoundState state = StateOf(entity.ID);
             UpdateMovementSounds(entity, state, world);
             UpdateCallSounds(entity, state, deltaTime);

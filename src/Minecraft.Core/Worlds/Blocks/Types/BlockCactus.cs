@@ -12,6 +12,7 @@ public sealed class BlockCactus : Block
         IsOpaque = false;
         HasCustomState = true;
         SoundMaterial = BlockSoundMaterial.Cloth;
+        SecondsToBreak = 0.4F;
     }
 
     public override BlockState GetNewDefaultState()

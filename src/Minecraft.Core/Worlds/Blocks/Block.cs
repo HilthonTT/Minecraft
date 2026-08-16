@@ -36,6 +36,21 @@ public abstract class Block
     //If this block has blockstate specific data
     public bool HasCustomState { get; protected set; } = false;
 
+    /// <summary>
+    /// How long a bare hand takes to break this block, in seconds. Zero is instant, which is what anything
+    /// with no body of its own comes to, and <see cref="float.PositiveInfinity"/> is bedrock: nothing a
+    /// player is ever given will get through it.
+    /// <para>
+    /// Held as a time rather than as Minecraft's own hardness figure because there is nothing to hold yet
+    /// that digs faster. When there is, this becomes the numerator and the tool the denominator; until then
+    /// the two would be the same number written twice, and one of them would be wrong.
+    /// </para>
+    /// </summary>
+    public float SecondsToBreak { get; protected set; } = 1.0F;
+
+    /// <summary>Whether any amount of digging gets through this block.</summary>
+    public bool IsBreakable => !float.IsPositiveInfinity(SecondsToBreak);
+
     protected Block(ushort id)
     {
         Id = id;
@@ -43,6 +58,18 @@ public abstract class Block
     }
 
     public abstract BlockState GetNewDefaultState();
+
+    /// <summary>
+    /// What breaking this block leaves behind, or null when it leaves nothing. Itself for almost everything;
+    /// the exceptions are the blocks that come apart on the way out — stone into cobblestone, grass into the
+    /// dirt under it — and the greenery, which is torn rather than harvested.
+    /// <para>
+    /// Only asked when a player broke the block by hand. Water washing a flower away, sand settling a cell
+    /// lower and a blast taking a hillside apart all go through the same removal, and none of them should
+    /// leave a pile of anything behind.
+    /// </para>
+    /// </summary>
+    public virtual Block? GetDroppedBlock(BlockState blockState) => this;
 
     public virtual void OnInteract(BlockState blockstate, Vector3i blockPos, World world)
     {

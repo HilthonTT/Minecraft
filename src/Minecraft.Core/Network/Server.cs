@@ -84,7 +84,7 @@ public sealed class Server
             _storage.DeleteExistingWorld();
         }
 
-        World = new WorldServer(_game, _storage, _game.WorldSeed);
+        World = new WorldServer(_game, _storage, _game.WorldSeed, _game.WorldGameMode);
 
         _isRunning = true;
         _connectionsThread = new Thread(ListenForConnections)

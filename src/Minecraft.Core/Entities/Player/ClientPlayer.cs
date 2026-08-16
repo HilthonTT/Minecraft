@@ -34,11 +34,50 @@ public sealed class ClientPlayer : Player
     /// </summary>
     private const float MaxAttackReach = 3.0F;
 
+    /// <summary>
+    /// How often the arm swings while a block is being dug out, in seconds. Matched to how long one swing
+    /// takes to play, so that mining reads as a run of blows rather than as one long reach.
+    /// </summary>
+    private const float SecondsBetweenMiningSwings = 0.3F;
+
     private readonly Game _game;
 
     private float _elapsedSecondsSinceLastPositionUpdate;
 
+    /// <summary>Which block is being dug out, or null while nothing is.</summary>
+    private Vector3i? _breakingBlockPos;
+
+    private float _secondsSpentBreaking;
+    private float _secondsUntilNextMiningSwing;
+
+    /// <summary>
+    /// Whether the removal for the block under the crosshair has already gone. It stays true until the
+    /// crosshair finds a different cell, which is what stops one block from being asked for on every frame
+    /// while the answer is still in flight.
+    /// </summary>
+    private bool _hasAskedToBreakTarget;
+
+    /// <summary>
+    /// The highest the player has been since they last left the ground, and whether they were airborne on
+    /// the previous frame. Between them these are the whole of a fall: how far one was is the difference
+    /// between the top of it and where the feet came to rest.
+    /// </summary>
+    private float _highestPointOfFall;
+    private bool _wasInAir;
+
     public Camera Camera { get; }
+
+    /// <summary>
+    /// What the player has left, as the server last reported it. Read by the bar along the bottom of the
+    /// screen and by nothing else: this side never works out what a blow costs, only what came of one.
+    /// </summary>
+    public int Health { get; private set; } = Constants.PLAYER_MAX_HEALTH;
+
+    /// <summary>
+    /// How far through breaking the block under the crosshair, from zero to one. Drawn as the outline
+    /// around it brightening, and zero whenever nothing is being dug.
+    /// </summary>
+    public float BreakProgress { get; private set; }
 
     /// <summary>What this player is carrying, and which of the nine hotbar slots is in hand.</summary>
     public Inventory Inventory { get; } = new();
@@ -107,6 +146,39 @@ public sealed class ClientPlayer : Player
     }
 
     /// <summary>
+    /// Takes the mode the server has put this player into. The inventory is a different thing in each of the
+    /// two — a supply in one and a container in the other — so it is started over rather than carried across.
+    /// </summary>
+    public override void SetGameMode(GameMode gameMode)
+    {
+        base.SetGameMode(gameMode);
+        Inventory.ApplyGameMode(gameMode);
+        StopBreaking();
+    }
+
+    /// <summary>What the server says this player has left. Nothing here decides it; this only shows it.</summary>
+    public void SetHealth(int health) => Health = Math.Clamp(health, 0, Constants.PLAYER_MAX_HEALTH);
+
+    /// <summary>
+    /// Puts the player back on their feet at the spawn after a death. The one time the server moves a body
+    /// this side simulates, so everything the simulation was in the middle of is dropped with it — a fall
+    /// that was under way most of all, or the landing would be reported and charged for twice.
+    /// </summary>
+    public void RespawnAt(Vector3 spawnPosition)
+    {
+        Position = spawnPosition;
+        Velocity = Vector3.Zero;
+        Acceleration = Vector3.Zero;
+
+        ResetMovementState();
+        ResetFallTracking();
+        StopBreaking();
+        UpdateCameraPosition();
+
+        _game.Client.WritePacket(new EntityDataPacket(ID, Position, Velocity, Yaw));
+    }
+
+    /// <summary>
     /// Puts the player back to how it was before it ever joined a world. The instance itself is kept, since
     /// the camera and everything the renderer holds are built around this one, so the next world starts from
     /// a clean state rather than inheriting where the last one was left.
@@ -129,11 +201,15 @@ public sealed class ClientPlayer : Player
         MouseOverEntity = null;
         _elapsedSecondsSinceLastPositionUpdate = 0;
 
-        // Nothing carried follows a player out of a world, so the next one opens on the nine blocks every
-        // world starts with rather than on whatever was in hand when the last was left.
+        Health = Constants.PLAYER_MAX_HEALTH;
+
+        // Nothing carried follows a player out of a world, so the next one opens on whatever its own mode
+        // starts a player with rather than on what was in hand when the last was left.
         Inventory.ResetToDefaults();
 
         ResetMovementState();
+        ResetFallTracking();
+        StopBreaking();
         ForgetCurrentChunk();
         UpdateAxisAlignedBox();
     }
@@ -186,11 +262,14 @@ public sealed class ClientPlayer : Player
         }
 
         ApplyVelocityAndCheckCollision(deltaTime, world);
+        UpdateFallTracking();
+
         MouseOverObject = new Ray(Camera.Position, Camera.Forward).TraceWorld(world, MaxBlockReach);
         MouseOverEntity = FindMobUnderCrosshair(world);
 
         UpdateCameraPosition();
         UpdateMouseInput(world);
+        UpdateBreaking(deltaTime, world);
 
         _realForward = Camera.Forward;
         // The movement basis ignores pitch, so looking up does not slow the player down.
@@ -257,10 +336,6 @@ public sealed class ClientPlayer : Player
             {
                 _game.Client.WritePacket(new PlayerAttackEntityPacket(MouseOverEntity.ID));
             }
-            else if (MouseOverObject is not null)
-            {
-                _game.Client.WritePacket(new RemoveBlockPacket(MouseOverObject.IntersectedBlockPos));
-            }
         }
 
         // Everything below is aimed at a block, so there is nothing to do without one.
@@ -296,15 +371,11 @@ public sealed class ClientPlayer : Player
                      selected.CanAddBlockAt(world, MouseOverObject.IntersectedBlockPos))
             {
                 // The block being looked at can be replaced outright, so the new block takes its place.
-                _game.Client.WritePacket(new PlaceBlockPacket(
-                    BuildStateToPlaceAt(MouseOverObject.IntersectedBlockPos),
-                    MouseOverObject.IntersectedBlockPos));
+                TryPlaceAt(world, MouseOverObject.IntersectedBlockPos);
             }
             else if (selected.CanAddBlockAt(world, MouseOverObject.BlockPlacePosition))
             {
-                _game.Client.WritePacket(new PlaceBlockPacket(
-                    BuildStateToPlaceAt(MouseOverObject.BlockPlacePosition),
-                    MouseOverObject.BlockPlacePosition));
+                TryPlaceAt(world, MouseOverObject.BlockPlacePosition);
             }
         }
 
@@ -316,6 +387,34 @@ public sealed class ClientPlayer : Player
                 Inventory.PickBlock(picked);
             }
         }
+    }
+
+    /// <summary>
+    /// Asks the server to put the held block down, and pays for it out of the stack in hand.
+    /// <para>
+    /// The block is spent here rather than when the placement comes back confirmed, which is the one place
+    /// this side gets ahead of the server. It can afford to: everything the server would refuse a placement
+    /// for is tested first — the block being able to stand there, and nothing standing where it would go —
+    /// so the answer is only ever no when the world changed underneath in the tenth of a second between.
+    /// Waiting instead would mean a hotbar that lags a block behind every click.
+    /// </para>
+    /// </summary>
+    private void TryPlaceAt(World world, Vector3i blockPos)
+    {
+        BlockState state = BuildStateToPlaceAt(blockPos);
+
+        // The server refuses a block placed into somebody, so asking for one would spend a block on nothing.
+        if (world.IsBlockedByEntity(blockPos, state))
+        {
+            return;
+        }
+
+        if (!Inventory.TryConsumeSelected())
+        {
+            return;
+        }
+
+        _game.Client.WritePacket(new PlaceBlockPacket(state, blockPos));
     }
 
     /// <summary>
@@ -333,6 +432,134 @@ public sealed class ClientPlayer : Player
         }
 
         return state;
+    }
+
+    /// <summary>
+    /// Digs out whatever the crosshair is held on while the left button is down.
+    /// <para>
+    /// Timed here rather than on the server for the same reason a fall is: this side knows what is under the
+    /// crosshair on every frame, where the server sees a look direction a tenth of a second old. What is sent
+    /// is the same removal request a click has always sent — the server still decides whether the block goes
+    /// — and all this decides is when to ask. In creative there is nothing to time and a block goes on the
+    /// press, which is what a drawing board should feel like.
+    /// </para>
+    /// </summary>
+    private void UpdateBreaking(float deltaTime, World world)
+    {
+        bool digging = _game.Window.IsFocused &&
+                       _game.IsGameplayInputEnabled &&
+                       Game.Input.OnMouseDown(MouseButton.Left) &&
+                       MouseOverEntity is null &&
+                       MouseOverObject is not null;
+
+        if (!digging)
+        {
+            StopBreaking();
+            return;
+        }
+
+        Vector3i target = MouseOverObject!.IntersectedBlockPos;
+        Block block = world.GetBlockAt(target).GetBlock();
+
+        // Bedrock. Nothing a player is ever given gets through it, so the swing lands and goes nowhere.
+        if (!block.IsBreakable && !IsCreative)
+        {
+            StopBreaking();
+            return;
+        }
+
+        // Looking away and back starts the block over, which is what stops somebody from chipping away at
+        // half the world at once by sweeping the crosshair across it.
+        if (_breakingBlockPos != target)
+        {
+            _breakingBlockPos = target;
+            _secondsSpentBreaking = 0F;
+            _secondsUntilNextMiningSwing = 0F;
+            _hasAskedToBreakTarget = false;
+        }
+
+        // The removal has gone; the block is only still here because the answer has not come back yet.
+        // Asking again every frame until it does would be sixty requests for one block.
+        if (_hasAskedToBreakTarget)
+        {
+            return;
+        }
+
+        float required = IsCreative ? 0F : block.SecondsToBreak;
+
+        _secondsSpentBreaking += deltaTime;
+        BreakProgress = required <= 0F ? 1F : Math.Clamp(_secondsSpentBreaking / required, 0F, 1F);
+
+        // Kept swinging for as long as the digging lasts, since one blow is not what breaking a block looks
+        // like when it takes a couple of seconds.
+        _secondsUntilNextMiningSwing -= deltaTime;
+        if (_secondsUntilNextMiningSwing <= 0F)
+        {
+            _secondsUntilNextMiningSwing = SecondsBetweenMiningSwings;
+            OnSwingHandler?.Invoke();
+        }
+
+        if (BreakProgress < 1F)
+        {
+            return;
+        }
+
+        _game.Client.WritePacket(new RemoveBlockPacket(target));
+
+        _hasAskedToBreakTarget = true;
+        BreakProgress = 0F;
+    }
+
+    private void StopBreaking()
+    {
+        _breakingBlockPos = null;
+        _secondsSpentBreaking = 0F;
+        _secondsUntilNextMiningSwing = 0F;
+        _hasAskedToBreakTarget = false;
+        BreakProgress = 0F;
+    }
+
+    /// <summary>
+    /// Watches for the end of a fall and reports how long it was.
+    /// <para>
+    /// Only this side can: the server is sent a position every tenth of a second and could not tell a drop
+    /// from a walk down a staircase without rebuilding the whole flight, while the body here has just been
+    /// simulated and knows exactly where it left the ground and where it stopped. What the fall costs is
+    /// still the server's to decide, the same way what a punch costs is.
+    /// </para>
+    /// </summary>
+    private void UpdateFallTracking()
+    {
+        // A fall through water is broken by it, and nobody flying is falling at all.
+        if (IsCreative || _isFlying || _isInLiquid)
+        {
+            ResetFallTracking();
+            return;
+        }
+
+        if (_isInAir)
+        {
+            _highestPointOfFall = _wasInAir ? MathF.Max(_highestPointOfFall, Position.Y) : Position.Y;
+            _wasInAir = true;
+            return;
+        }
+
+        if (_wasInAir)
+        {
+            float fallen = _highestPointOfFall - Position.Y;
+            if (fallen > Constants.PLAYER_SAFE_FALL_BLOCKS)
+            {
+                _game.Client.WritePacket(new PlayerFellPacket(fallen));
+            }
+        }
+
+        ResetFallTracking();
+    }
+
+    private void ResetFallTracking()
+    {
+        _wasInAir = false;
+        _highestPointOfFall = Position.Y;
     }
 
     /// <summary>

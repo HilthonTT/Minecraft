@@ -107,6 +107,13 @@ public sealed class BlockWater : Block
         };
     }
 
+    /// <summary>
+    /// Water is never broken — it has no selection box, so nothing can be aimed at it, and it only ever
+    /// leaves a cell by being displaced. It therefore drops nothing, which is what stops a bucketless player
+    /// from carrying an ocean home a cell at a time should anything ever manage to aim at one.
+    /// </summary>
+    public override Block? GetDroppedBlock(BlockState blockState) => null;
+
     public override BlockState GetNewDefaultState()
     {
         return new BlockStateSimple(this);

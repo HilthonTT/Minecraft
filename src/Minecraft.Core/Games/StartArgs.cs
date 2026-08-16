@@ -17,6 +17,12 @@ public struct StartArgs
     public int? Seed;
 
     /// <summary>
+    /// Which mode a newly created world is played in. Ignored when the world already exists, the same way
+    /// the seed is, since an existing world carries its own.
+    /// </summary>
+    public GameMode? GameMode;
+
+    /// <summary>
     /// Deletes the named world before loading it, so every launch generates new terrain. Combined with no
     /// explicit <see cref="Seed"/> this gives a different random seed each time.
     /// </summary>

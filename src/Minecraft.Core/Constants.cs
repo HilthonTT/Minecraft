@@ -73,6 +73,32 @@ public static class Constants
     public const float PLAYER_WIDTH = HALF_CUBE_DIM; /** X direction */
     public const float PLAYER_LENGTH = HALF_CUBE_DIM; /** Z direction */
 
+    /// <summary>
+    /// What a player has, in half hearts, which is the same twenty a zombie carries. The bar along the
+    /// bottom of the screen draws it as ten hearts, so this has to stay even.
+    /// </summary>
+    public const int PLAYER_MAX_HEALTH = 20;
+
+    /// <summary>
+    /// How long a blow leaves the player alone afterwards. The same half second a mob gets, and for the same
+    /// reason: without it, standing in a crowd of zombies empties the bar within a single second.
+    /// </summary>
+    public const float PLAYER_HURT_SECONDS = 0.5F;
+
+    /// <summary>
+    /// How long after the last blow the player starts mending, and how long each half heart then takes.
+    /// There is nothing to eat yet, so without this survival is a one way ratchet: every scrape is permanent
+    /// and the only way back to full is to die. Slow enough that a fight is still lost by staying in it.
+    /// </summary>
+    public const float PLAYER_REGEN_DELAY_SECONDS = 6F;
+    public const float PLAYER_REGEN_SECONDS_PER_HEALTH = 4F;
+
+    /// <summary>
+    /// How far a player falls for free. Past it every further block costs a half heart, which is Minecraft's
+    /// own rule and puts a three block drop within reach and a ten block one within the bar.
+    /// </summary>
+    public const float PLAYER_SAFE_FALL_BLOCKS = 3F;
+
     public const float PLAYER_BASE_MOVE_SPEED = 50F;
     public const float PLAYER_SPRINT_MULTIPLIER = 1.75F;
     public const float PLAYER_CROUCH_MULTIPLIER = 0.35F;

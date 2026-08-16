@@ -8,6 +8,7 @@ How the engine works. For building and playing it, see [README.md](README.md).
 - [Structures](#structures)
 - [Saved worlds](#saved-worlds)
 - [Settings](#settings)
+- [Game modes](#game-modes)
 - [Lighting](#lighting)
 - [Inventory](#inventory)
 - [Rendering](#rendering)
@@ -31,12 +32,12 @@ Inside `Minecraft.Core`:
 | Directory            | Contents                                                                 |
 | -------------------- | ------------------------------------------------------------------------ |
 | `Audio/`             | Sound loading, the mixer, and what decides when anything plays             |
-| `Entities/`          | Camera, the player on both sides of a connection, and the mobs             |
+| `Entities/`          | Camera, the player on both sides of a connection, the mobs, and dropped items |
 | `Games/`             | Game loop, window, game state, menu flow, input, start argument parsing    |
 | `Inventories/`       | Stacks, the slots that hold them, and the catalogue of what can go in one  |
 | `IO/`                | Buffered binary reader and writer for network packets                      |
 | `Logging/`           | Levelled console logger                                                    |
-| `Network/`           | Client, server, sessions, packets and their handlers                       |
+| `Network/`           | Client, server, sessions, packets, their handlers, and the chat commands   |
 | `Physics/`           | Axis aligned boxes and ray tracing                                         |
 | `Render/`            | Master renderer, chunk meshing, debug overlays, UI and the menu screens    |
 | `Render/Particles/`  | The specks in the air: what moves them, what draws them, what throws them  |
@@ -64,6 +65,12 @@ wrapper in `Games/` beside the window it reads.
 The world only ever changes on the server. A client sends a request — place, break, interact — and applies
 nothing until the server broadcasts the result back. Singleplayer runs the same path, with a server hosted in
 the same process, so there is one code path rather than two.
+
+Where a client is trusted, it is trusted to *observe* and never to decide: what was aimed at, how long a
+button was held, how far a body fell. Every one of those is something this side has just simulated and the
+server has only a tenth of a second old copy of, and every one of them is answered by the server deciding what
+it is worth. The inventory is the single exception, and a deliberate one — it lives on the client alone, which
+is why picking something up is a packet saying what you now have rather than a slot the server wrote into.
 
 Chunks are generated on a background thread and streamed per player, nearest first, by a `ChunkProvider` that
 each session owns. A chunk stays loaded while at least one player can see it. Meshing runs on its own thread
@@ -178,7 +185,7 @@ entity is refused and the block would otherwise have gone from the world altoget
 
 ```
 saves/world/
-  level.dat          format version, seed and time of day, as plain text
+  level.dat          format version, seed, time of day and game mode, as plain text
   chunks/c.0.-1.gz   one gzipped chunk, named after its grid position
 ```
 
@@ -204,7 +211,13 @@ match the running build is refused rather than misread, and a corrupt chunk file
 instead of taking the world down with it.
 
 Passing `seed` for a world that already exists is ignored, with a warning — its terrain is already fixed. To
-start over, delete the world directory or pick a different `world` name.
+start over, delete the world directory or pick a different `world` name. `gamemode` follows the same rule and
+for a weaker but real version of the same reason: a world built up in creative and reopened in survival is a
+world whose contents were never earned.
+
+The game mode was added without bumping the format version, because an absent key reads as its fallback rather
+than as a broken file: a version 2 world written before there was a choice comes back as creative, which is
+the only mode it was ever played in.
 
 ## Settings
 
@@ -224,6 +237,80 @@ streamed, so the client sends a `PlayerSettings` packet — on joining, and agai
 server holds what it asks for against a ceiling of its own before storing it on the session. `ChunkProvider`
 reads that figure every update, so the world being streamed follows the slider. The fog is measured against the
 same distance, so moving it moves the horizon rather than leaving the haze somewhere the world no longer ends.
+
+## Game modes
+
+A world is played in one of two modes, chosen when it is created and moved afterwards by `/gamemode`. Creative
+is the drawing board the game was before there was a choice; survival is the loop of breaking a block, picking
+up what it left and spending it again.
+
+The mode belongs to the server. It is fixed on the world in `level.dat`, everyone who joins is put into it,
+and a client is told what it is with its join accept — carried there rather than sent after the fact, so there
+is never a frame in which a client has a world in front of it and the wrong rules for it. `/gamemode` writes
+the new mode back onto the world as well as onto the player, so a world reopens in the mode it was left in.
+
+### Breaking
+
+A block carries how long a bare hand takes to get through it. That is held as a time rather than as
+Minecraft's own hardness figure because there is nothing to hold yet that digs faster; when there is, the time
+becomes the numerator and the tool the denominator, and until then the two would be the same number written
+twice with one of them wrong.
+
+The timing runs on the client, and has to: this side knows what is under the crosshair on every frame, where
+the server has a look direction a tenth of a second old. Nothing else moves, though. What is sent when the
+time is up is the same removal request a click has always sent, and the server still decides whether the block
+goes — so all the client decides is *when to ask*, which is the same thing it decides for a punch.
+
+The outline around the block is the progress bar, brightening and thickening as the block comes apart. A bar
+somewhere on the interface would be read a long way from the thing it is about; the block is where the player
+is already looking.
+
+### Drops
+
+Breaking a block throws out a `DroppedItem`, an entity a quarter of a block across that falls, slides and is
+swept up by walking over it. What a block leaves behind is its own business, and almost everything leaves
+itself: the exceptions are the two that come apart on the way out, stone into cobblestone and grass into the
+dirt under it.
+
+Leaves are deliberately not a third. In the game this borrows from they tear and leave a sapling instead, but
+there are no saplings here and nothing to craft one into, so dropping nothing would not be a trade for
+something else — it would put a full building block, and the canopy of every tree in the world, permanently
+out of reach. The rule that holds until there is a crafting table is that anything you can break, you can
+carry.
+
+Drops are thrown by the **packet handler**, not by the world's own block removal. Everything goes through that
+removal: water washing a flower away, a bank of sand settling a cell at a time, a blast taking a hillside
+apart. Only a player swinging at a block has earned anything, and the handler is the one place that knows a
+swing is what this was. A removal carrying more than one position is a debug tool clearing a volume rather
+than a break, and pays out nothing.
+
+Pickup is the one seam where the two sides hold different halves of one fact. The server owns the item lying
+in the world and decides who collected it; the inventory it lands in lives on the client and nowhere else. So
+the item leaves the world on the server and the player is told what they now have. Anything that will not fit
+is lost with it — thirty six slots is a great deal of room, and a server side inventory is the change that
+would close this properly.
+
+### Health
+
+Health lives on `ServerPlayer` for the same reason a mob's lives on the server side of the world: the only
+thing that decides a blow lands is there, and a client holding its own copy of the number would be a second
+opinion on it. What the client is sent is the bar to draw, and a flag saying whether the change was a blow or
+the bar mending, because nothing about a number going down says which.
+
+A zombie's swing is dealt where the zombie is. A fall is not: the server sees a position every tenth of a
+second and could not tell a drop from a walk down a staircase without rebuilding the whole flight, while the
+client has just simulated the body and knows exactly where it left the ground and where it stopped. So the
+client reports how far it fell and the server decides what that is worth — the same division a punch already
+uses, where the client says what it aimed at and the server says what it cost.
+
+There is nothing to eat, so the bar mends itself a half heart every four seconds once a player has been left
+alone for six. Without it every scrape a world ever deals is permanent and the only way back to full is to
+die. Dying puts the player back at the world spawn with everything they were carrying, since with no crafting
+a lost inventory is hours of digging with no way to make any of it back quickly.
+
+Survival reach is five blocks against creative's forty, and that is load bearing rather than cosmetic: a block
+broken falls where it stood, and one broken from forty blocks away is one nobody can pick up. Reaching a thing
+and collecting it are the same distance, so they are the same number.
 
 ## Lighting
 
@@ -261,15 +348,23 @@ An `ItemStack` is a value type, so a slot holds a pile rather than a reference t
 to contain the same block are still two separate piles of it, and copying one out of a slot cannot leave the
 two aliased.
 
-Nothing is spent. Placing a block does not take one out of the stack, because nothing yet drops one to put
-back, and an inventory that only ever emptied would be worse than none. What the counts are for is the shape:
-`Inventory.TryAdd` already pours a stack into the first slots that will take it, topping up piles of the same
-block before opening a new one, so the day breaking a block leaves something behind there is a door for it to
-come in by and every screen that reads a slot already knows how to draw it.
+The same thirty six slots are two different things in the two game modes. In creative the inventory has an
+endless supply behind it: the hotbar opens filled, placing a block costs nothing, and the block list across
+the top of the screen hands out whole stacks. In survival it is a container and nothing else — it opens empty,
+a placement comes out of the stack in hand, and the only way anything gets in is `Inventory.TryAdd`, which
+pours a stack into the first slots that will take it and is where a block just picked up off the ground lands.
 
-That is also why the screen offers a list of every block rather than only what is carried: a slot has to be
-filled from somewhere. The same list is the bin — clicking it with a full cursor empties the cursor — and when
-items do start dropping, it is the only part of the screen that has to change.
+Which of the two it is decides three things that would otherwise be ways of helping yourself to what survival
+is about earning, so all three are gated on it: the block list is left off the screen, the middle mouse button
+reaches no further than selecting a hotbar slot that already holds the block, and the hotbar opens empty.
+Switching modes starts the inventory over rather than carrying it across, because a hotbar filled by creative
+is a hundred blocks of building material and a stack of TNT that survival never had to earn.
+
+Placing a block is the one place the client gets ahead of the server: the stack is spent when the request is
+sent rather than when the placement comes back confirmed. It can afford to be. Everything the server would
+refuse a placement for is tested first — the block being able to stand there, and nothing standing where it
+would go — so the answer is only ever no when the world changed underneath within the tenth of a second
+between. Waiting instead would mean a hotbar that lags a block behind every click.
 
 ![The inventory screen open over a grassland at dusk: four rows holding every block in the game under the heading Blocks, three empty rows of storage under Carried, and the nine hotbar slots along the bottom each with a stack of sixty four](Screenshots/sample-12.png)
 
@@ -414,6 +509,12 @@ night they have the run of the surface as well, apart from wherever a torch is b
 
 ![Zombies scattered across a dark meadow at night, one of them close to the camera](Screenshots/sample-3.png)
 
+A zombie that catches up with somebody swings at them, once a second, for three of the twenty a player
+carries — Minecraft's own figure on normal difficulty. Seven blows to kill somebody standing still, which is
+long enough to notice and run and short enough that being cornered by three of them is the end of it. What the
+blow costs is the world's to decide rather than the zombie's, which is what keeps a creative player
+untouchable and a dead one back at the spawn without the zombie knowing about either.
+
 ### Punching them
 
 A left click that finds a mob within arm's length hits it instead of breaking the block behind it. Which of
@@ -433,6 +534,7 @@ That is the same shape as placing and breaking: a client asks, and applies nothi
 | Pig    | 10     | 10      |
 | Cow    | 10     | 10      |
 | Zombie | 20     | 20      |
+| Player | 20     | —       |
 
 A bare fist takes off one, which is what an empty hand does in the game these figures come from, so the mob
 healths borrowed along with it come out at the number of blows they are supposed to. There is nothing to hold
@@ -481,13 +583,18 @@ ground does not read as the same handful of clips looping.
 | Animals, zombies  | Their own calls on a timer, and their own footfalls    |
 | Hurt, death       | A mob being punched, and the blow that finishes it     |
 | Fuse, explosion   | TNT being struck, and the blast at the end of it       |
+| Hurt              | The player being hit, or landing from a height         |
+| Pop               | A stack swept up off the ground                        |
 
 A block says which of seven sets it belongs to — stone, grass, gravel, sand, wood, snow or cloth — rather than
 carrying sounds of its own, since a dozen kinds of stone all break the same way. The greenery sounds like the
 grass it grows out of; cloth is for the cactus, which gives under a blow rather than tearing.
 
-Two of them cannot be worked out that way. A mob being hit is one: nothing about how a mob looks or moves says
-a blow landed, so the packet that reports one is what the cry hangs off.
+Three of them cannot be worked out that way. Anything being hit is two: nothing about how a mob looks or moves
+says a blow landed, and nothing about a player who has just been walked into by a zombie looks different from
+one who has not, so the packets that report those are what the cries hang off. A stack being picked up is the
+third, for the same reason — the item leaves the world on the server, and only the player who collected it is
+told which of the several people standing around it that was.
 
 The blast is the other, sent as an `Explosion` packet carrying where it went off. What a
 client would otherwise see of it is the hundreds of separate block removals it leaves behind, which arrive one

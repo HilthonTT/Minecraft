@@ -2,9 +2,11 @@
 using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
+using Minecraft.Core.Inventories;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
+using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Mathematics;
 
@@ -30,6 +32,13 @@ public sealed class ServerNetHandler : INetHandler
     /// </summary>
     private const float MaxAttackReach = 6F;
 
+    /// <summary>
+    /// How far from a player a block may be and still drop something when it is broken. Well beyond the
+    /// forty a client will let anyone aim at, since the position held here is a tenth of a second old, but
+    /// finite: a request to break a block on the other side of the world is not a request to be paid for one.
+    /// </summary>
+    private const float MaxDropReach = 64F;
+
     private readonly Game _game;
     private ServerSession _session = null!;
 
@@ -47,14 +56,95 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessRemoveBlockPacket(RemoveBlockPacket removeBlockPacket)
     {
+        // A break by hand is one block. Everything that arrives here carrying more of them is a debug tool
+        // clearing a volume, and none of that should be paid out as a pile of drops on the floor.
+        bool isSingleBreak = removeBlockPacket.BlockPositions.Length == 1;
+
+        bool isSurvival = _session.Player is ServerPlayer { IsCreative: false };
+
         foreach (Vector3i blockPos in removeBlockPacket.BlockPositions)
         {
+            if (isSurvival && !MayBreak(blockPos))
+            {
+                continue;
+            }
+
+            if (isSingleBreak && isSurvival)
+            {
+                DropContentsOf(blockPos);
+            }
+
             _game.Server.World.QueueToRemoveBlockAt(blockPos);
+        }
+    }
+
+    /// <summary>
+    /// Whether a player playing for keeps is allowed through this block at all. Bedrock is the floor of the
+    /// world, and a client will not have let anyone dig at it, so one asking has been told otherwise.
+    /// </summary>
+    private bool MayBreak(Vector3i blockPos)
+    {
+        if (_game.Server.World.GetBlockAt(blockPos).GetBlock().IsBreakable)
+        {
+            return true;
+        }
+
+        Logger.Warn("Player " + _session.Player?.ID + " asked to break an unbreakable block at " + blockPos + ".");
+        return false;
+    }
+
+    /// <summary>
+    /// Throws out whatever the block being broken leaves behind.
+    /// <para>
+    /// Done here rather than off the world's own removal, which everything goes through: water washes
+    /// flowers away, a bank of sand settles a cell at a time and a blast takes a hillside apart, and every
+    /// one of those is an ordinary removal. Only a player swinging at a block earns anything, and this is
+    /// the one place that knows a swing is what this was.
+    /// </para>
+    /// </summary>
+    private void DropContentsOf(Vector3i blockPos)
+    {
+        if (_session.Player is not ServerPlayer breaker)
+        {
+            return;
+        }
+
+        WorldServer world = _game.Server.World;
+
+        BlockState state = world.GetBlockAt(blockPos);
+        Block block = state.GetBlock();
+
+        if (block == BlockRegistry.Air)
+        {
+            return;
+        }
+
+        var centre = new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.5F, blockPos.Z + 0.5F);
+        if ((centre - breaker.Position).LengthSquared > MaxDropReach * MaxDropReach)
+        {
+            Logger.Warn("Player " + breaker.ID + " broke a block out of reach at " + blockPos + ".");
+            return;
+        }
+
+        Block? dropped = block.GetDroppedBlock(state);
+        if (dropped is not null)
+        {
+            // Hung off the removal rather than thrown out now: the block is still standing here until the
+            // end of the next world update, and anything put in a solid cell is lifted out onto the top of
+            // it. See WorldServer.DropWhenRemoved.
+            world.DropWhenRemoved(blockPos, new ItemStack(dropped, 1));
         }
     }
 
     public void ProcessChatPacket(ChatPacket chatPacket)
     {
+        // A line starting with a slash is a request rather than something to say, and is answered to the one
+        // player who typed it instead of being repeated to the room.
+        if (ChatCommands.TryHandle(_game, _session, chatPacket.Message))
+        {
+            return;
+        }
+
         Logger.Info("Server received message " + chatPacket.Message);
         _game.Server.BroadcastPacket(chatPacket);
     }
@@ -94,6 +184,11 @@ public sealed class ServerNetHandler : INetHandler
         Vector3 spawnPosition = _game.Server.World.GenerateAndGetValidSpawn();
 
         var player = new ServerPlayer(playerId, serverPlayerName, _game.Server.World, spawnPosition);
+
+        // Everyone arrives in whatever mode the world is played in. There is no player database to remember
+        // anyone by, so the world is the only thing that can answer the question.
+        player.SetGameMode(_game.Server.World.DefaultGameMode);
+
         _session.AssignPlayer(player);
 
         _game.Server.World.SpawnEntity(player);
@@ -101,7 +196,9 @@ public sealed class ServerNetHandler : INetHandler
             serverPlayerName,
             playerId,
             spawnPosition,
-            _game.Server.World.Environment.CurrentTime));
+            _game.Server.World.Environment.CurrentTime,
+            player.GameMode,
+            player.Health));
         _session.State = SessionState.Accepted;
 
         // Let everyone already online know about the new player.
@@ -163,6 +260,34 @@ public sealed class ServerNetHandler : INetHandler
         _game.Server.World.HurtMob(mob, PunchDamage, attacker.Position, attacker);
     }
 
+    /// <summary>
+    /// A player reporting a fall. What it cost is decided here, the same way a punch is: the client has just
+    /// simulated the body and is the only thing that can say how far it dropped, and this is the only thing
+    /// that can say what that is worth.
+    /// </summary>
+    public void ProcessPlayerFellPacket(PlayerFellPacket playerFellPacket)
+    {
+        if (_session.Player is not ServerPlayer player)
+        {
+            return;
+        }
+
+        float fallen = playerFellPacket.FallenBlocks;
+
+        // A fall longer than the world is tall did not happen. Anything the client reports is only ever a
+        // request to be hurt, so the worst a bad one can do is ask for nothing.
+        if (!float.IsFinite(fallen) || fallen > Constants.MAX_BUILD_HEIGHT)
+        {
+            return;
+        }
+
+        var damage = (int)MathF.Floor(fallen - Constants.PLAYER_SAFE_FALL_BLOCKS);
+        if (damage > 0)
+        {
+            _game.Server.World.HurtPlayer(player, damage);
+        }
+    }
+
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)
     {
         _game.Server.UpdateKeepAliveFor(_session);
@@ -198,4 +323,19 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket) =>
         throw new InvalidOperationException("A server does not receive damage; it is the one that deals it.");
+
+    public void ProcessPlayerGameModePacket(PlayerGameModePacket playerGameModePacket) =>
+        throw new InvalidOperationException("A server does not receive game modes; a client asks through the chat.");
+
+    public void ProcessPlayerHealthPacket(PlayerHealthPacket playerHealthPacket) =>
+        throw new InvalidOperationException("A server does not receive health; it is the one that keeps it.");
+
+    public void ProcessPlayerRespawnPacket(PlayerRespawnPacket playerRespawnPacket) =>
+        throw new InvalidOperationException("A server does not receive respawns; it is the one that orders them.");
+
+    public void ProcessItemSpawnPacket(ItemSpawnPacket itemSpawnPacket) =>
+        throw new InvalidOperationException("A server does not receive item spawns.");
+
+    public void ProcessItemPickupPacket(ItemPickupPacket itemPickupPacket) =>
+        throw new InvalidOperationException("A server does not receive pickups; it is the one that grants them.");
 }
