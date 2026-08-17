@@ -12,7 +12,7 @@
     <PackageReference Include="NAudio" Version="2.3.0" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="OpenTK" Version="4.9.4" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.11" />
   </ItemGroup>
 
   <!-- Assets are loaded at runtime by a path relative to the output directory, so they have to
