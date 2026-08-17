@@ -41,7 +41,7 @@ public sealed class AudioEngine : IDisposable
     private const int MaxConcurrentVoices = 48;
 
     private readonly MixingSampleProvider? _mixer;
-    private readonly WaveOutEvent? _output;
+    private readonly WaveOut? _output;
 
     /// <summary>
     /// How many voices are playing. Counted here rather than read off the mixer, whose own list is handed
@@ -72,7 +72,7 @@ public sealed class AudioEngine : IDisposable
             _mixer = new MixingSampleProvider(MixerFormat) { ReadFully = true };
             _mixer.MixerInputEnded += (_, _) => Interlocked.Decrement(ref _activeVoices);
 
-            _output = new WaveOutEvent();
+            _output = new WaveOut();
             _output.Init(new SampleToWaveProvider(_mixer));
             _output.Play();
         }

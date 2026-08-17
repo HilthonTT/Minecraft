@@ -41,6 +41,17 @@ public sealed class ClientPlayer : Player
     /// </summary>
     private const float SecondsBetweenMiningSwings = 0.3F;
 
+    /// <summary>
+    /// The shortest time that can pass between one block being taken and the next, in seconds.
+    /// <para>
+    /// Only a break that takes no time to begin with ever waits on this — a dig that is timed is already
+    /// longer than it. Without it a block that comes apart on the frame it is aimed at, which is every block
+    /// in creative, takes the one behind it as well: the removal moves the crosshair onto whatever was
+    /// standing behind it, and a button still held from the same click breaks that one too.
+    /// </para>
+    /// </summary>
+    private const float SecondsBetweenBreaks = 0.25F;
+
     /// <summary>How far behind — or in front of — the player the camera stands in a third person view.</summary>
     private const float ThirdPersonDistance = 4.0F;
 
@@ -62,6 +73,12 @@ public sealed class ClientPlayer : Player
 
     private float _secondsSpentBreaking;
     private float _secondsUntilNextMiningSwing;
+
+    /// <summary>
+    /// How long until another block may be taken. Deliberately not tied to which block is being dug, since
+    /// what it exists to stop is one click running on into the block behind the one it broke.
+    /// </summary>
+    private float _secondsUntilNextBreak;
 
     /// <summary>
     /// Whether the removal for the block under the crosshair has already gone. It stays true until the
@@ -555,6 +572,10 @@ public sealed class ClientPlayer : Player
     /// — and all this decides is when to ask. In creative there is nothing to time and a block goes on the
     /// press, which is what a drawing board should feel like.
     /// </para>
+    /// <para>
+    /// What a break that takes no time still waits on is <see cref="SecondsBetweenBreaks"/>, so that one
+    /// click takes one block rather than carrying on through everything standing behind it.
+    /// </para>
     /// </summary>
     private void UpdateBreaking(float deltaTime, World world)
     {
@@ -569,6 +590,10 @@ public sealed class ClientPlayer : Player
             StopBreaking();
             return;
         }
+
+        // Ticked down here rather than beside the progress below, since the frames spent waiting on a
+        // removal to come back return early and would otherwise never count towards it.
+        _secondsUntilNextBreak = MathF.Max(0F, _secondsUntilNextBreak - deltaTime);
 
         Vector3i target = MouseOverObject!.IntersectedBlockPos;
         Block block = world.GetBlockAt(target).GetBlock();
@@ -611,13 +636,23 @@ public sealed class ClientPlayer : Player
             OnSwingHandler?.Invoke();
         }
 
-        if (BreakProgress < 1F)
+        // Progress is left to run while the cooldown does, so a dig that takes longer than the cooldown is
+        // not held up by it at all and only a block that breaks on sight ever waits.
+        if (BreakProgress < 1F || _secondsUntilNextBreak > 0F)
         {
+            if (required <= 0F)
+            {
+                // Sitting at full progress for the whole wait would light up the outline that a break
+                // taking no time is meant to pass straight through without ever showing.
+                BreakProgress = 0F;
+            }
+
             return;
         }
 
         _game.Client.WritePacket(new RemoveBlockPacket(target));
 
+        _secondsUntilNextBreak = SecondsBetweenBreaks;
         _hasAskedToBreakTarget = true;
         BreakProgress = 0F;
     }
@@ -627,6 +662,10 @@ public sealed class ClientPlayer : Player
         _breakingBlockPos = null;
         _secondsSpentBreaking = 0F;
         _secondsUntilNextMiningSwing = 0F;
+
+        // Cleared with the rest of it, so the cooldown only ever governs a button that is still held. A
+        // click of its own is somebody asking for a block, and is answered however quickly it follows.
+        _secondsUntilNextBreak = 0F;
         _hasAskedToBreakTarget = false;
         BreakProgress = 0F;
     }

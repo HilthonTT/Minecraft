@@ -33,12 +33,12 @@ public sealed class SoundVoice : ISampleProvider
     /// <summary>Whether the whole clip has been read, after which the mixer drops this voice.</summary>
     public bool IsFinished => _position >= _samples.Length - 1;
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
         int written = 0;
 
         // Two samples per frame, so a frame can only be written while there is room for both.
-        while (written + 2 <= count)
+        while (written + 2 <= buffer.Length)
         {
             if (IsFinished)
             {
@@ -51,8 +51,8 @@ public sealed class SoundVoice : ISampleProvider
             float fraction = (float)(_position - index);
             float sample = _samples[index] + ((_samples[index + 1] - _samples[index]) * fraction);
 
-            buffer[offset + written++] = sample * _leftGain;
-            buffer[offset + written++] = sample * _rightGain;
+            buffer[written++] = sample * _leftGain;
+            buffer[written++] = sample * _rightGain;
 
             _position += _step;
         }
