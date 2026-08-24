@@ -9,10 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NAudio" Version="3.0.0" />
+    <PackageReference Include="NAudio" Version="3.0.1" />
     <!-- The NAudio meta-package only pulls the Windows backends in for a target framework that names a
          Windows version, which this one does not, so the winmm output device is referenced directly. -->
-    <PackageReference Include="NAudio.WinMM" Version="3.0.0" />
+    <PackageReference Include="NAudio.WinMM" Version="3.0.1" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="OpenTK" Version="4.9.4" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.11" />
