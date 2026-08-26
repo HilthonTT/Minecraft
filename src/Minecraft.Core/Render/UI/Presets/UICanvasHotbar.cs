@@ -158,7 +158,7 @@ public sealed class UICanvasHotbar : UICanvas
                                            - new Vector2(SelectionOutline, SelectionOutline);
 
         _slots.Refresh(
-            _game.MasterRenderer.BlockIcons,
+            _game.MasterRenderer.ItemIcons,
             inventory.GetSlot,
             hoveredIndex: inventory.SelectedHotbarSlot);
 
@@ -208,7 +208,7 @@ public sealed class UICanvasHotbar : UICanvas
     private void UpdateSelectedName(Inventory inventory)
     {
         ItemStack selected = inventory.Selected;
-        string name = selected.IsEmpty ? string.Empty : BlockCatalogue.NameOf(selected.Block!);
+        string name = selected.IsEmpty ? string.Empty : selected.Item!.Name;
 
         if (name != _shownName)
         {

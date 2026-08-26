@@ -3,6 +3,7 @@ using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
@@ -19,9 +20,9 @@ namespace Minecraft.Core.Network.NetHandler;
 public sealed class ServerNetHandler : INetHandler
 {
     /// <summary>
-    /// What a bare fist takes off, which is what everyone is swinging: there is nothing to hold yet that
-    /// hits harder. The same figure the game this is modelled on gives an empty hand, so the mob healths
-    /// borrowed along with it come out at the number of punches they are supposed to.
+    /// What a bare fist takes off. The same figure the game this is modelled on gives an empty hand, so the
+    /// mob healths borrowed along with it come out at the number of punches they are supposed to, and the
+    /// tools are worth their own multiples of it: see <see cref="ToolItem.AttackDamage"/>.
     /// </summary>
     private const int PunchDamage = 1;
 
@@ -126,13 +127,20 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        Block? dropped = block.GetDroppedBlock(state);
-        if (dropped is not null)
+        // What was in the hand decides both whether anything is earned and, for a seam of ore, what. The
+        // server is told what that is as the selection moves; see PlayerHeldItemPacket for why it is trusted.
+        if (!Harvesting.CanHarvest(block, breaker.HeldItem))
+        {
+            return;
+        }
+
+        ItemStack dropped = block.GetDrop(state);
+        if (!dropped.IsEmpty)
         {
             // Hung off the removal rather than thrown out now: the block is still standing here until the
             // end of the next world update, and anything put in a solid cell is lifted out onto the top of
             // it. See WorldServer.DropWhenRemoved.
-            world.DropWhenRemoved(blockPos, new ItemStack(dropped, 1));
+            world.DropWhenRemoved(blockPos, dropped);
         }
     }
 
@@ -254,10 +262,14 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
+        // What the blow is worth is decided here and not on the client, the same as its reach: the client
+        // says what it swung with, and this is what says what that is worth. An empty hand is a fist.
+        int damage = attacker.HeldItem.Tool?.AttackDamage ?? PunchDamage;
+
         // Does nothing while the mob is still inside the window a blow of at least this weight already
         // bought it, which is what a client holding the mouse button down runs into. Everything else —
         // telling the onlookers, and taking a killed mob out of the world — belongs to the world.
-        _game.Server.World.HurtMob(mob, PunchDamage, attacker.Position, attacker);
+        _game.Server.World.HurtMob(mob, damage, attacker.Position, attacker);
     }
 
     /// <summary>
@@ -319,14 +331,36 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        Block? block = BlockRegistry.TryGetBlockFromIdentifier(playerDropItemPacket.BlockId);
-        if (block is null || block == BlockRegistry.Air)
+        Item? thrown = ItemRegistry.TryGet(playerDropItemPacket.ItemId);
+        if (thrown is null || thrown == ItemRegistry.For(BlockRegistry.Air))
         {
-            Logger.Warn("Player " + thrower.ID + " tried to throw block id " + playerDropItemPacket.BlockId + ".");
+            Logger.Warn("Player " + thrower.ID + " tried to throw item id " + playerDropItemPacket.ItemId + ".");
             return;
         }
 
-        _game.Server.World.ThrowDroppedItem(thrower, new ItemStack(block, playerDropItemPacket.Count));
+        _game.Server.World.ThrowDroppedItem(
+            thrower,
+            new ItemStack(thrown, playerDropItemPacket.Count, playerDropItemPacket.Damage));
+    }
+
+    /// <summary>
+    /// A player reporting what they have just taken into their hand. Kept on the player so that the next
+    /// block they break can be asked what that would earn.
+    /// </summary>
+    public void ProcessPlayerHeldItemPacket(PlayerHeldItemPacket playerHeldItemPacket)
+    {
+        if (_session.Player is not ServerPlayer player)
+        {
+            return;
+        }
+
+        // An empty hand is sent as a zero, which is no item's id, so an unknown id and an empty hand come to
+        // the same thing here: nothing that would speed a break up or earn a drop that a hand would not.
+        Item? held = ItemRegistry.TryGet(playerHeldItemPacket.ItemId);
+
+        player.HeldItem = held is null
+            ? ItemStack.Empty
+            : new ItemStack(held, 1, playerHeldItemPacket.Damage);
     }
 
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)

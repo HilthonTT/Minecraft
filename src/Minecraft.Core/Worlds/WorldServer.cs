@@ -167,8 +167,11 @@ public sealed class WorldServer : World
 
             // What the item is worth goes to the one player who picked it up, since only their client holds
             // the inventory it lands in. Everyone else simply sees it stop being there.
-            SessionOf(collector)?.WritePacket(
-                new ItemPickupPacket(item.ID, item.Stack.Block!.Id, item.Stack.Count));
+            SessionOf(collector)?.WritePacket(new ItemPickupPacket(
+                item.ID,
+                item.Stack.Item!.Id,
+                item.Stack.Count,
+                item.Stack.Damage));
 
             _itemsToClear.Add(item);
         }
@@ -526,8 +529,9 @@ public sealed class WorldServer : World
             return;
         }
 
-        // Nothing is dropped on death, and the inventory survives it. There is no crafting yet, so losing
-        // everything to a fall would cost hours of digging with no way to make any of it back quickly.
+        // Nothing is dropped on death, and the inventory survives it. What a full set of tools costs is a
+        // seam of ore found and dug out, and losing that to a single fall is a longer walk back than the
+        // death is worth being a punishment for.
         Vector3 spawn = GenerateAndGetValidSpawn();
         player.Respawn(spawn);
 

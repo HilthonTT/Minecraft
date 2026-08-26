@@ -67,6 +67,7 @@ public sealed class SoundRegistry
 
         sounds[Sound.PlayerHurt] = LoadGroup("damage", "hit", ref loaded);
         sounds[Sound.ItemPickup] = LoadGroup("random", "pop", ref loaded);
+        sounds[Sound.ToolBroke] = LoadGroup("random", "break", ref loaded);
 
         sounds[Sound.PigDeath] = LoadGroup("mob/pig", "death", ref loaded);
         sounds[Sound.CowHurt] = LoadGroup("mob/cow", "hurt", ref loaded);

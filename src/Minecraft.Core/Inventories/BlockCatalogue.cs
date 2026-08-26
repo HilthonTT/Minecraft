@@ -24,6 +24,7 @@ public static class BlockCatalogue
         (BlockRegistry.MossyCobblestone, "Mossy Cobblestone"),
         (BlockRegistry.SandStone, "Sandstone"),
         (BlockRegistry.Planks, "Planks"),
+        (BlockRegistry.CraftingTable, "Crafting Table"),
         (BlockRegistry.OakLog, "Oak Log"),
         (BlockRegistry.BirchLog, "Birch Log"),
         (BlockRegistry.SpruceLog, "Spruce Log"),

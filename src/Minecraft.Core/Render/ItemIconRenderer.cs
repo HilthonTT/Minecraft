@@ -1,4 +1,6 @@
 using Minecraft.Core.Entities;
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Shaders.BasicShader;
 using Minecraft.Core.Shapes;
 using Minecraft.Core.Textures;
@@ -9,15 +11,21 @@ using OpenTK.Mathematics;
 namespace Minecraft.Core.Render;
 
 /// <summary>
-/// Draws blocks as small three dimensional icons in the slots of the interface.
+/// Draws whatever is in a slot of the interface, as a small icon of its own.
 /// <para>
-/// A slot could have shown a flat square of the block's texture, but half the blocks in the game are not
+/// A slot could have shown a flat square of a block's texture, but half the blocks in the game are not
 /// squares — a torch, a flower, a cactus — and the ones that are read as the same grey tile as each other
-/// until they are turned. So the icons are the real models, drawn through an orthographic projection laid out
-/// in canvas pixels: the same geometry, atlas and shading the world uses, seen from a fixed corner.
+/// until they are turned. So a block icon is the real model, drawn through an orthographic projection laid
+/// out in canvas pixels: the same geometry, atlas and shading the world uses, seen from a fixed corner.
+/// </para>
+/// <para>
+/// Everything that is not a block is a picture rather than a shape, and has nothing to gain from being turned
+/// at all: it is drawn flat and face on out of the item sheet instead. See <see cref="ItemSpriteMesh"/>. The
+/// two kinds share this one pass and are told apart only by which sheet is bound and whether the icon is
+/// turned before it is drawn.
 /// </para>
 /// </summary>
-public sealed class BlockIconRenderer
+public sealed class ItemIconRenderer
 {
     /// <summary>
     /// Where the icon is looked at from. A corner faces the viewer and the block is tipped forward far enough
@@ -33,33 +41,36 @@ public sealed class BlockIconRenderer
     /// </summary>
     private const float DepthPerIcon = 8F;
 
-    private readonly record struct IconRequest(Block Block, Vector2 Centre, float Size);
+    private readonly record struct IconRequest(Item Item, Vector2 Centre, float Size);
 
     private readonly BasicShader _shader;
     private readonly BlockModelRegistry _blockModelRegistry;
     private readonly TextureAtlas _textureAtlas;
+    private readonly TextureAtlas _itemAtlas;
 
     /// <summary>What has been asked for this frame, in the order it was asked for, which is also its depth order.</summary>
     private readonly List<IconRequest> _requests = [];
 
     /// <summary>
-    /// One mesh per block, built the first time that block is drawn and kept. Icons are lit by a fixed
+    /// One mesh per item, built the first time that item is drawn and kept. Icons are lit by a fixed
     /// daylight rather than by where the player is standing, so a mesh once built never goes stale.
     /// </summary>
     private readonly Dictionary<ushort, VAOModel> _meshes = [];
 
     private Matrix4 _projectionMatrix = Matrix4.Identity;
 
-    public BlockIconRenderer(
+    public ItemIconRenderer(
         BasicShader shader,
         BlockModelRegistry blockModelRegistry,
         TextureAtlas textureAtlas,
+        TextureAtlas itemAtlas,
         int pixelWidth,
         int pixelHeight)
     {
         _shader = shader;
         _blockModelRegistry = blockModelRegistry;
         _textureAtlas = textureAtlas;
+        _itemAtlas = itemAtlas;
 
         OnWindowResized(pixelWidth, pixelHeight);
     }
@@ -80,23 +91,22 @@ public sealed class BlockIconRenderer
     }
 
     /// <summary>
-    /// Asks for a block to be drawn centred on the given point, that many pixels tall. Queued rather than
+    /// Asks for a stack to be drawn centred on the given point, that many pixels tall. Queued rather than
     /// drawn, since the screens that ask are updated while the interface is being built and the icons
     /// themselves are a pass of their own after it.
     /// <para>
-    /// Takes the block rather than a state of it. A slot says which block it holds and nothing more, and an
-    /// icon is drawn from the block's default state anyway: a torch in a slot stands up whichever wall the
-    /// one in the world was leaning off.
+    /// A block is drawn from that block's default state rather than from any state of it: a torch in a slot
+    /// stands up whichever wall the one in the world was leaning off.
     /// </para>
     /// </summary>
-    public void Queue(Block block, Vector2 centre, float size)
+    public void Queue(ItemStack stack, Vector2 centre, float size)
     {
-        if (block == BlockRegistry.Air)
+        if (stack.IsEmpty || stack.Block == BlockRegistry.Air)
         {
             return;
         }
 
-        _requests.Add(new IconRequest(block, centre, size));
+        _requests.Add(new IconRequest(stack.Item!, centre, size));
     }
 
     /// <summary>
@@ -121,7 +131,6 @@ public sealed class BlockIconRenderer
         GL.Disable(EnableCap.CullFace);
 
         _shader.Start();
-        _shader.LoadTexture(_shader.LocationTextureAtlas, 0, _textureAtlas.Id);
         _shader.LoadMatrix(_shader.LocationProjectionMatrix, _projectionMatrix);
         _shader.LoadMatrix(_shader.LocationViewMatrix, Matrix4.Identity);
 
@@ -136,14 +145,27 @@ public sealed class BlockIconRenderer
         _shader.LoadFloat(_shader.LocationFogStart, 100000F);
         _shader.LoadFloat(_shader.LocationFogEnd, 200000F);
 
+        // Which sheet is bound is the only state that changes from one icon to the next, so it is tracked
+        // rather than uploaded per icon: a screen full of blocks binds once and a mixed one a handful of times.
+        int boundAtlas = -1;
+
         for (int i = 0; i < _requests.Count; i++)
         {
             IconRequest request = _requests[i];
-            VAOModel mesh = GetOrBuildMesh(request.Block);
+            bool isBlock = request.Item is BlockItem;
+
+            int wantedAtlas = isBlock ? _textureAtlas.Id : _itemAtlas.Id;
+            if (wantedAtlas != boundAtlas)
+            {
+                _shader.LoadTexture(_shader.LocationTextureAtlas, 0, wantedAtlas);
+                boundAtlas = wantedAtlas;
+            }
+
+            VAOModel mesh = GetOrBuildMesh(request.Item);
 
             _shader.LoadMatrix(
                 _shader.LocationTransformationMatrix,
-                BuildTransformation(request, depth: i * DepthPerIcon));
+                BuildTransformation(request, isBlock, depth: i * DepthPerIcon));
 
             mesh.BindVAO();
             GL.DrawArrays(PrimitiveType.Triangles, 0, mesh.IndicesCount);
@@ -172,10 +194,20 @@ public sealed class BlockIconRenderer
 
     /// <summary>
     /// Where one icon sits. The scale carries a vertical flip, since the projection has its origin at the top
-    /// left and a block would otherwise be drawn standing on its head.
+    /// left and an icon would otherwise be drawn standing on its head.
+    /// <para>
+    /// A block is turned onto its corner and tipped forward, and so has to be scaled down by how tall that
+    /// leaves it. A sprite is drawn square on and already fills exactly the height it was asked for.
+    /// </para>
     /// </summary>
-    private static Matrix4 BuildTransformation(IconRequest request, float depth)
+    private static Matrix4 BuildTransformation(IconRequest request, bool isBlock, float depth)
     {
+        if (!isBlock)
+        {
+            return Matrix4.CreateScale(request.Size, -request.Size, request.Size)
+                   * Matrix4.CreateTranslation(request.Centre.X, request.Centre.Y, depth);
+        }
+
         float scale = request.Size / TurnedBlockHeight;
 
         return Matrix4.CreateRotationX(IconPitch)
@@ -184,18 +216,24 @@ public sealed class BlockIconRenderer
                * Matrix4.CreateTranslation(request.Centre.X, request.Centre.Y, depth);
     }
 
-    private VAOModel GetOrBuildMesh(Block block)
+    private VAOModel GetOrBuildMesh(Item item)
     {
-        if (!_meshes.TryGetValue(block.Id, out VAOModel? mesh))
+        if (_meshes.TryGetValue(item.Id, out VAOModel? mesh))
         {
-            mesh = BlockIconMesh.Build(
-                _blockModelRegistry,
-                BlockRegistry.GetState(block),
-                BlockIconMesh.FullDaylight);
-
-            _meshes.Add(block.Id, mesh);
+            return mesh;
         }
 
+        mesh = item switch
+        {
+            BlockItem block => BlockIconMesh.Build(
+                _blockModelRegistry,
+                BlockRegistry.GetState(block.Block),
+                BlockIconMesh.FullDaylight),
+            SpriteItem sprite => ItemSpriteMesh.Build(_itemAtlas, sprite.IconCell),
+            _ => throw new ArgumentOutOfRangeException(nameof(item)),
+        };
+
+        _meshes.Add(item.Id, mesh);
         return mesh;
     }
 

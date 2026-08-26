@@ -50,6 +50,7 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.RedMushroom.Id] = new BlockModelRedMushroom(textureAtlas);
         Models[BlockRegistry.BrownMushroom.Id] = new BlockModelBrownMushroom(textureAtlas);
         Models[BlockRegistry.Torch.Id] = new TorchModel(textureAtlas);
+        Models[BlockRegistry.CraftingTable.Id] = new BlockModelCraftingTable(textureAtlas);
 
         // Water is registered once per depth it can stand at, and every one of those is drawn the same way
         // to a different waterline, so they are filled in by walking the registry rather than by naming each

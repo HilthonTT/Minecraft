@@ -15,17 +15,21 @@ namespace Minecraft.Core.Network.Packets;
 /// </summary>
 public sealed class ItemPickupPacket : Packet
 {
-    public ushort BlockId { get; private set; }
+    public ushort ItemId { get; private set; }
     public int Count { get; private set; }
+
+    /// <summary>How worn it is, so that a tool picked up is as worn as the one that was put down.</summary>
+    public int Damage { get; private set; }
 
     /// <summary>The item this came from, so the client can drop it early rather than wait for the despawn.</summary>
     public int EntityID { get; private set; }
 
-    public ItemPickupPacket(int entityId, ushort blockId, int count) : base(PacketType.ItemPickup)
+    public ItemPickupPacket(int entityId, ushort itemId, int count, int damage) : base(PacketType.ItemPickup)
     {
         EntityID = entityId;
-        BlockId = blockId;
+        ItemId = itemId;
         Count = count;
+        Damage = damage;
     }
 
     public override void Process(INetHandler netHandler)
@@ -36,7 +40,8 @@ public sealed class ItemPickupPacket : Packet
     protected override void ToStream(BufferedDataStream bufferedStream)
     {
         bufferedStream.WriteInt32(EntityID);
-        bufferedStream.WriteUInt16(BlockId);
+        bufferedStream.WriteUInt16(ItemId);
         bufferedStream.WriteInt32(Count);
+        bufferedStream.WriteInt32(Damage);
     }
 }

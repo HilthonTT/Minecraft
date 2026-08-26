@@ -1,10 +1,10 @@
-﻿using Minecraft.Core.Games;
+﻿using System.Net.Sockets;
+using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.NetHandler;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
-using System.Net.Sockets;
 
 namespace Minecraft.Core.Network;
 
@@ -180,11 +180,7 @@ public sealed class Client
     public void Stop()
     {
         _isRunning = false;
-
-        if (_session is not null)
-        {
-            _session.State = SessionState.Closed;
-        }
+        _session?.State = SessionState.Closed;
     }
 
     private static void OnStateChanged(Session.Session session)

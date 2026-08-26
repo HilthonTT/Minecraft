@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks.States;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
@@ -9,6 +10,7 @@ public sealed class BlockDirt : Block
     {
         SoundMaterial = BlockSoundMaterial.Gravel;
         SecondsToBreak = 0.55F;
+        HarvestTool = ToolKind.Shovel;
     }
 
     public override BlockState GetNewDefaultState()

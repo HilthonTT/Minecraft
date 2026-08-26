@@ -1,3 +1,4 @@
+using Minecraft.Core.Inventories;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks.States;
@@ -112,7 +113,7 @@ public sealed class BlockWater : Block
     /// leaves a cell by being displaced. It therefore drops nothing, which is what stops a bucketless player
     /// from carrying an ocean home a cell at a time should anything ever manage to aim at one.
     /// </summary>
-    public override Block? GetDroppedBlock(BlockState blockState) => null;
+    public override ItemStack GetDrop(BlockState blockState) => ItemStack.Empty;
 
     public override BlockState GetNewDefaultState()
     {

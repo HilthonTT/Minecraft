@@ -1,4 +1,6 @@
 ﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks.States;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
@@ -9,6 +11,7 @@ public sealed class BlockGrass : Block
     {
         SoundMaterial = BlockSoundMaterial.Grass;
         SecondsToBreak = 0.65F;
+        HarvestTool = ToolKind.Shovel;
     }
 
     public override BlockState GetNewDefaultState()
@@ -17,5 +20,5 @@ public sealed class BlockGrass : Block
     }
 
     /// <summary>The green is only the top of it; what is dug up is the dirt underneath.</summary>
-    public override Block? GetDroppedBlock(BlockState blockState) => BlockRegistry.Dirt;
+    public override ItemStack GetDrop(BlockState blockState) => new(BlockRegistry.Dirt, 1);
 }

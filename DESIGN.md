@@ -35,6 +35,8 @@ Inside `Minecraft.Core`:
 | `Entities/`          | Camera, the player on both sides of a connection, the mobs, and dropped items |
 | `Games/`             | Game loop, window, game state, menu flow, input, start argument parsing    |
 | `Inventories/`       | Stacks, the slots that hold them, and the catalogue of what can go in one  |
+| `Inventories/Items/` | What a stack can be of: blocks, materials, tools, and how a tool meets a block |
+| `Inventories/Crafting/` | The benches, the recipe book and what matches one against the other     |
 | `IO/`                | Buffered binary reader and writer for network packets                      |
 | `Logging/`           | Levelled console logger                                                    |
 | `Network/`           | Client, server, sessions, packets, their handlers, and the chat commands   |
@@ -293,10 +295,21 @@ the new mode back onto the world as well as onto the player, so a world reopens 
 
 ### Breaking
 
-A block carries how long a bare hand takes to get through it. That is held as a time rather than as
-Minecraft's own hardness figure because there is nothing to hold yet that digs faster; when there is, the time
-becomes the numerator and the tool the denominator, and until then the two would be the same number written
-twice with one of them wrong.
+A block carries how long a bare hand takes to get through it, held as a time rather than as Minecraft's own
+hardness figure because it is the numerator of the one division that matters: that time divided by the dig
+speed of the right tool for the block. `Harvesting` is where the two meet, and it is the only place either
+half is read against the other.
+
+Which tool is the right one is a property of the block — a log answers to an axe, earth to a shovel, stone and
+ore to a pickaxe, and a flower to nothing at all. A tool of any other kind is worth no more than a fist. Two
+further facts sit beside it: whether the block leaves anything behind for a bare hand, and how deep it is
+buried, meaning the lowest material that earns anything from it. They are kept apart because they answer
+different questions — one asks whether a tool was needed, and the other whether the one brought was good
+enough, and a block that needs no tool has nothing to be too poor for.
+
+A block that wants a tool and is being dug without one takes three times as long as its bare figure rather
+than the same. Without that, the fastest way through a wall of stone would be to throw the pickaxe away and
+keep the cobblestone you were not going to get either way.
 
 The timing runs on the client, and has to: this side knows what is under the crosshair on every frame, where
 the server has a look direction a tenth of a second old. Nothing else moves, though. What is sent when the
@@ -310,15 +323,18 @@ is already looking.
 ### Drops
 
 Breaking a block throws out a `DroppedItem`, an entity a quarter of a block across that falls, slides and is
-swept up by walking over it. What a block leaves behind is its own business, and almost everything leaves
-itself: the exceptions are the two that come apart on the way out, stone into cobblestone and grass into the
-dirt under it.
+swept up by walking over it. What a block leaves behind is its own business, and most things leave themselves:
+the exceptions are the ones that come apart on the way out — stone into cobblestone, grass into the dirt under
+it, and each of the five ores into what was buried in it.
 
-Leaves are deliberately not a third. In the game this borrows from they tear and leave a sapling instead, but
-there are no saplings here and nothing to craft one into, so dropping nothing would not be a trade for
+Nothing is left at all when the swing was made with too little. That is the gate in front of the drop, and it
+is asked before the block is asked what it would leave: a wall of stone still comes apart under bare hands,
+and still leaves no cobblestone.
+
+Leaves are deliberately not an exception. In the game this borrows from they tear and leave a sapling instead,
+but there are no saplings here and nothing to grow one into, so dropping nothing would not be a trade for
 something else — it would put a full building block, and the canopy of every tree in the world, permanently
-out of reach. The rule that holds until there is a crafting table is that anything you can break, you can
-carry.
+out of reach.
 
 Drops are thrown by the **packet handler**, not by the world's own block removal. Everything goes through that
 removal: water washing a flower away, a bank of sand settling a cell at a time, a blast taking a hillside
@@ -330,8 +346,9 @@ A player can also put one there on purpose, with `Q`. That travels the other way
 stack leaves the inventory on the client, which is the only thing that has one, and the server is told what
 was thrown so it can put it in the world. What it is asked to throw is taken on trust for exactly that
 reason — there is no second copy here to check it against — so what the server does check is that the stack
-is a possible one at all, since a count out of range or an id naming no block would otherwise put something
-impossible into the world. Throwing is survival's alone: a creative slot has a bottomless supply behind it,
+is a possible one at all, since a count out of range or an id naming nothing would otherwise put something
+impossible into the world. How worn a tool is travels with it both ways, or throwing a nearly spent pickaxe
+down and picking it up again would mend it. Throwing is survival's alone: a creative slot has a bottomless supply behind it,
 so a stack thrown out of one is a stack made from nothing.
 
 A thrown stack cannot be collected for two seconds, against the fifth of a second a broken block's drop
@@ -343,6 +360,14 @@ in the world and decides who collected it; the inventory it lands in lives on th
 the item leaves the world on the server and the player is told what they now have. Anything that will not fit
 is lost with it — thirty six slots is a great deal of room, and a server side inventory is the change that
 would close this properly.
+
+A third strand runs along the same seam, and tools are what put it there. What a seam of iron leaves behind
+now depends on what was swung at it, and only the client knows that, so the client says what is in its hand
+whenever the answer changes — `PlayerHeldItemPacket`, sent on a change of selection rather than with every
+swing, and once more on joining so that the server is never left assuming an empty hand. The server keeps that
+one stack on the player and asks it about every break. It is trusted exactly as far as the other two are: a
+client that lied here would be claiming a better pickaxe than it owns, and the same server side inventory is
+what would close all three.
 
 ### Health
 
@@ -399,17 +424,28 @@ with a rule joining them. A stack moving from the storage down onto the hotbar i
 slot, and the screen that moves it never has to know which half of the run it is writing into.
 
 An `ItemStack` is a value type, so a slot holds a pile rather than a reference to one: two slots that happen
-to contain the same block are still two separate piles of it, and copying one out of a slot cannot leave the
+to contain the same thing are still two separate piles of it, and copying one out of a slot cannot leave the
 two aliased.
 
+What a stack is *of* is an `Item`, and every block has one carrying the block's own id. That is what keeps one
+run of ids under both halves: an id that has always meant a block still means it, on the wire and in a save,
+and the things that are not blocks start at 256, well clear, so neither half has to move to let the other
+grow. `ItemRegistry` fills the block half in by walking `BlockRegistry` rather than by naming every block
+twice, so a block added there needs nothing done to it to become something that can be carried.
+
+Wear lives on the stack rather than on the item, because two pickaxes are the same item and are not the same
+pickaxe, and only the thing in the slot can know which of them has been swung more. It follows that anything
+carrying wear comes one to a slot: pouring two half spent pickaxes together would have to invent a number for
+the result.
+
 The same thirty six slots are two different things in the two game modes. In creative the inventory has an
-endless supply behind it: the hotbar opens filled, placing a block costs nothing, and the block list across
-the top of the screen hands out whole stacks. In survival it is a container and nothing else — it opens empty,
+endless supply behind it: the hotbar opens filled, placing a block costs nothing, and the list across the top
+of the screen hands out whole stacks of anything in the game. In survival it is a container and nothing else — it opens empty,
 a placement comes out of the stack in hand, and the only way anything gets in is `Inventory.TryAdd`, which
 pours a stack into the first slots that will take it and is where a block just picked up off the ground lands.
 
 Which of the two it is decides three things that would otherwise be ways of helping yourself to what survival
-is about earning, so all three are gated on it: the block list is left off the screen, the middle mouse button
+is about earning, so all three are gated on it: that list is left off the screen, the middle mouse button
 reaches no further than selecting a hotbar slot that already holds the block, and the hotbar opens empty.
 Switching modes starts the inventory over rather than carrying it across, because a hotbar filled by creative
 is a hundred blocks of building material and a stack of TNT that survival never had to earn.
@@ -425,7 +461,59 @@ between. Waiting instead would mean a hotbar that lags a block behind every clic
 The stack on the cursor lives on the inventory rather than on the screen showing it, so closing the screen
 mid-move cannot lose it; what is on the cursor is poured back into the slots on the way out.
 
-### Blocks in slots
+### Crafting
+
+A recipe is either a picture or a bag. A shaped one cares where its ingredients sit relative to one another —
+a pickaxe is a bar across the top with a shaft under the middle of it, and the same three planks in a row with
+two sticks beside them is nothing at all — and a shapeless one cares only what is on the bench, because planks
+are planks wherever the log was put down.
+
+A shaped pattern is slid over every position it could sit at rather than being required to start in the
+corner, and every cell of the bench is checked and not only the ones the pattern covers, so a correct pattern
+with a stray plank beside it is not a match. Patterns may also be read from the other side, which costs
+nothing for the symmetric ones and means an axe laid out left handed is still an axe.
+
+What a bench makes is worked out from the bench rather than stored: every write to a cell walks the book
+again. At this many recipes that is nothing, and it means there is no second copy of the answer to be left
+stale by an edit that forgot to refresh it.
+
+There are two benches and one class. The two by two is carried around inside the inventory and the three by
+three belongs to whichever crafting table is open, and a recipe does not care which it is being laid out on,
+only whether it fits. Where the line falls between them is the whole shape of the early game: everything
+needed to reach a first pickaxe — planks, sticks, torches, and the table itself — fits in the small one, and
+every tool needs the large one. A player who has never found a table is never stuck for want of one, and a
+player who wants a tool has to build the table first.
+
+There is one screen for both. Opened with the inventory key it shows the small bench; opened by reaching for a
+table it shows the large one, and everything else about it is the same. Two screens would have been the same
+layout written twice, differing in one number.
+
+A crafting table holds nothing and remembers nothing. What is laid out on it lives on the client that opened
+it and is handed back the moment the screen closes, which is why the server is never told the block was
+reached for at all: there is nothing there for it to keep, and the inventory the bench draws from is already
+on the side that opened it. It is a real interaction only in the sense that a right click has to open the
+bench rather than build on top of it.
+
+### Tools
+
+A tool is a kind and a material and nothing else. The kind decides which blocks it is the right thing to swing
+at; the material decides how fast it digs, how deep it reaches, how long it lasts and how hard it hits, and
+all five materials' figures are written down in one place. Gold sits off the ladder rather than on it — it
+digs faster than diamond and wears out faster than wood — so it is a thing to spend a lucky vein on rather
+than a step on the way anywhere.
+
+Wear is spent on the client, alongside the placement that is spent there and for the same reason: the
+inventory is that side's. A tool worn through simply empties its slot, and the server hears about it through
+the held item packet the change raises.
+
+Iron and gold ore drop the ingot rather than the ore block, which is a deliberate departure from the game this
+follows. Smelting wants a furnace, a furnace wants a block that holds things, and a block that holds things
+wants per block persistent data and a save format that carries it — a piece of work of its own, and the same
+piece chests are waiting on. Stopping the ladder at stone instead would have left the rungs above it with
+nothing to reach them by. So the ore yields the metal, and what a furnace would otherwise gate is folded into
+the pickaxe having to be good enough to reach the seam at all.
+
+### Things in slots
 
 A slot could have shown a flat square of the block's texture, but half the blocks in the game are not squares
 — a torch, a flower, a cactus — and the ones that are read as the same grey tile as each other until they are
@@ -443,9 +531,27 @@ The projection puts its origin at the top left so that a screen laying its slots
 same numbers straight over. That flips the winding of every face, so culling is off for the pass and the depth
 test alone decides which side of a block is seen — which the models made of thin quads needed anyway.
 
-Meshes are built once per block and kept, since an icon's light never changes. `HeldItemRenderer` builds its
-block the same way and through the same code, the difference being that what is in a hand is lit by where the
-player is standing and so is rebuilt when they carry it into a cave.
+Everything that is not a block is a picture rather than a shape, and has nothing to gain from being turned: a
+pickaxe seen edge on is a line. So those are drawn flat and face on, as a square wearing one cell of a second
+sheet. The two kinds share the one pass and differ only in which sheet is bound and whether the icon is turned
+before it is drawn, and the sheet is tracked across the batch rather than uploaded per icon, so a screen full
+of blocks binds once.
+
+That second sheet is kept apart from the block sheet rather than squeezed into the spare cells of it, because
+the two are read in different ways: a block cell is a surface, tiled over a face and lit by which way that
+face is turned, while an item cell is a silhouette, cut out and shown whole. It also carries a real alpha
+channel, where the block sheet marks the see through parts of a plant in white and has them punched out on
+load — which means the cut out costs the shader nothing new, since it already throws away anything under half
+an alpha. The artwork is generated rather than drawn: twenty tools are four shapes in five colours, so the
+shapes are written down once in `tools/make-item-atlas.py` and stamped out in each material's palette, and its
+output is committed so a build never depends on the script having been run.
+
+Meshes are built once per item and kept, since an icon's light never changes. `HeldItemRenderer` builds its
+own the same way and through the same code, the difference being that a block in a hand is lit by where the
+player is standing and so is rebuilt when they carry it into a cave, while a flat sprite is lit flat and never
+goes stale. `DroppedItemRenderer` shares them again, and is where the two kinds part company once more: a
+block lying on the ground turns on the spot, which is what shows it is a block, and a sprite is kept facing
+the viewer instead, since half of every turn would otherwise be spent disappearing.
 
 ## Rendering
 
@@ -579,16 +685,22 @@ speck on the horizon is something to walk up to rather than something to hit fro
 
 Nothing else about the blow is decided there. The client sends only who it aimed at; the server checks the
 distance again against a looser figure of its own — the position it holds for a player is a tenth of a second
-old and the mob has moved since — takes the health off, and broadcasts the result to everyone who can see it.
-That is the same shape as placing and breaking: a client asks, and applies nothing until it is told.
+old and the mob has moved since — decides what the blow was worth from the tool it was told the player is
+holding, takes the health off, and broadcasts the result to everyone who can see it. That is the same shape as
+placing and breaking: a client asks, and applies nothing until it is told.
 
-| Mob    | Health | Punches |
-| ------ | ------ | ------- |
-| Sheep  | 8      | 8       |
-| Pig    | 10     | 10      |
-| Cow    | 10     | 10      |
-| Zombie | 20     | 20      |
-| Player | 20     | —       |
+| Mob    | Health | Punches | Diamond sword |
+| ------ | ------ | ------- | ------------- |
+| Sheep  | 8      | 8       | 2             |
+| Pig    | 10     | 10      | 2             |
+| Cow    | 10     | 10      | 2             |
+| Zombie | 20     | 20      | 3             |
+| Player | 20     | —       | —             |
+
+A sword is the only tool that is not for anything else: no block names it, so it never speeds a break up and
+never earns a drop. What it is for is this table. The digging tools are worth one less each in the order they
+are worse shaped for it, which leaves a wooden shovel level with the fist it replaced — a tool is not always
+better than no tool, and swinging a shovel at a zombie is the case where it is not.
 
 A bare fist takes off one, which is what an empty hand does in the game these figures come from, so the mob
 healths borrowed along with it come out at the number of blows they are supposed to. There is nothing to hold

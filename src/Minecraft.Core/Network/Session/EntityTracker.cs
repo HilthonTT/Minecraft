@@ -82,8 +82,9 @@ public sealed class EntityTracker
                 _session.WritePacket(new ItemSpawnPacket(
                     item.ID,
                     item.Position,
-                    item.Stack.Block!.Id,
-                    item.Stack.Count));
+                    item.Stack.Item!.Id,
+                    item.Stack.Count,
+                    item.Stack.Damage));
                 continue;
             }
 

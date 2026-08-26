@@ -79,6 +79,7 @@ public sealed class MasterRenderer
     private readonly WireframeRenderer _wireframeRenderer;
     private readonly PlayerHoverBlockRenderer _playerBlockRenderer;
     private readonly TextureAtlas _textureAtlas;
+    private readonly TextureAtlas _itemAtlas;
     private readonly BlockModelRegistry _blockModelRegistry;
     private readonly EntityMeshRegistry _entityMeshRegistry;
     private readonly ScreenQuad _screenQuad;
@@ -127,7 +128,7 @@ public sealed class MasterRenderer
     /// What draws a block inside a slot. The screens that own slots queue their icons with it while the
     /// interface is being built, and it draws them all in a pass of its own between the two halves of it.
     /// </summary>
-    public BlockIconRenderer BlockIcons { get; }
+    public ItemIconRenderer ItemIcons { get; }
 
     public int DitherTextureId { get; }
 
@@ -145,6 +146,11 @@ public sealed class MasterRenderer
             BlockAtlas.CutOutCells,
             BlockAtlas.CellsPerRow);
         _textureAtlas = new TextureAtlas(textureAtlasId, BlockAtlas.SizeInPixels, BlockAtlas.CellSizeInPixels);
+
+        // The item sheet carries a real alpha channel of its own, so unlike the block sheet it needs nothing
+        // punched out of it and goes in through the ordinary loader.
+        int itemAtlasId = TextureLoader.LoadTexture(Assets.Path("Resources/items.png"));
+        _itemAtlas = new TextureAtlas(itemAtlasId, ItemAtlas.SizeInPixels, ItemAtlas.CellSizeInPixels);
         _blockModelRegistry = new BlockModelRegistry(_textureAtlas);
         _blocksMeshGenerator = new ChunkMeshGenerator(_blockModelRegistry);
         _entityMeshRegistry = new EntityMeshRegistry();
@@ -154,15 +160,18 @@ public sealed class MasterRenderer
         _playerBlockRenderer = new PlayerHoverBlockRenderer(_wireframeRenderer, game.ClientPlayer);
         DitherTextureId = TextureLoader.LoadDitherTexture();
         _skydome = new Skydome(game);
-        _heldItemRenderer = new HeldItemRenderer(game, _basicShader, _blockModelRegistry, _textureAtlas);
-        _droppedItemRenderer = new DroppedItemRenderer(_basicShader, _blockModelRegistry, _textureAtlas);
+        _heldItemRenderer = new HeldItemRenderer(
+            game, _basicShader, _blockModelRegistry, _textureAtlas, _itemAtlas);
+        _droppedItemRenderer = new DroppedItemRenderer(
+            _basicShader, _blockModelRegistry, _textureAtlas, _itemAtlas);
         _particleRenderer = new ParticleRenderer(_basicShader, _textureAtlas);
         Particles = new ParticleDirector(game, _particleSystem, _blockModelRegistry);
 
-        BlockIcons = new BlockIconRenderer(
+        ItemIcons = new ItemIconRenderer(
             _basicShader,
             _blockModelRegistry,
             _textureAtlas,
+            _itemAtlas,
             game.Window.ClientSize.X,
             game.Window.ClientSize.Y);
 
@@ -305,7 +314,7 @@ public sealed class MasterRenderer
     {
         _uiRenderer.Render();
 
-        BlockIcons.Render(_cameraController.Camera);
+        ItemIcons.Render(_cameraController.Camera);
 
         // The icon pass leaves the blend state it found, but takes the depth test with it, so what follows is
         // drawn under the same conditions the canvases above were.
@@ -347,7 +356,7 @@ public sealed class MasterRenderer
         Particles.OnWorldUnloaded();
 
         // Anything queued on the last frame of the world being left would otherwise be drawn over the menu.
-        BlockIcons.Clear();
+        ItemIcons.Clear();
     }
 
     /// <summary>
@@ -828,7 +837,7 @@ public sealed class MasterRenderer
     {
         _screenQuad.AdjustToWindowSize(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
         _heldItemRenderer.OnWindowResized(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
-        BlockIcons.OnWindowResized(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
+        ItemIcons.OnWindowResized(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
         UploadActiveCameraProjectionMatrix();
     }
 
@@ -851,7 +860,7 @@ public sealed class MasterRenderer
 
         _heldItemRenderer.CleanUp();
         _droppedItemRenderer.CleanUp();
-        BlockIcons.CleanUp();
+        ItemIcons.CleanUp();
         _particleRenderer.CleanUp();
         _basicShader.CleanUp();
         _entityShader.CleanUp();

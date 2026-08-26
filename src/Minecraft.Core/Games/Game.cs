@@ -1,5 +1,8 @@
-﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Audio;
 using Minecraft.Core.Entities.Player;
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Crafting;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network;
 using Minecraft.Core.Network.Packets;
@@ -132,6 +135,11 @@ public sealed class Game
 
         BlockRegistry.RegisterBlocks();
 
+        // In this order and no other: every block gets an item of its own, and every recipe is written in
+        // terms of the items that step made.
+        ItemRegistry.RegisterItems();
+        RecipeRegistry.RegisterRecipes();
+
         Input = new Input(window);
 
         AverageFPSCounter = new FPSCounter();
@@ -231,11 +239,27 @@ public sealed class Game
     /// </summary>
     public void OpenInventory()
     {
+        OpenInventoryWithBench(2);
+    }
+
+    /// <summary>
+    /// Opens the same screen onto a crafting table's three by three bench, which is what reaching for one
+    /// does. Nothing is sent to the server: the bench holds nothing, and the inventory it draws from is
+    /// already here.
+    /// </summary>
+    public void OpenCraftingTable()
+    {
+        OpenInventoryWithBench(3);
+    }
+
+    private void OpenInventoryWithBench(int benchSize)
+    {
         if (State != GameState.Playing || IsChatOpen)
         {
             return;
         }
 
+        MasterRenderer.InventoryCanvas.OpenWithBench(benchSize);
         EnterState(GameState.Inventory);
     }
 
@@ -247,6 +271,9 @@ public sealed class Game
             return;
         }
 
+        // The bench first, since what comes off it goes into the same rows the cursor is about to be poured
+        // back into, and a full inventory should keep what was already in it rather than what was hovering.
+        MasterRenderer.InventoryCanvas.ReturnBenchContents();
         ClientPlayer.Inventory.ReturnCursorStack();
         EnterState(GameState.Playing);
     }

@@ -1,5 +1,7 @@
 using Minecraft.Core.Entities;
 using Minecraft.Core.Games;
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Shaders.BasicShader;
 using Minecraft.Core.Shapes;
 using Minecraft.Core.Textures;
@@ -14,11 +16,16 @@ using OpenTK.Mathematics;
 namespace Minecraft.Core.Render;
 
 /// <summary>
-/// Draws the block the player is holding, in front of them and off to one side.
+/// Draws whatever the player is holding, in front of them and off to one side.
 /// <para>
 /// What is held is the selected hotbar slot, so this and the bar along the bottom of the screen are two views
-/// of the same thing: the slot says which block and how many are left of it, and this says what it looks like
-/// in the hand carrying it.
+/// of the same thing: the slot says what and how many are left of it, and this says what it looks like in the
+/// hand carrying it.
+/// </para>
+/// <para>
+/// A block is held the way a block is held: turned onto a corner, big enough to fill a fist. A tool is a flat
+/// piece of artwork and is held out at a slant instead, tilted just off the screen so that it reads as
+/// something being carried rather than as a sticker on the glass.
 /// </para>
 /// </summary>
 public sealed class HeldItemRenderer
@@ -31,6 +38,16 @@ public sealed class HeldItemRenderer
 
     /// <summary>How big the block is drawn, as a share of a real one.</summary>
     private const float Scale = 0.42F;
+
+    /// <summary>The same for a flat item, which has to be bigger to read at all, and is drawn edge on to nothing.</summary>
+    private const float SpriteScale = 0.62F;
+
+    /// <summary>
+    /// How far a held sprite is turned. Yawed away from the eye and rolled so the head of a tool is uppermost,
+    /// which between them stop it looking like a card held up to the screen.
+    /// </summary>
+    private const float SpriteYaw = 0.62F;
+    private const float SpriteRoll = -0.5F;
 
     /// <summary>
     /// Where it sits in front of the eye: to the right, below the middle, and far enough forward to clear the
@@ -64,13 +81,17 @@ public sealed class HeldItemRenderer
     private readonly BasicShader _shader;
     private readonly BlockModelRegistry _blockModelRegistry;
     private readonly TextureAtlas _textureAtlas;
+    private readonly TextureAtlas _itemAtlas;
 
     private VAOModel? _model;
 
     /// <summary>What the current mesh was built for. A mesh is only rebuilt when one of these has moved.</summary>
-    private Block? _meshedBlock;
+    private Item? _meshedItem;
     private BlockState? _meshedState;
     private uint _meshedLight;
+
+    /// <summary>Whether what is in hand is drawn as a flat sprite rather than as a block.</summary>
+    private bool _meshedIsSprite;
 
     private Matrix4 _projectionMatrix = Matrix4.Identity;
 
@@ -86,12 +107,14 @@ public sealed class HeldItemRenderer
         Game game,
         BasicShader shader,
         BlockModelRegistry blockModelRegistry,
-        TextureAtlas textureAtlas)
+        TextureAtlas textureAtlas,
+        TextureAtlas itemAtlas)
     {
         _game = game;
         _shader = shader;
         _blockModelRegistry = blockModelRegistry;
         _textureAtlas = textureAtlas;
+        _itemAtlas = itemAtlas;
 
         game.ClientPlayer.OnSwingHandler += OnSwing;
         OnWindowResized(game.Window.ClientSize.X, game.Window.ClientSize.Y);
@@ -167,8 +190,8 @@ public sealed class HeldItemRenderer
             return;
         }
 
-        BlockState held = _game.ClientPlayer.SelectedBlock;
-        if (held.GetBlock() == BlockRegistry.Air)
+        ItemStack held = _game.ClientPlayer.Inventory.Selected;
+        if (held.IsEmpty || held.Block == BlockRegistry.Air)
         {
             return;
         }
@@ -181,12 +204,25 @@ public sealed class HeldItemRenderer
 
         GL.Clear(ClearBufferMask.DepthBufferBit);
         GL.Enable(EnableCap.DepthTest);
-        GL.Enable(EnableCap.CullFace);
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
 
+        // A sprite carries both of its faces and is meant to be seen from either, so culling is only put on
+        // for the blocks, which are closed shapes with insides nobody should see.
+        if (_meshedIsSprite)
+        {
+            GL.Disable(EnableCap.CullFace);
+        }
+        else
+        {
+            GL.Enable(EnableCap.CullFace);
+        }
+
         _shader.Start();
-        _shader.LoadTexture(_shader.LocationTextureAtlas, 0, _textureAtlas.Id);
+        _shader.LoadTexture(
+            _shader.LocationTextureAtlas,
+            0,
+            _meshedIsSprite ? _itemAtlas.Id : _textureAtlas.Id);
         _shader.LoadMatrix(_shader.LocationProjectionMatrix, _projectionMatrix);
 
         // The identity view matrix is what fixes the block to the screen: its vertices are already where the
@@ -237,31 +273,51 @@ public sealed class HeldItemRenderer
 
         Vector3 position = RestingPosition + bob + new Vector3(0F, -SwingDrop * swingArc, 0.14F * swingArc);
 
+        if (_meshedIsSprite)
+        {
+            return Matrix4.CreateScale(SpriteScale)
+                   * Matrix4.CreateRotationZ(SpriteRoll)
+                   * Matrix4.CreateRotationX(RestingPitch - (SwingTwist * swingArc))
+                   * Matrix4.CreateRotationY(SpriteYaw)
+                   * Matrix4.CreateTranslation(position);
+        }
+
         return Matrix4.CreateScale(Scale)
                * Matrix4.CreateRotationX(RestingPitch - (SwingTwist * swingArc))
                * Matrix4.CreateRotationY(RestingYaw)
                * Matrix4.CreateTranslation(position);
     }
 
-    private void RebuildMeshIfStale(World world, BlockState held)
+    private void RebuildMeshIfStale(World world, ItemStack held)
     {
         Light light = SampleLightAtPlayer(world);
         uint packedLight = light.GetStorage();
 
-        // The state matters as well as the block: a torch turned to face a wall is a different shape from one
-        // standing up, and both are the same block.
+        // A sprite is lit flat and is the same mesh wherever it is being carried, so only a change of item
+        // matters for one. A block is lit by where the player is standing, and its state matters as well as
+        // the block: a torch turned to face a wall is a different shape from one standing up.
         if (_model is not null &&
-            _meshedBlock == held.GetBlock() &&
-            ReferenceEquals(_meshedState, held) &&
-            _meshedLight == packedLight)
+            _meshedItem == held.Item &&
+            (_meshedIsSprite || _meshedLight == packedLight))
         {
             return;
         }
 
+        // Built here rather than above the check, since a block that carries its own state hands back a fresh
+        // one every time it is asked and the check is reached on every frame the same thing is being carried.
+        BlockState? state = held.Block is null ? null : BlockRegistry.GetState(held.Block);
+
         _model?.CleanUp();
-        _model = BlockIconMesh.Build(_blockModelRegistry, held, light);
-        _meshedBlock = held.GetBlock();
-        _meshedState = held;
+
+        _model = held.Item switch
+        {
+            SpriteItem sprite => ItemSpriteMesh.Build(_itemAtlas, sprite.IconCell),
+            _ => BlockIconMesh.Build(_blockModelRegistry, state!, light),
+        };
+
+        _meshedIsSprite = held.Item is SpriteItem;
+        _meshedItem = held.Item;
+        _meshedState = state;
         _meshedLight = packedLight;
     }
 

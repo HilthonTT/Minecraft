@@ -157,6 +157,15 @@ public sealed class SoundDirector
         _engine.PlayAt(_sounds.Get(Sound.ItemPickup).Pick(_random), position, PickupVolume, RandomPitch());
     }
 
+    /// <summary>
+    /// A tool worn through, played where the player standing over it is. Loud enough not to be missed: a
+    /// pickaxe going in the middle of a dig is the difference between carrying on and walking back.
+    /// </summary>
+    public void OnToolBroke(Vector3 position)
+    {
+        _engine.PlayAt(_sounds.Get(Sound.ToolBroke).Pick(_random), position, PickupVolume, RandomPitch());
+    }
+
     /// <summary>Drops everything remembered about a world that has been left.</summary>
     public void OnWorldUnloaded()
     {

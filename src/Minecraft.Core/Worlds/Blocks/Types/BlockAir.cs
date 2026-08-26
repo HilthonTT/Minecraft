@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Physics;
+﻿using Minecraft.Core.Inventories;
+using Minecraft.Core.Physics;
 using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;
 
@@ -18,7 +19,7 @@ public sealed class BlockAir : Block
         return new BlockStateAir();
     }
 
-    public override Block? GetDroppedBlock(BlockState blockState) => null;
+    public override ItemStack GetDrop(BlockState blockState) => ItemStack.Empty;
 
     public override AxisAlignedBox[] GetCollisionBox(BlockState state, Vector3i blockPos)
     {

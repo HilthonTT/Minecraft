@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks.States;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
@@ -9,6 +10,7 @@ public sealed class BlockPlanks : Block
     {
         SoundMaterial = BlockSoundMaterial.Wood;
         SecondsToBreak = 1.2F;
+        HarvestTool = ToolKind.Axe;
     }
 
     public override BlockState GetNewDefaultState()

@@ -1,13 +1,13 @@
 using Minecraft.Core.Inventories;
-using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI;
 
 /// <summary>
-/// A block of slots laid out in rows: the panel behind each one, the block drawn in it and the count in its
-/// corner. The hotbar, the storage rows and the list of every block in the game are all one of these, which
-/// is what keeps a stack looking and behaving the same wherever it has been put.
+/// A block of slots laid out in rows: the panel behind each one, whatever is drawn in it, the count in its
+/// corner and, for a tool, how much use is left in it. The hotbar, the storage rows, a bench and the list of
+/// every block in the game are all one of these, which is what keeps a stack looking and behaving the same
+/// wherever it has been put.
 /// <para>
 /// The panels and the counts live on two different canvases, because the icons are drawn as real geometry in
 /// between the two: a panel has to be behind its block and the count has to be in front of it.
@@ -30,14 +30,31 @@ public sealed class UISlotGrid
     private const float CountInsetX = 4F;
     private const float CountInsetY = 3F;
 
+    /// <summary>How wide the wear bar runs across its slot, and how thick and how far off the bottom it sits.</summary>
+    private const float WearBarFraction = 0.68F;
+    private const float WearBarThickness = 3F;
+    private const float WearBarInset = 5F;
+
     private static readonly Vector3 _idleColor = new(0.15F, 0.16F, 0.19F);
     private static readonly Vector3 _hoverColor = new(0.34F, 0.38F, 0.45F);
     private static readonly Vector3 _countColor = new(0.97F, 0.97F, 0.97F);
     private static readonly Vector3 _countShadowColor = new(0.04F, 0.04F, 0.05F);
+    private static readonly Vector3 _wearTrackColor = new(0.03F, 0.03F, 0.04F);
+
+    // Green while there is plenty left and red as it runs out, so how worn a tool is can be read at a glance
+    // without counting pixels along a bar.
+    private static readonly Vector3 _wearFullColor = new(0.24F, 0.82F, 0.24F);
+    private static readonly Vector3 _wearEmptyColor = new(0.88F, 0.16F, 0.12F);
 
     private readonly UIImage[] _panels;
     private readonly UIText[] _counts;
     private readonly UIText[] _countShadows;
+
+    // On the overlay with the counts rather than behind the icons with the panels: a bar drawn under a
+    // pickaxe would be hidden by the pickaxe it is about.
+    private readonly UIImage[] _wearTracks;
+    private readonly UIImage[] _wearBars;
+
     private readonly Font _font;
 
     private Vector2 _origin;
@@ -73,6 +90,8 @@ public sealed class UISlotGrid
         _panels = new UIImage[count];
         _counts = new UIText[count];
         _countShadows = new UIText[count];
+        _wearTracks = new UIImage[count];
+        _wearBars = new UIImage[count];
 
         for (int slot = 0; slot < count; slot++)
         {
@@ -87,6 +106,18 @@ public sealed class UISlotGrid
             panelCanvas.AddComponentToRender(_panels[slot]);
         }
 
+        // Every track before every bar, since a canvas draws its components in the order it was given them
+        // and a bar belongs over its own track, not over the next slot's.
+        for (int slot = 0; slot < count; slot++)
+        {
+            _wearTracks[slot] = AddWearBar(overlayCanvas, _wearTrackColor);
+        }
+
+        for (int slot = 0; slot < count; slot++)
+        {
+            _wearBars[slot] = AddWearBar(overlayCanvas, _wearFullColor);
+        }
+
         // Every shadow before every count, since a canvas draws its components in the order it was given
         // them and a shadow belongs under the number it is behind, not under the next slot's.
         for (int slot = 0; slot < count; slot++)
@@ -98,6 +129,18 @@ public sealed class UISlotGrid
         {
             _counts[slot] = AddCount(overlayCanvas, _countColor);
         }
+    }
+
+    private UIImage AddWearBar(UICanvas overlayCanvas, Vector3 color)
+    {
+        var bar = new UIImage(overlayCanvas, Vector2.Zero, Vector2.Zero, UITextures.White)
+        {
+            Color = color,
+            IsVisible = false,
+        };
+
+        overlayCanvas.AddComponentToRender(bar);
+        return bar;
     }
 
     private UIText AddCount(UICanvas overlayCanvas, Vector3 color)
@@ -160,7 +203,7 @@ public sealed class UISlotGrid
     /// to clean once it has refreshed all of them.
     /// </para>
     /// </summary>
-    public void Refresh(BlockIconRenderer icons, Func<int, ItemStack> stackAt, int hoveredIndex)
+    public void Refresh(ItemIconRenderer icons, Func<int, ItemStack> stackAt, int hoveredIndex)
     {
         for (int slot = 0; slot < Count; slot++)
         {
@@ -170,14 +213,48 @@ public sealed class UISlotGrid
             if (stack.IsEmpty)
             {
                 SetCount(slot, string.Empty);
+                SetWear(slot, stack);
                 continue;
             }
 
-            icons.Queue(stack.Block!, CentreOf(slot), SlotSize * IconFillFraction);
+            icons.Queue(stack, CentreOf(slot), SlotSize * IconFillFraction);
 
-            // A single block needs no number over it: the block itself already says there is one.
+            // A single thing needs no number over it: the icon itself already says there is one.
             SetCount(slot, stack.Count > 1 ? stack.Count.ToString() : string.Empty);
+            SetWear(slot, stack);
         }
+    }
+
+    /// <summary>
+    /// Draws how much use is left in a tool, and nothing at all for anything else or for a tool that has not
+    /// been swung yet. A bar under an unused pickaxe would be a full bar under every pickaxe ever made, which
+    /// says nothing and only makes the slot noisier.
+    /// </summary>
+    private void SetWear(int slot, ItemStack stack)
+    {
+        bool worn = !stack.IsEmpty && stack.Item!.IsDamageable && stack.Damage > 0;
+
+        _wearTracks[slot].IsVisible = worn;
+        _wearBars[slot].IsVisible = worn;
+
+        if (!worn)
+        {
+            return;
+        }
+
+        float left = stack.RemainingDurability / (float)stack.Item!.MaxDurability;
+        float width = SlotSize * WearBarFraction;
+
+        var position = new Vector2(
+            PositionOf(slot).X + ((SlotSize - width) / 2F),
+            PositionOf(slot).Y + SlotSize - WearBarInset - WearBarThickness);
+
+        _wearTracks[slot].PixelPositionInCanvas = position;
+        _wearTracks[slot].Dimension = new Vector2(width, WearBarThickness);
+
+        _wearBars[slot].PixelPositionInCanvas = position;
+        _wearBars[slot].Dimension = new Vector2(MathF.Max(1F, width * left), WearBarThickness);
+        _wearBars[slot].Color = Vector3.Lerp(_wearEmptyColor, _wearFullColor, left);
     }
 
     /// <summary>Writes a count into the bottom right corner of its slot, with its shadow behind it.</summary>
@@ -216,6 +293,14 @@ public sealed class UISlotGrid
             _panels[slot].IsVisible = isVisible;
             _counts[slot].IsVisible = isVisible;
             _countShadows[slot].IsVisible = isVisible;
+
+            // Only ever hidden here. A bar that should be showing is turned back on by the next refresh,
+            // which is what decides whether there is any wear to draw in the first place.
+            if (!isVisible)
+            {
+                _wearTracks[slot].IsVisible = false;
+                _wearBars[slot].IsVisible = false;
+            }
         }
     }
 
@@ -225,6 +310,7 @@ public sealed class UISlotGrid
         for (int slot = 0; slot < Count; slot++)
         {
             SetCount(slot, string.Empty);
+            SetWear(slot, ItemStack.Empty);
         }
     }
 }

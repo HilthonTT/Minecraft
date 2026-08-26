@@ -187,3 +187,13 @@ public sealed class BlockModelCactus : FullBlockModel
             topCell: BlockAtlas.CactusTop,
             bottomCell: BlockAtlas.CactusBottom);
 }
+
+/// <summary>
+/// The bench, which wears three different cells: the laid out top, the panelled sides, and the underside of
+/// the planks it was made from.
+/// </summary>
+public sealed class BlockModelCraftingTable(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: new Vector2(11, 3), topCell: new Vector2(11, 2), bottomCell: new Vector2(4, 0));
+}

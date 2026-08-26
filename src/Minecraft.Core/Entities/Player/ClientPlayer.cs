@@ -1,6 +1,7 @@
 ﻿using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render;
@@ -124,6 +125,10 @@ public sealed class ClientPlayer : Player
     /// <summary>What this player is carrying, and which of the nine hotbar slots is in hand.</summary>
     public Inventory Inventory { get; } = new();
 
+    /// <summary>What the server was last told is in hand, so the same thing is not said twice.</summary>
+    private ushort _reportedHeldItemId;
+    private int _reportedHeldDamage;
+
     /// <summary>
     /// The block a right click would place, and what is drawn in the player's own hand. Kept as one instance
     /// that only changes when the selected slot does, rather than built on demand: the renderer decides
@@ -168,8 +173,9 @@ public sealed class ClientPlayer : Player
     }
 
     /// <summary>
-    /// Takes whatever is now in the selected slot as the block to build with. An empty slot leaves the player
-    /// holding air, which places nothing and draws nothing.
+    /// Takes whatever is now in the selected slot as the block to build with, and tells the server what is in
+    /// hand. An empty slot, or a slot holding something that is not a block, leaves the player holding air,
+    /// which places nothing.
     /// </summary>
     private void OnInventoryChanged()
     {
@@ -179,6 +185,59 @@ public sealed class ClientPlayer : Player
         {
             SelectedBlock = BlockRegistry.GetState(block);
         }
+
+        SendHeldItemIfChanged();
+    }
+
+    /// <summary>
+    /// Tells the server what is now in hand, when it is not what was in hand last time.
+    /// <para>
+    /// Sent on a change rather than with every swing, since it changes when a number key is pressed and a
+    /// swing happens sixty times a second. What the server wants it for is the one question a break now has
+    /// to ask of the hand it was made with: see <see cref="PlayerHeldItemPacket"/>.
+    /// </para>
+    /// <para>
+    /// The wear goes with it, so a tool worn through on this side stops being honoured on that one, and it is
+    /// why this is watched rather than only the selected slot: a pickaxe is a different pickaxe after every
+    /// block it gets through.
+    /// </para>
+    /// </summary>
+    /// <summary>
+    /// Says what is in hand whether or not it has changed, called once the server has accepted the join. The
+    /// server has heard nothing from this player before that point and would otherwise be left assuming an
+    /// empty hand until the selection next moved.
+    /// </summary>
+    public void ReportHeldItem()
+    {
+        _reportedHeldItemId = 0;
+        _reportedHeldDamage = 0;
+        SendHeldItemIfChanged();
+    }
+
+    private void SendHeldItemIfChanged()
+    {
+        // The inventory exists before there is anywhere to report to: it is built with the player, and the
+        // player is built before a world has been joined. There is nothing to tell yet, and the join itself
+        // starts the reporting over anyway. See ResetForNewSession.
+        if (_game.Client is null)
+        {
+            return;
+        }
+
+        ItemStack selected = Inventory.Selected;
+
+        // Zero is no item's id, which is how an empty hand is written down.
+        ushort itemId = selected.IsEmpty ? (ushort)0 : selected.Item!.Id;
+
+        if (itemId == _reportedHeldItemId && selected.Damage == _reportedHeldDamage)
+        {
+            return;
+        }
+
+        _reportedHeldItemId = itemId;
+        _reportedHeldDamage = selected.Damage;
+
+        _game.Client.WritePacket(new PlayerHeldItemPacket(itemId, selected.Damage));
     }
 
     /// <summary>Takes the field of view the player has chosen, for when they change it from the options.</summary>
@@ -253,6 +312,11 @@ public sealed class ClientPlayer : Player
         // A world is always entered out of your own eyes, whichever view the last one was left in.
         Perspective = CameraPerspective.FirstPerson;
         Camera.SetViewReversed(false);
+
+        // Forgotten before the inventory is emptied, not after: a fresh server has been told nothing, so what
+        // this side last said is no longer a reason to stay quiet, and the reset below is what says it again.
+        _reportedHeldItemId = 0;
+        _reportedHeldDamage = 0;
 
         // Nothing carried follows a player out of a world, so the next one opens on whatever its own mode
         // starts a player with rather than on what was in hand when the last was left.
@@ -464,6 +528,13 @@ public sealed class ClientPlayer : Player
             if (MouseOverEntity is not null)
             {
                 _game.Client.WritePacket(new PlayerAttackEntityPacket(MouseOverEntity.ID));
+
+                // Worn here for the same reason a dig is: the inventory is this side's. A blow the server
+                // turns down for reach still wears the tool, which is the price of not waiting to be told.
+                if (Inventory.WearSelected())
+                {
+                    _game.SoundDirector.OnToolBroke(Position);
+                }
             }
         }
 
@@ -480,7 +551,13 @@ public sealed class ClientPlayer : Player
 
             OnSwingHandler?.Invoke();
 
-            if (!_isCrouching && hitBlock.IsInteractable)
+            if (!_isCrouching && hitBlock == BlockRegistry.CraftingTable)
+            {
+                // Nothing is sent. A bench holds nothing and remembers nothing, so there is nothing for the
+                // server to be told: what opens is a screen over an inventory that already lives on this side.
+                _game.OpenCraftingTable();
+            }
+            else if (!_isCrouching && hitBlock.IsInteractable)
             {
                 _game.Client.WritePacket(new PlayerBlockInteractionPacket(MouseOverObject.IntersectedBlockPos));
 
@@ -622,7 +699,8 @@ public sealed class ClientPlayer : Player
             return;
         }
 
-        float required = IsCreative ? 0F : block.SecondsToBreak;
+        // The tool is the denominator of the block's own time; see Harvesting, where the two meet.
+        float required = IsCreative ? 0F : Harvesting.SecondsToBreak(block, Inventory.Selected);
 
         _secondsSpentBreaking += deltaTime;
         BreakProgress = required <= 0F ? 1F : Math.Clamp(_secondsSpentBreaking / required, 0F, 1F);
@@ -651,6 +729,14 @@ public sealed class ClientPlayer : Player
         }
 
         _game.Client.WritePacket(new RemoveBlockPacket(target));
+
+        // The tool is worn here rather than when the removal comes back, for the same reason a placement is
+        // paid for here: the inventory is this side's. A tool worn through empties its slot, and the server
+        // is told about that by the change it raises.
+        if (Harvesting.IsCorrectToolFor(block, Inventory.Selected) && Inventory.WearSelected())
+        {
+            _game.SoundDirector.OnToolBroke(Position);
+        }
 
         _secondsUntilNextBreak = SecondsBetweenBreaks;
         _hasAskedToBreakTarget = true;
@@ -774,7 +860,8 @@ public sealed class ClientPlayer : Player
             return;
         }
 
-        _game.Client.WritePacket(new PlayerDropItemPacket(thrown.Block!.Id, thrown.Count));
+        _game.Client.WritePacket(
+            new PlayerDropItemPacket(thrown.Item!.Id, thrown.Count, thrown.Damage));
         OnSwingHandler?.Invoke();
     }
 

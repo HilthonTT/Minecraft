@@ -14,13 +14,17 @@ namespace Minecraft.Core.Network.Packets;
 /// </summary>
 public sealed class PlayerDropItemPacket : Packet
 {
-    public ushort BlockId { get; private set; }
+    public ushort ItemId { get; private set; }
     public int Count { get; private set; }
 
-    public PlayerDropItemPacket(ushort blockId, int count) : base(PacketType.PlayerDropItem)
+    /// <summary>How worn it was, so that throwing a tool down and picking it up again does not mend it.</summary>
+    public int Damage { get; private set; }
+
+    public PlayerDropItemPacket(ushort itemId, int count, int damage) : base(PacketType.PlayerDropItem)
     {
-        BlockId = blockId;
+        ItemId = itemId;
         Count = count;
+        Damage = damage;
     }
 
     public override void Process(INetHandler netHandler)
@@ -30,7 +34,8 @@ public sealed class PlayerDropItemPacket : Packet
 
     protected override void ToStream(BufferedDataStream bufferedStream)
     {
-        bufferedStream.WriteUInt16(BlockId);
+        bufferedStream.WriteUInt16(ItemId);
         bufferedStream.WriteInt32(Count);
+        bufferedStream.WriteInt32(Damage);
     }
 }

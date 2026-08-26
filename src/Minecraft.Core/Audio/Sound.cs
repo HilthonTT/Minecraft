@@ -45,4 +45,7 @@ public enum Sound
 
     /// <summary>A stack being swept up off the ground.</summary>
     ItemPickup,
+
+    /// <summary>A tool giving out, played at the player who was swinging it.</summary>
+    ToolBroke,
 }

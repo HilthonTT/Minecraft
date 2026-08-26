@@ -1,4 +1,5 @@
 using Minecraft.Core.Games;
+using Minecraft.Core.Inventories;
 using Minecraft.Core.Worlds;
 using OpenTK.Mathematics;
 
@@ -17,6 +18,17 @@ public sealed class ServerPlayer : Player
 {
     /// <summary>What the player has left, in half hearts.</summary>
     public int Health { get; private set; } = Constants.PLAYER_MAX_HEALTH;
+
+    /// <summary>
+    /// What the client last said it was holding. The one piece of a client's inventory this side keeps, and
+    /// it is kept because a break has to be answered here and the answer now depends on the tool: see
+    /// <see cref="Network.Packets.PlayerHeldItemPacket"/>.
+    /// <para>
+    /// A count of one, whatever the client is really carrying. Nothing on this side asks how many; what it
+    /// asks is what kind and how worn, which is all a break is decided on.
+    /// </para>
+    /// </summary>
+    public ItemStack HeldItem { get; set; }
 
     public bool IsAlive => Health > 0;
 

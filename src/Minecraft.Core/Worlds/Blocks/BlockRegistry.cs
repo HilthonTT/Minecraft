@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks.Types;
 
 namespace Minecraft.Core.Worlds.Blocks;
@@ -29,19 +30,29 @@ public static class BlockRegistry
     public static readonly Block Cobblestone = new BlockCobblestone(18);
     // The floor of the world, and the one block nothing gets through.
     public static readonly Block Bedrock = new BlockSolid(19, secondsToBreak: float.PositiveInfinity, dropsItself: false);
-    public static readonly Block CoalOre = new BlockSolid(20, secondsToBreak: 2.8F);
-    public static readonly Block IronOre = new BlockSolid(21, secondsToBreak: 2.8F);
-    public static readonly Block GoldOre = new BlockSolid(22, secondsToBreak: 2.8F);
-    public static readonly Block RedstoneOre = new BlockSolid(23, secondsToBreak: 2.8F);
-    public static readonly Block DiamondOre = new BlockSolid(24, secondsToBreak: 2.8F);
+
+    // The five seams, each of which comes apart into what was buried in it rather than into itself, and each
+    // buried a little deeper than the last. See BlockOre for why iron and gold arrive already refined.
+    public static readonly Block CoalOre = new BlockOre(20, () => ItemRegistry.Coal, harvestLevel: 0);
+    public static readonly Block IronOre = new BlockOre(21, () => ItemRegistry.IronIngot, harvestLevel: 1);
+    public static readonly Block GoldOre = new BlockOre(22, () => ItemRegistry.GoldIngot, harvestLevel: 2);
+    public static readonly Block RedstoneOre = new BlockOre(23, () => ItemRegistry.Redstone, harvestLevel: 2, count: 4);
+    public static readonly Block DiamondOre = new BlockOre(24, () => ItemRegistry.Diamond, harvestLevel: 2);
+
     public static readonly Block Glowstone = new BlockGlowstone(25);
-    public static readonly Block MossyCobblestone = new BlockSolid(26, secondsToBreak: 2.0F);
-    public static readonly Block Clay = new BlockSolid(27, BlockSoundMaterial.Gravel, secondsToBreak: 0.6F);
-    public static readonly Block Snow = new BlockSolid(28, BlockSoundMaterial.Snow, secondsToBreak: 0.3F);
-    public static readonly Block SnowyGrass = new BlockSolid(29, BlockSoundMaterial.Grass, secondsToBreak: 0.65F);
-    public static readonly Block Ice = new BlockSolid(30, secondsToBreak: 0.7F);
-    public static readonly Block BirchLog = new BlockSolid(31, BlockSoundMaterial.Wood, secondsToBreak: 1.5F);
-    public static readonly Block SpruceLog = new BlockSolid(32, BlockSoundMaterial.Wood, secondsToBreak: 1.5F);
+    public static readonly Block MossyCobblestone = new BlockSolid(26, secondsToBreak: 2.0F,
+        harvestTool: ToolKind.Pickaxe, requiresCorrectTool: true);
+    public static readonly Block Clay = new BlockSolid(27, BlockSoundMaterial.Gravel, secondsToBreak: 0.6F,
+        harvestTool: ToolKind.Shovel);
+    public static readonly Block Snow = new BlockSolid(28, BlockSoundMaterial.Snow, secondsToBreak: 0.3F,
+        harvestTool: ToolKind.Shovel, requiresCorrectTool: true);
+    public static readonly Block SnowyGrass = new BlockSolid(29, BlockSoundMaterial.Grass, secondsToBreak: 0.65F,
+        harvestTool: ToolKind.Shovel);
+    public static readonly Block Ice = new BlockSolid(30, secondsToBreak: 0.7F, harvestTool: ToolKind.Pickaxe);
+    public static readonly Block BirchLog = new BlockSolid(31, BlockSoundMaterial.Wood, secondsToBreak: 1.5F,
+        harvestTool: ToolKind.Axe);
+    public static readonly Block SpruceLog = new BlockSolid(32, BlockSoundMaterial.Wood, secondsToBreak: 1.5F,
+        harvestTool: ToolKind.Axe);
     public static readonly Block Dandelion = new BlockPlant(33, () => [Dirt, Grass, SnowyGrass]);
     public static readonly Block RedMushroom = new BlockPlant(34, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
     public static readonly Block BrownMushroom = new BlockPlant(35, () => [Dirt, Grass, Stone, MossyCobblestone, Gravel]);
@@ -59,6 +70,9 @@ public static class BlockRegistry
     public static readonly Block WaterFlowing5 = new BlockWater(43, level: 5, falling: false);
     public static readonly Block WaterFlowing6 = new BlockWater(44, level: 6, falling: false);
     public static readonly Block WaterFlowing7 = new BlockWater(45, level: 7, falling: false);
+
+    /// <summary>The bench a recipe wider than two is laid out on.</summary>
+    public static readonly Block CraftingTable = new BlockCraftingTable(46);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -129,6 +143,7 @@ public static class BlockRegistry
             WaterFlowing5,
             WaterFlowing6,
             WaterFlowing7,
+            CraftingTable,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

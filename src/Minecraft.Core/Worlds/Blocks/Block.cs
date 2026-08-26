@@ -1,7 +1,9 @@
 ﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Physics;
-using OpenTK.Mathematics;
 using Minecraft.Core.Utilities.Vectors;
+using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Blocks;
 
@@ -41,15 +43,39 @@ public abstract class Block
     /// with no body of its own comes to, and <see cref="float.PositiveInfinity"/> is bedrock: nothing a
     /// player is ever given will get through it.
     /// <para>
-    /// Held as a time rather than as Minecraft's own hardness figure because there is nothing to hold yet
-    /// that digs faster. When there is, this becomes the numerator and the tool the denominator; until then
-    /// the two would be the same number written twice, and one of them would be wrong.
+    /// Held as a time rather than as Minecraft's own hardness figure because it is the numerator of the one
+    /// division that matters: a block's time divided by the dig speed of the right tool for it. See
+    /// <see cref="Harvesting.SecondsToBreak"/>, where the two are put together.
     /// </para>
     /// </summary>
     public float SecondsToBreak { get; protected set; } = 1.0F;
 
     /// <summary>Whether any amount of digging gets through this block.</summary>
     public bool IsBreakable => !float.IsPositiveInfinity(SecondsToBreak);
+
+    /// <summary>
+    /// The one kind of tool this comes apart faster under, or null for a block no tool is any better at than
+    /// a bare hand. Wood answers to an axe, earth to a shovel, stone and ore to a pickaxe; a flower answers
+    /// to nothing, and is torn out just as fast either way.
+    /// </summary>
+    public ToolKind? HarvestTool { get; protected set; }
+
+    /// <summary>
+    /// How deep this is buried: the lowest <see cref="ToolMaterial.HarvestLevel"/> that earns anything from
+    /// it. Zero for almost everything, which any tool of the right kind clears.
+    /// </summary>
+    public int HarvestLevel { get; protected set; }
+
+    /// <summary>
+    /// Whether the right tool is what makes the difference between a drop and nothing. Stone comes apart
+    /// under bare hands and leaves no cobblestone behind; dirt does not care what dug it.
+    /// <para>
+    /// Kept apart from <see cref="HarvestLevel"/> because the two answer different questions. This one asks
+    /// whether a tool was needed at all, and the level asks whether the one brought was good enough; a block
+    /// that needs no tool has nothing to be too poor for.
+    /// </para>
+    /// </summary>
+    public bool RequiresCorrectTool { get; protected set; }
 
     protected Block(ushort id)
     {
@@ -60,16 +86,18 @@ public abstract class Block
     public abstract BlockState GetNewDefaultState();
 
     /// <summary>
-    /// What breaking this block leaves behind, or null when it leaves nothing. Itself for almost everything;
-    /// the exceptions are the blocks that come apart on the way out — stone into cobblestone, grass into the
-    /// dirt under it — and the greenery, which is torn rather than harvested.
+    /// What breaking this block leaves behind, or an empty stack when it leaves nothing. Itself for almost
+    /// everything; the exceptions are the blocks that come apart on the way out — stone into cobblestone,
+    /// grass into the dirt under it, ore into what was buried in it — and the greenery, which is torn rather
+    /// than harvested.
     /// <para>
-    /// Only asked when a player broke the block by hand. Water washing a flower away, sand settling a cell
-    /// lower and a blast taking a hillside apart all go through the same removal, and none of them should
-    /// leave a pile of anything behind.
+    /// Only asked when a player broke the block with a swing the tool was good enough for; see
+    /// <see cref="Harvesting.CanHarvest"/>, which is the gate in front of this. Water washing a flower away,
+    /// sand settling a cell lower and a blast taking a hillside apart all go through the same removal, and
+    /// none of them should leave a pile of anything behind.
     /// </para>
     /// </summary>
-    public virtual Block? GetDroppedBlock(BlockState blockState) => this;
+    public virtual ItemStack GetDrop(BlockState blockState) => new(this, 1);
 
     public virtual void OnInteract(BlockState blockstate, Vector3i blockPos, World world)
     {

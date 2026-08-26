@@ -3,13 +3,14 @@ using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
+using Minecraft.Core.Render.UI.Presets;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
-using Minecraft.Core.Render.UI.Presets;
 
 namespace Minecraft.Core.Network.NetHandler;
 
@@ -198,9 +199,14 @@ public sealed class ClientNetHandler : INetHandler
             return;
         }
 
-        var stack = new ItemStack(
-            BlockRegistry.GetBlockFromIdentifier(itemSpawnPacket.BlockId),
-            itemSpawnPacket.Count);
+        Item? dropped = ItemRegistry.TryGet(itemSpawnPacket.ItemId);
+        if (dropped is null)
+        {
+            Logger.Warn("Server spawned unknown item id " + itemSpawnPacket.ItemId + ".");
+            return;
+        }
+
+        var stack = new ItemStack(dropped, itemSpawnPacket.Count, itemSpawnPacket.Damage);
 
         var item = new DroppedItem(
             itemSpawnPacket.EntityID,
@@ -227,9 +233,14 @@ public sealed class ClientNetHandler : INetHandler
             _game.World.DespawnEntity(itemPickupPacket.EntityID);
         }
 
-        var picked = new ItemStack(
-            BlockRegistry.GetBlockFromIdentifier(itemPickupPacket.BlockId),
-            itemPickupPacket.Count);
+        Item? collected = ItemRegistry.TryGet(itemPickupPacket.ItemId);
+        if (collected is null)
+        {
+            Logger.Warn("Server granted unknown item id " + itemPickupPacket.ItemId + ".");
+            return;
+        }
+
+        var picked = new ItemStack(collected, itemPickupPacket.Count, itemPickupPacket.Damage);
 
         _game.ClientPlayer.Inventory.TryAdd(picked);
         _game.SoundDirector.OnItemPickedUp(_game.ClientPlayer.Position);
@@ -243,6 +254,11 @@ public sealed class ClientNetHandler : INetHandler
     public void ProcessPlayerDropItemPacket(PlayerDropItemPacket playerDropItemPacket)
     {
         throw new InvalidOperationException("A client does not receive drops; it is the one that throws them.");
+    }
+
+    public void ProcessPlayerHeldItemPacket(PlayerHeldItemPacket playerHeldItemPacket)
+    {
+        throw new InvalidOperationException("A client does not receive what is held; it is the one holding it.");
     }
 
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)
@@ -269,6 +285,10 @@ public sealed class ClientNetHandler : INetHandler
         _game.ClientPlayer.SetHealth(playerJoinAcceptPacket.Health);
 
         _session.State = SessionState.Accepted;
+
+        // Said now rather than left to the first time the selection moves: until the server hears it, it has
+        // to assume an empty hand, and would refuse the drop from the first block broken with a tool.
+        _game.ClientPlayer.ReportHeldItem();
 
         _game.World.Environment.CurrentTime = playerJoinAcceptPacket.CurrentTime;
 

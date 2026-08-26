@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Audio;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks.States;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
@@ -9,6 +10,8 @@ public sealed class BlockCobblestone : Block
     {
         SoundMaterial = BlockSoundMaterial.Stone;
         SecondsToBreak = 2.0F;
+        HarvestTool = ToolKind.Pickaxe;
+        RequiresCorrectTool = true;
     }
 
     public override BlockState GetNewDefaultState()

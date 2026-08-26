@@ -1,4 +1,6 @@
 using Minecraft.Core.Games;
+using Minecraft.Core.Inventories.Crafting;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Inventories;
@@ -9,9 +11,10 @@ namespace Minecraft.Core.Inventories;
 /// having to know which is which.
 /// <para>
 /// In creative it is a drawing board with an endless supply behind it: the hotbar opens filled, placing a
-/// block costs nothing, and the block list on the inventory screen hands out whole stacks. In survival it is
-/// a container and nothing else — it opens empty, a placement comes out of a stack, and the only way anything
-/// gets in is <see cref="TryAdd"/>, which is where a block that has just been broken lands.
+/// block costs nothing, and the list on the inventory screen hands out whole stacks of anything in the game.
+/// In survival it is a container and nothing else — it opens empty, a placement comes out of a stack, and the
+/// only way anything gets in is <see cref="TryAdd"/>, which is where a block that has just been broken lands
+/// and where a bench puts what it has just made.
 /// </para>
 /// </summary>
 public sealed class Inventory
@@ -54,6 +57,13 @@ public sealed class Inventory
     /// </summary>
     public ItemStack CursorStack { get; private set; }
 
+    /// <summary>
+    /// The two by two bench carried around inside the inventory screen. Enough for the handful of recipes
+    /// that have to be reachable before a player has found anything to lay a bigger one out on: planks,
+    /// sticks, torches, and the bench itself. See <see cref="Crafting.RecipeRegistry"/>.
+    /// </summary>
+    public CraftingGrid Crafting { get; } = new(2);
+
     /// <summary>What is in the selected hotbar slot, which is what a right click would build with.</summary>
     public ItemStack Selected => _slots[_selectedHotbarSlot];
 
@@ -66,7 +76,7 @@ public sealed class Inventory
     /// <summary>
     /// Which mode the player carrying this is in. Held here rather than reached for through the player,
     /// because the screens that draw slots ask it on every frame and the answer decides whether a click on
-    /// the block list is a supply or a no-op.
+    /// that list is a supply or a no-op.
     /// </summary>
     public GameMode GameMode { get; private set; } = GameMode.Creative;
 
@@ -95,6 +105,7 @@ public sealed class Inventory
     {
         Array.Clear(_slots);
         CursorStack = ItemStack.Empty;
+        Crafting.TakeAll();
 
         // Survival starts with nothing at all. The nine blocks are a drawing board's worth of materials, and
         // handing them over would settle in advance every question the first night is supposed to ask.
@@ -170,6 +181,31 @@ public sealed class Inventory
 
         _slots[_selectedHotbarSlot] = new ItemStack(block, ItemStack.MaxCount);
         OnChangedHandler?.Invoke();
+    }
+
+    /// <summary>
+    /// Wears the tool in hand by one swing, and empties the slot if that was the last of it. Nothing happens
+    /// in creative, where a tool is part of the drawing board rather than something that had to be made, and
+    /// nothing happens to anything that is not a tool.
+    /// </summary>
+    public bool WearSelected()
+    {
+        if (HasEndlessSupply)
+        {
+            return false;
+        }
+
+        ItemStack selected = _slots[_selectedHotbarSlot];
+        if (selected.Tool is null)
+        {
+            return false;
+        }
+
+        ItemStack worn = selected.Worn();
+        _slots[_selectedHotbarSlot] = worn;
+        OnChangedHandler?.Invoke();
+
+        return worn.IsEmpty;
     }
 
     /// <summary>
@@ -331,21 +367,21 @@ public sealed class Inventory
     }
 
     /// <summary>
-    /// Takes a stack out of thin air onto the cursor, which is what the block list on the screen is. Does
+    /// Takes a stack out of thin air onto the cursor, which is what the supply list on the screen is. Does
     /// nothing in survival, where there is no thin air to take one out of.
     /// </summary>
-    public void TakeFromSupply(Block block, int count)
+    public void TakeFromSupply(Item item, int count)
     {
         if (!HasEndlessSupply)
         {
             return;
         }
 
-        CursorStack = new ItemStack(block, count);
+        CursorStack = new ItemStack(item, count);
         OnChangedHandler?.Invoke();
     }
 
-    /// <summary>Throws away whatever is on the cursor. Clicking the block list with a full hand does this.</summary>
+    /// <summary>Throws away whatever is on the cursor. Clicking the supply list with a full hand does this.</summary>
     public void DiscardCursorStack()
     {
         if (CursorStack.IsEmpty)
@@ -371,5 +407,106 @@ public sealed class Inventory
         ItemStack cursor = CursorStack;
         CursorStack = ItemStack.Empty;
         TryAdd(cursor);
+    }
+
+    /// <summary>
+    /// A click on a cell of a bench, which moves a stack exactly the way a click on a storage slot does. The
+    /// bench is passed in rather than reached for, because there are two of them: the two by two carried
+    /// here, and the three by three belonging to whatever table is open.
+    /// </summary>
+    public void ClickCraftingSlot(CraftingGrid grid, int index, bool rightButton)
+    {
+        ItemStack slot = grid.GetSlot(index);
+        ItemStack cursor = CursorStack;
+
+        if (cursor.IsEmpty)
+        {
+            if (slot.IsEmpty)
+            {
+                return;
+            }
+
+            if (!rightButton)
+            {
+                CursorStack = slot;
+                grid.SetSlot(index, ItemStack.Empty);
+            }
+            else
+            {
+                int taken = (slot.Count + 1) / 2;
+                CursorStack = slot.WithCount(taken);
+                grid.SetSlot(index, slot.WithCount(slot.Count - taken));
+            }
+        }
+        else if (rightButton)
+        {
+            if (!slot.IsEmpty && (!slot.CanStackWith(cursor) || slot.RemainingSpace == 0))
+            {
+                return;
+            }
+
+            grid.SetSlot(index, slot.IsEmpty ? cursor.WithCount(1) : slot.WithCount(slot.Count + 1));
+            CursorStack = cursor.WithCount(cursor.Count - 1);
+        }
+        else if (slot.CanStackWith(cursor))
+        {
+            int moved = Math.Min(slot.RemainingSpace, cursor.Count);
+            grid.SetSlot(index, slot.WithCount(slot.Count + moved));
+            CursorStack = cursor.WithCount(cursor.Count - moved);
+        }
+        else
+        {
+            grid.SetSlot(index, cursor);
+            CursorStack = slot;
+        }
+
+        OnChangedHandler?.Invoke();
+    }
+
+    /// <summary>
+    /// A click on what the bench is making. The result is taken whole or not at all — half of a pickaxe is
+    /// not a thing — and taking it spends one of everything laid out, so holding the button down over a bench
+    /// of planks turns them into sticks a batch at a time.
+    /// <para>
+    /// Refuses when the cursor is already holding something the result will not pour into, which is what
+    /// stops a click from quietly throwing away what was being carried.
+    /// </para>
+    /// </summary>
+    public void ClickCraftingResult(CraftingGrid grid)
+    {
+        ItemStack result = grid.Result;
+        if (result.IsEmpty)
+        {
+            return;
+        }
+
+        if (CursorStack.IsEmpty)
+        {
+            CursorStack = result;
+        }
+        else if (CursorStack.CanStackWith(result) && CursorStack.RemainingSpace >= result.Count)
+        {
+            CursorStack = CursorStack.WithCount(CursorStack.Count + result.Count);
+        }
+        else
+        {
+            return;
+        }
+
+        grid.ConsumeOneOfEach();
+        OnChangedHandler?.Invoke();
+    }
+
+    /// <summary>
+    /// Clears a bench back into the inventory, called as the screen holding it closes. Anything that will not
+    /// fit is left on the cursor, which <see cref="ReturnCursorStack"/> then has the same problem with and
+    /// solves the same way.
+    /// </summary>
+    public void ReturnCraftingGrid(CraftingGrid grid)
+    {
+        foreach (ItemStack stack in grid.TakeAll())
+        {
+            TryAdd(stack);
+        }
     }
 }
