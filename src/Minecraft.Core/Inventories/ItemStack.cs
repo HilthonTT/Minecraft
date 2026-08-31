@@ -91,7 +91,7 @@ public readonly struct ItemStack
     /// anything that only ever comes one to a slot: two worn pickaxes are not one pickaxe worn twice.
     /// </summary>
     public bool CanStackWith(ItemStack other) =>
-        !IsEmpty && !other.IsEmpty && Item == other.Item && Item.MaxStackSize > 1;
+        Item is not null && Count > 0 && !other.IsEmpty && Item == other.Item && Item.MaxStackSize > 1;
 
     /// <summary>How many more of this item the stack could take before it is full.</summary>
     public int RemainingSpace => IsEmpty ? MaxCount : MaxStackSize - Count;

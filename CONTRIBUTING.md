@@ -35,6 +35,11 @@ spend an evening on it.
 - **Build both configurations.** `dotnet build Minecraft.slnx --configuration Debug` and again with `Release`.
   CI does the same, along with a check that every asset the game loads by a literal path was copied next to the
   built assembly.
+- **Run the tests.** `dotnet test Minecraft.slnx`, which CI runs in both configurations. They cover what can
+  be checked without a window: stacks and slots, crafting, harvesting, the packet and save formats, and the
+  start arguments. A change to any of those should arrive with the test that would have caught the old
+  behaviour. Ids are the sharpest of them — `ItemRegistryTests` fails when a block or item id moves, because
+  moving one changes what every existing save and every packet already means.
 - **New assets need a csproj entry.** Shaders and resources are read at runtime by a path relative to the
   executable. A file that is not copied to the output directory compiles perfectly well and then fails on
   launch, usually as a `NullReferenceException` several layers from the real cause. Add it under the existing

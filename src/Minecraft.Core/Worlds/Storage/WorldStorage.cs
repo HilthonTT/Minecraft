@@ -1,10 +1,10 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.IO.Compression;
 using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Worlds.Chunks;
-using System.Collections.Concurrent;
-using System.Globalization;
-using System.IO.Compression;
 
 namespace Minecraft.Core.Worlds.Storage;
 
@@ -548,7 +548,9 @@ public sealed class WorldStorage : IDisposable
             return fallback;
         }
 
-        return Enum.TryParse(value, ignoreCase: true, out GameMode parsed)
+        // IsDefined as well as TryParse, which on its own accepts any number at all and would hand back a
+        // mode the game has never heard of from a level.dat reading 'gamemode=7'.
+        return Enum.TryParse(value, ignoreCase: true, out GameMode parsed) && Enum.IsDefined(parsed)
             ? parsed
             : throw new FormatException($"'{key}' is not a game mode: '{value}'.");
     }

@@ -99,6 +99,12 @@ jobs:
       - name: Build
         run: dotnet build Minecraft.slnx --configuration ${{ matrix.configuration }} --no-restore
 
+      # The tests cover the parts of the engine that answer the same way every time: inventories, crafting,
+      # harvesting, the wire format, the save format and the start arguments. Nothing here opens a window or
+      # needs a GPU, so it runs on the same machine the build does.
+      - name: Test
+        run: dotnet test Minecraft.slnx --configuration ${{ matrix.configuration }} --no-build
+
       # Shaders and resources are read at runtime by a path relative to the executable, so one that fails to
       # be copied still compiles and only breaks when the game is launched. A missing sphere.obj surfaced as
       # a NullReferenceException three layers away from the actual cause, which is what this guards against.

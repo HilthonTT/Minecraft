@@ -19,11 +19,12 @@ How the engine works. For building and playing it, see [README.md](README.md).
 
 ## Project layout
 
-| Path                  | Purpose                                                            |
-| --------------------- | ------------------------------------------------------------------ |
-| `src/Minecraft.Core/` | Engine library                                                      |
-| `src/Minecraft.App/`  | Executable entry point                                              |
-| `tools/`              | Programs that author assets, neither built nor shipped with the game |
+| Path                   | Purpose                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| `src/Minecraft.Core/`  | Engine library                                                      |
+| `src/Minecraft.App/`   | Executable entry point                                              |
+| `src/Minecraft.Tests/` | Tests for the parts that need neither a window nor a GPU            |
+| `tools/`               | Programs that author assets, neither built nor shipped with the game |
 
 Directories mirror namespaces exactly, so where a type lives is where its `using` says it does.
 

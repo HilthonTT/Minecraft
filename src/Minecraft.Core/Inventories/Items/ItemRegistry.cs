@@ -78,6 +78,16 @@ public static class ItemRegistry
     /// </summary>
     public static void RegisterItems()
     {
+        // The two halves share one run of numbers, so the blocks have to stop short of where the loose items
+        // begin. A block registered past that point would take an id an item already answers to, and quietly
+        // change what a number already written into a save and sent over the wire means.
+        if (BlockRegistry.Count >= FirstLooseItemId)
+        {
+            throw new InvalidOperationException(
+                $"There are {BlockRegistry.Count} blocks, which reaches into the range reserved for items at "
+                + $"{FirstLooseItemId}. Raise FirstLooseItemId and renumber the items above it.");
+        }
+
         _byBlockId = new BlockItem[BlockRegistry.Count + 1];
 
         ushort highestId = FirstLooseItemId;

@@ -35,6 +35,8 @@ dotnet build
 dotnet run --project src/Minecraft.App
 ```
 
+`dotnet test` runs the tests, which cover the parts of the engine that need neither a window nor a GPU.
+
 That opens the main menu. `Singleplayer` lists your saved worlds, most recently played first — a row plays its
 world and carries `Rename` and `Delete`, and `Create New World` names a world and picks its seed. `Escape`
 during a game opens the pause menu, which is where you save and leave a world or quit.

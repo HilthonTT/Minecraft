@@ -1,9 +1,9 @@
-﻿using Minecraft.Core.Worlds.Blocks;
-using Minecraft.Core.Worlds.Chunks;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Text;
-using OpenTK.Mathematics;
 using Minecraft.Core.Worlds;
+using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Chunks;
+using OpenTK.Mathematics;
 
 namespace Minecraft.Core.IO;
 
@@ -83,29 +83,41 @@ public static class DataConverter
         Chunk chunk = world.ChunkPool.GetObject();
         chunk.ResetAndAssign(gridX, gridZ);
 
-        for (int i = 0; i < Constants.NUM_SECTIONS_IN_CHUNKS; i++)
+        // A chunk that cannot be read through goes back to the pool on the way out. Payloads arrive from a
+        // socket and from disk, and both can be truncated or corrupt: without this, every failed read would
+        // strand one pooled chunk, lent out to a caller that no longer exists and never handed back.
+        try
         {
-            bool doesSectionHaveBlocks = BytesToBool(bytes, ref head);
-            if (doesSectionHaveBlocks)
+            for (int i = 0; i < Constants.NUM_SECTIONS_IN_CHUNKS; i++)
             {
-                for (int x = 0; x < 16; x++)
+                bool doesSectionHaveBlocks = BytesToBool(bytes, ref head);
+                if (doesSectionHaveBlocks)
                 {
-                    for (int y = 0; y < 16; y++)
+                    for (int x = 0; x < 16; x++)
                     {
-                        for (int z = 0; z < 16; z++)
+                        for (int y = 0; y < 16; y++)
                         {
-                            ushort blockId = BytesToUInt16(bytes, ref head);
-                            if (blockId != 0)
+                            for (int z = 0; z < 16; z++)
                             {
-                                BlockState blockState = BlockRegistry.GetState(BlockRegistry.GetBlockFromIdentifier(blockId));
-                                blockState.ExtractFromByteStream(bytes, ref head);
-                                chunk.AddBlockAt(x, i * 16 + y, z, blockState);
+                                ushort blockId = BytesToUInt16(bytes, ref head);
+                                if (blockId != 0)
+                                {
+                                    BlockState blockState = BlockRegistry.GetState(BlockRegistry.GetBlockFromIdentifier(blockId));
+                                    blockState.ExtractFromByteStream(bytes, ref head);
+                                    chunk.AddBlockAt(x, i * 16 + y, z, blockState);
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        catch
+        {
+            world.ChunkPool.ReturnObject(chunk);
+            throw;
+        }
+
         return chunk;
     }
 }
