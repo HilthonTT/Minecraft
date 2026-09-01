@@ -34,7 +34,6 @@ public sealed class HarvestingTests
     [Fact]
     public void ABlockThatWantsATooltakesLongerWithoutOne()
     {
-        // Stone asks for a pickaxe, so a shovel is worth no more than a fist and both are slower than plain.
         float bare = Harvesting.SecondsToBreak(BlockRegistry.Stone, BareHand);
         float shovel = Harvesting.SecondsToBreak(BlockRegistry.Stone, new ItemStack(ItemRegistry.DiamondShovel, 1));
 
@@ -77,12 +76,10 @@ public sealed class HarvestingTests
     [Fact]
     public void SomethingBuriedDeeperNeedsAToolThatReachesIt()
     {
-        // Iron is level one, so wood and gold come away with nothing and stone is enough.
         Assert.False(Harvesting.CanHarvest(BlockRegistry.IronOre, new ItemStack(ItemRegistry.WoodenPickaxe, 1)));
         Assert.False(Harvesting.CanHarvest(BlockRegistry.IronOre, new ItemStack(ItemRegistry.GoldenPickaxe, 1)));
         Assert.True(Harvesting.CanHarvest(BlockRegistry.IronOre, new ItemStack(ItemRegistry.StonePickaxe, 1)));
 
-        // Diamond is level two, which stone does not reach.
         Assert.False(Harvesting.CanHarvest(BlockRegistry.DiamondOre, new ItemStack(ItemRegistry.StonePickaxe, 1)));
         Assert.True(Harvesting.CanHarvest(BlockRegistry.DiamondOre, new ItemStack(ItemRegistry.IronPickaxe, 1)));
     }

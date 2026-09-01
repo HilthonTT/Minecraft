@@ -12,7 +12,6 @@ public sealed class ScreenQuad
     private readonly int _vao, _vbo;
     private readonly float[] _quadVertices =
     [
-        // positions   // texCoords
         -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
         -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
         1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
@@ -33,7 +32,6 @@ public sealed class ScreenQuad
         GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
         GL.EnableVertexAttribArray(1);
         GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
-        // Left bound, every VAO created afterwards would be built on top of this one's state.
         GL.BindVertexArray(0);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
 

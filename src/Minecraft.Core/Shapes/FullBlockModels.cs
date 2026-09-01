@@ -95,7 +95,6 @@ public sealed class BlockModelIce(TextureAtlas textureAtlas) : FullBlockModel(te
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(3, 4));
 }
 
-/// <summary>Grass under a covering of snow: white on top, and snow spilling over the top of its sides.</summary>
 public sealed class BlockModelSnowyGrass(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() =>
@@ -138,10 +137,6 @@ public sealed class BlockModelOakLog(TextureAtlas textureAtlas) : FullBlockModel
         SetUVs(sideCell: new Vector2(4, 1), topCell: new Vector2(5, 1), bottomCell: new Vector2(5, 1));
 }
 
-/// <summary>
-/// A cactus is inset from its cell on all four sides, so its faces never line up with a neighbour's and
-/// have to be emitted unconditionally.
-/// </summary>
 public sealed class BlockModelCactus : FullBlockModel
 {
     public BlockModelCactus(TextureAtlas textureAtlas) : base(textureAtlas)
@@ -188,10 +183,6 @@ public sealed class BlockModelCactus : FullBlockModel
             bottomCell: BlockAtlas.CactusBottom);
 }
 
-/// <summary>
-/// The bench, which wears three different cells: the laid out top, the panelled sides, and the underside of
-/// the planks it was made from.
-/// </summary>
 public sealed class BlockModelCraftingTable(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() =>

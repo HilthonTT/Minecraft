@@ -28,18 +28,10 @@ float convertRange(float oldMin, float oldMax, float newMin, float newMax, float
     return (((oldValue - oldMin) * newRange) / oldRange) + newMin;
 }
 
-// How much of the fog colour a fragment has taken on, from none of it to all of it.
-//
-// The distance is measured flat, ignoring height, because that is the shape the world is loaded in: chunks
-// are columns the full height of the world, kept or dropped on how far away they are horizontally. Fog that
-// went by true distance would close over the ground far below somebody flying high up, where the world is
-// still loaded and there is nothing to hide, and would leave the edge of a chunk at eye level showing.
 float fogFactorAt(vec3 fragmentWorldPosition)
 {
 	float distanceFromCamera = length(fragmentWorldPosition.xz - cameraPosition.xz);
 
-	// Smoothstep rather than a linear ramp, so that the fog eases in instead of putting a visible crease
-	// across the ground along the circle where it starts.
 	return smoothstep(fogStart, fogEnd, distanceFromCamera);
 }
 
@@ -47,8 +39,6 @@ void main()
 {
    vec4 albedo = texture(textureAtlas, uv);
 
-   // The see through parts of the cut out cells are cleared to a zero alpha when the sheet is loaded. Testing
-   // the alpha rather than the colour is what lets snow and ice stay the near white they are drawn.
    if(albedo.a < 0.5F)
    {
 		discard;
@@ -61,13 +51,8 @@ void main()
 
    fragmentColor = (materialColor + albedo * vec4(ambientColor, 1.0F)) * brightness;
 
-   // Applied last, over the lit colour, since fog is what sits between the block and the eye rather than
-   // anything about the block itself. A fragment out at the far edge is left as pure fog colour, which is
-   // what hides the edge of the loaded world.
    fragmentColor.rgb = mix(fragmentColor.rgb, fogColor, fogFactorAt(worldPosition));
 
-   // Set rather than derived from the texture: the water cell of the sheet is a flat opaque blue, so how
-   // much of it is see through is a property of the pass drawing it and not of the artwork.
    fragmentColor.a = materialAlpha;
 
    normalDepthColor = vec4(normal, 1.0F);

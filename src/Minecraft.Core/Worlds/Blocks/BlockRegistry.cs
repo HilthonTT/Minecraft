@@ -4,10 +4,6 @@ using Minecraft.Core.Worlds.Blocks.Types;
 
 namespace Minecraft.Core.Worlds.Blocks;
 
-/// <summary>
-/// The single source of truth for every block in the game. Ids are assigned here and must stay stable,
-/// since they are what travels over the wire and what a section stores per block.
-/// </summary>
 public static class BlockRegistry
 {
     public static readonly Block Air = new BlockAir(1);
@@ -28,11 +24,8 @@ public static class BlockRegistry
     public static readonly Block Gravel = new BlockGravel(16);
     public static readonly Block Planks = new BlockPlanks(17);
     public static readonly Block Cobblestone = new BlockCobblestone(18);
-    // The floor of the world, and the one block nothing gets through.
     public static readonly Block Bedrock = new BlockSolid(19, secondsToBreak: float.PositiveInfinity, dropsItself: false);
 
-    // The five seams, each of which comes apart into what was buried in it rather than into itself, and each
-    // buried a little deeper than the last. See BlockOre for why iron and gold arrive already refined.
     public static readonly Block CoalOre = new BlockOre(20, () => ItemRegistry.Coal, harvestLevel: 0);
     public static readonly Block IronOre = new BlockOre(21, () => ItemRegistry.IronIngot, harvestLevel: 1);
     public static readonly Block GoldOre = new BlockOre(22, () => ItemRegistry.GoldIngot, harvestLevel: 2);
@@ -59,9 +52,6 @@ public static class BlockRegistry
     public static readonly Block Water = new BlockWater(36, level: 0, falling: false);
     public static readonly Block Torch = new BlockTorch(37);
 
-    // Running water, one block per depth it can stand at. How deep a cell of water is has to be readable
-    // from the cell alone — the mesher, the client and the disk all only ever see a block id — and a sea is
-    // far too many cells to hang a state off each of them. See BlockWater for the whole of the reasoning.
     public static readonly Block WaterFalling = new BlockWater(38, level: 0, falling: true);
     public static readonly Block WaterFlowing1 = new BlockWater(39, level: 1, falling: false);
     public static readonly Block WaterFlowing2 = new BlockWater(40, level: 2, falling: false);
@@ -71,7 +61,6 @@ public static class BlockRegistry
     public static readonly Block WaterFlowing6 = new BlockWater(44, level: 6, falling: false);
     public static readonly Block WaterFlowing7 = new BlockWater(45, level: 7, falling: false);
 
-    /// <summary>The bench a recipe wider than two is laid out on.</summary>
     public static readonly Block CraftingTable = new BlockCraftingTable(46);
 
     private static Block[] _registeredBlocks = [];
@@ -79,11 +68,6 @@ public static class BlockRegistry
 
     public static int Count => _registeredBlocks.Length;
 
-    /// <summary>
-    /// Returns the shared default state for a block, or a fresh one for blocks that carry per block data.
-    /// Sharing is only safe for stateless blocks, since a shared mutable state would be visible at every
-    /// position that block occupies.
-    /// </summary>
     public static BlockState GetState(Block block)
     {
         if (block.HasCustomState)
@@ -170,10 +154,6 @@ public static class BlockRegistry
         return _registeredBlocks[arrayId];
     }
 
-    /// <summary>
-    /// The block with the given id, or null when there is none. For ids that came off the wire from a
-    /// client, where an unknown one is something to turn down rather than something to fall over.
-    /// </summary>
     public static Block? TryGetBlockFromIdentifier(int id)
     {
         int arrayId = id - 1;

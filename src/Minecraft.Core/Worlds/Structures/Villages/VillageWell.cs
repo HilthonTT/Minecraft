@@ -2,19 +2,12 @@ using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Worlds.Structures.Villages;
 
-/// <summary>
-/// The well at the heart of a village: a paved courtyard around a walled shaft, roofed over on four posts.
-/// Every road in the village runs back to it.
-/// </summary>
 public sealed class VillageWell : VillagePiece
 {
-    /// <summary>How far the paved courtyard reaches out from the shaft.</summary>
     private const int CourtyardRadius = 2;
 
-    /// <summary>How deep the shaft is sunk below the courtyard.</summary>
     private const int ShaftDepth = 4;
 
-    /// <summary>How high the posts hold the roof above the wall around the shaft.</summary>
     private const int PostHeight = 2;
 
     private readonly int _centerX;
@@ -51,8 +44,6 @@ public sealed class VillageWell : VillagePiece
                 {
                     writer.ClearColumn(worldX, worldZ, _floorY - ShaftDepth, roofY - 1);
 
-                    // Filled to the height of the courtyard around it, so the water sits just under the rim
-                    // and the well reads as one that has been drawn from rather than a dry hole with a roof.
                     writer.FillColumn(worldX, worldZ, _floorY - ShaftDepth, _floorY, BlockRegistry.Water);
                     continue;
                 }

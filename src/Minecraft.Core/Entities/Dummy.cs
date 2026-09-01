@@ -9,7 +9,6 @@ public sealed class Dummy : Entity
 
     }
 
-    /// <summary>Matches the model built for it in the model registry, so the hitbox lines up with what is drawn.</summary>
     protected override void SetInitialDimensions()
     {
         _width = 0.5F;

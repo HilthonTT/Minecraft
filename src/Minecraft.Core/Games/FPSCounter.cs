@@ -1,6 +1,5 @@
 namespace Minecraft.Core.Games;
 
-/// <summary>Tracks the average frame rate over the whole run.</summary>
 public sealed class FPSCounter
 {
     private long _totalElapsedFrames;

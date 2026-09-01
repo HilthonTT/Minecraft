@@ -7,23 +7,11 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.Particles;
 
-/// <summary>
-/// Draws the specks as quads turned to face the camera.
-/// <para>
-/// Their geometry changes every frame, so unlike everything else this owns its buffers directly and refills
-/// them in place rather than building a <see cref="Utilities.VAOModel"/> per frame, which would mean creating
-/// and deleting a handful of GL buffers sixty times a second.
-/// </para>
-/// </summary>
 public sealed class ParticleRenderer
 {
     private const int VerticesPerParticle = 6;
     private const int MaxVertices = ParticleSystem.Capacity * VerticesPerParticle;
 
-    /// <summary>
-    /// Which corner of a quad each of the six vertices is, as an index into the four corners built below.
-    /// The corner order matches the one the texture sheet hands its coordinates back in.
-    /// </summary>
     private static readonly int[] _cornerOrder = [0, 1, 2, 0, 2, 3];
 
     private readonly BasicShader _shader;
@@ -56,10 +44,6 @@ public sealed class ParticleRenderer
         GL.BindVertexArray(0);
     }
 
-    /// <summary>
-    /// Draws everything currently in the air. Called in the same pass the solid world was drawn in, so the
-    /// specks are hidden by terrain in front of them and the shader they share applies the same fog.
-    /// </summary>
     public void Render(ParticleSystem system, Camera camera, World world, Vector3 fogColor, float fogStart, float fogEnd)
     {
         int vertexCount = BuildGeometry(system, camera);
@@ -87,8 +71,6 @@ public sealed class ParticleRenderer
         Upload(_uvBuffer, _uvs, vertexCount * 2, sizeof(float));
         Upload(_lightBuffer, _lights, vertexCount, sizeof(uint));
 
-        // A speck is a flat quad with no back to it, and one turned to face the camera may be wound either
-        // way round depending on which side of it the camera ended up.
         GL.Disable(EnableCap.CullFace);
         GL.DrawArrays(PrimitiveType.Triangles, 0, vertexCount);
         GL.Enable(EnableCap.CullFace);
@@ -96,16 +78,11 @@ public sealed class ParticleRenderer
         GL.BindVertexArray(0);
     }
 
-    /// <summary>
-    /// Fills the buffers with a quad per live speck and reports how many vertices were written. The quads all
-    /// face the camera, built from the two axes that span its view plane.
-    /// </summary>
     private int BuildGeometry(ParticleSystem system, Camera camera)
     {
         Vector3 right = camera.Right;
         Vector3 up = Vector3.Normalize(Vector3.Cross(camera.Forward, right));
 
-        // Every speck faces the camera, so they all share one normal: straight back down the view.
         Vector3 normal = -camera.Forward;
 
         int vertex = 0;
@@ -154,11 +131,6 @@ public sealed class ParticleRenderer
         return vertex;
     }
 
-    /// <summary>
-    /// A buffer sized for the busiest frame there can be and refilled every frame. Told up front that it is
-    /// written once and drawn once, which is what lets the driver hand back fresh storage each time instead
-    /// of waiting for the last frame to finish reading the old.
-    /// </summary>
     private static int CreateStreamBuffer(int attribute, int componentsPerVertex, int bytesPerComponent, bool isInteger = false)
     {
         int buffer = GL.GenBuffer();
@@ -188,8 +160,6 @@ public sealed class ParticleRenderer
     {
         GL.BindBuffer(BufferTarget.ArrayBuffer, buffer);
 
-        // Orphaned first: the old storage is abandoned rather than waited on, so refilling it never blocks on
-        // the frame that is still being drawn from it.
         GL.BufferData(BufferTarget.ArrayBuffer, data.Length * bytesPerElement, IntPtr.Zero, BufferUsageHint.StreamDraw);
         GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, elementCount * bytesPerElement, data);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);

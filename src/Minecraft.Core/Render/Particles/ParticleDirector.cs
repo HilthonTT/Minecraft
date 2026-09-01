@@ -12,46 +12,22 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.Particles;
 
-/// <summary>
-/// Decides what throws specks into the air and what they are made of.
-/// <para>
-/// Entirely on the client, and driven by what it can already see, in the same way the sound is: a block that
-/// changed is already broadcast, and everything else — a footfall, a splash, a torch burning — is read off
-/// the world rather than being told. See <see cref="Audio.SoundDirector"/>, which is the same idea for the
-/// ear rather than the eye.
-/// </para>
-/// </summary>
 public sealed class ParticleDirector
 {
-    /// <summary>How many chips a block breaking throws off.</summary>
     private const int BreakParticleCount = 12;
 
-    /// <summary>How far a torch's flame is drawn from, in blocks. Past it there is nothing to see anyway.</summary>
     private const float FlameVisibleDistance = 20F;
 
-    /// <summary>How often one torch flickers.</summary>
     private const float FlamesPerSecond = 2.4F;
 
-    /// <summary>How far a running player goes between one puff of dust and the next.</summary>
     private const float DustStrideBlocks = 1.6F;
 
-    /// <summary>
-    /// How long block breaking is held off after a blast. Everything a blast destroys is reported as an
-    /// ordinary removal, so without this a single stick of TNT would fill every slot with chips of terrain
-    /// and leave nothing for the smoke that is the point of it.
-    /// </summary>
     private const float SilenceAfterExplosionSeconds = 1.2F;
 
-    /// <summary>
-    /// Movement in one frame beyond which the player was put somewhere rather than having walked there.
-    /// Spawning covers an enormous distance in a single frame and would otherwise raise dust on arrival.
-    /// </summary>
     private const float TeleportDistance = 4F;
 
-    /// <summary>Lightmap values are 0..15 while the packed channels are 0..63, so samples are scaled up.</summary>
     private const uint LightScale = 4;
 
-    /// <summary>A flame lights itself, so it carries its own colour rather than the room's.</summary>
     private static readonly uint _flameLight = new Light(63, 46, 16, 0, 63).GetStorage();
 
     private readonly Game _game;
@@ -59,7 +35,6 @@ public sealed class ParticleDirector
     private readonly BlockModelRegistry _blockModelRegistry;
     private readonly Random _random = new();
 
-    /// <summary>How many specks are in the air, for the debug readout to report.</summary>
     public int LiveParticleCount => _system.LiveCount;
 
     private float _blockParticlesSilencedFor;
@@ -75,7 +50,6 @@ public sealed class ParticleDirector
         _blockModelRegistry = blockModelRegistry;
     }
 
-    /// <summary>Wired up by the client world, which is the side that hears about a block after the fact.</summary>
     public void OnBlockRemoved(World world, Chunk chunk, Vector3i blockPos, BlockState oldState)
     {
         if (_blockParticlesSilencedFor > 0F ||
@@ -99,8 +73,6 @@ public sealed class ParticleDirector
 
             _system.Spawn(new Particle
             {
-                // Spread through the cell the block filled rather than all thrown from its middle, so the
-                // shower has the size of what was broken.
                 Position = centre + RandomOffset(0.5F),
                 Velocity = RandomOffset(1F) * 2.6F + new Vector3(0, 2.4F, 0),
                 RemainingSeconds = 0.5F + (_random.NextSingle() * 0.7F),
@@ -116,11 +88,6 @@ public sealed class ParticleDirector
         }
     }
 
-    /// <summary>
-    /// A blast: a dark cloud where it went off, and no chips from the hundreds of blocks it takes apart. The
-    /// cloud is made of the stone the ground is mostly made of, held at a low brightness, which is what turns
-    /// a lit texture into smoke without a texture for smoke.
-    /// </summary>
     public void OnExplosion(World world, Vector3 position)
     {
         _blockParticlesSilencedFor = SilenceAfterExplosionSeconds;
@@ -146,7 +113,6 @@ public sealed class ParticleDirector
                 UVMin = uvMin,
                 UVMax = uvMax,
 
-                // Rises rather than falls, and thins out quickly, so it billows instead of raining down.
                 Gravity = 1.6F,
                 Drag = 2.2F,
                 CollidesWithWorld = false,
@@ -155,7 +121,6 @@ public sealed class ParticleDirector
         }
     }
 
-    /// <summary>Drops everything in the air along with the world it was thrown up in.</summary>
     public void OnWorldUnloaded()
     {
         _system.Clear();
@@ -174,11 +139,6 @@ public sealed class ParticleDirector
         UpdateTorchFlames(deltaTime, world);
     }
 
-    /// <summary>
-    /// What the player themselves throws up: dust from running, and a splash on going into water. Only the
-    /// local player, whose movement this side actually simulates, and whose feet are the ones close enough
-    /// for any of it to be seen.
-    /// </summary>
     private void UpdatePlayerParticles(float deltaTime, World world)
     {
         ClientPlayer player = _game.ClientPlayer;
@@ -210,8 +170,6 @@ public sealed class ParticleDirector
 
         _wasInLiquid = inLiquid;
 
-        // Dust is what running kicks up, so walking raises none: it is the difference between the two that
-        // reads as speed rather than the dust on its own.
         if (inLiquid || player.IsFlying || !player.IsOnGround || !player.IsRunning)
         {
             return;
@@ -294,18 +252,12 @@ public sealed class ParticleDirector
                 Gravity = -13F,
                 Drag = 0.8F,
 
-                // Drops fall back through the surface they came off rather than landing on it.
                 CollidesWithWorld = false,
                 PackedLight = light,
             });
         }
     }
 
-    /// <summary>
-    /// The flame on top of every torch within sight. Found by walking the light sources the chunks around the
-    /// player already keep a list of, which is the same list the lighting itself is driven from, so nothing
-    /// has to be searched for.
-    /// </summary>
     private void UpdateTorchFlames(float deltaTime, World world)
     {
         Vector3 cameraPosition = _game.MasterRenderer.GetActiveCamera().Position;
@@ -345,7 +297,6 @@ public sealed class ParticleDirector
         }
     }
 
-    /// <summary>Where the tip of a torch is, which is where its flame sits.</summary>
     private static Vector3 FlamePositionOf(Vector3i blockPos, BlockStateTorch torch)
     {
         var tip = new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.66F, blockPos.Z + 0.5F);
@@ -355,15 +306,12 @@ public sealed class ParticleDirector
             return tip;
         }
 
-        // A wall torch has been carried up its wall and leans out of it, so its tip is neither in the middle
-        // of its cell nor at the height a standing one's is.
         Vector3i towardsWall = DirectionUtil.ToUnit(torch.Attachment);
         return tip + new Vector3(towardsWall.X * 0.16F, 0.22F, towardsWall.Z * 0.16F);
     }
 
     private void EmitFlame(Vector3 position)
     {
-        // The flame is the top of the torch's own artwork, so no texture had to be added for it.
         Vector2 cellSize = Vector2.One / 16F;
         Vector2 min = (BlockAtlas.Torch + new Vector2(7F / 16F, 6F / 16F)) * cellSize;
         Vector2 max = (BlockAtlas.Torch + new Vector2(9F / 16F, 8F / 16F)) * cellSize;
@@ -378,7 +326,6 @@ public sealed class ParticleDirector
             UVMin = min,
             UVMax = max,
 
-            // Rises and slows, the way a flame does above what is burning.
             Gravity = 0.9F,
             Drag = 1.8F,
             CollidesWithWorld = false,
@@ -386,10 +333,6 @@ public sealed class ParticleDirector
         });
     }
 
-    /// <summary>
-    /// The bounds of a block's artwork on the sheet, taken off whichever of its faces has any. A block whose
-    /// model draws nothing at all has none, which is the one case this reports as a failure.
-    /// </summary>
     private bool TryGetTexture(BlockState state, out Vector2 cellMin, out Vector2 cellMax)
     {
         BlockModel model = _blockModelRegistry.Models[state.GetBlock().Id];
@@ -419,11 +362,6 @@ public sealed class ParticleDirector
         return true;
     }
 
-    /// <summary>
-    /// A randomly placed square of the given patch, one part in <paramref name="quarters"/> across. What
-    /// makes a shower of chips read as pieces of the block that was broken rather than as a cloud of the
-    /// whole texture repeated.
-    /// </summary>
     private (Vector2 Min, Vector2 Max) RandomPatchOf(Vector2 cellMin, Vector2 cellMax, int quarters)
     {
         Vector2 size = (cellMax - cellMin) / quarters;

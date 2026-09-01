@@ -8,20 +8,10 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.MeshGenerator;
 
-/// <summary>
-/// Works out the per vertex light and ambient occlusion values baked into a chunk mesh. Each corner of a
-/// face averages the light of the four cells touching it, which is what turns the blocky per block lighting
-/// into a smooth gradient and darkens inside corners.
-/// </summary>
 public sealed class SmoothLighting
 {
-    /// <summary>Full darkness, used where a neighbour is solid and lets nothing through.</summary>
     private static readonly Light _occluded = new(0, 0, 0, 0, 0);
 
-    /// <summary>
-    /// Stand in for a cell in a chunk that is not loaded. Treating it as fully sunlit avoids a dark seam
-    /// along the edge of the loaded area.
-    /// </summary>
     private static readonly Light _unloaded = new(0, 0, 0, 15, 15);
 
     private readonly Corner[] _cornerTop = [Corner.BottomLeft, Corner.BottomRight, Corner.TopRight, Corner.TopLeft];
@@ -32,13 +22,8 @@ public sealed class SmoothLighting
     private readonly Light[] _lightBuffer = new Light[4];
     private readonly Vector3i[] _targetBuffer = new Vector3i[3];
 
-    /// <summary>
-    /// The four corner light values for the face of the block at the given chunk local position pointing in
-    /// the given direction. The returned array is reused, so consume it before the next call.
-    /// </summary>
     public Light[] GetLightsAt(World world, Chunk chunk, int localX, int worldY, int localZ, Direction direction)
     {
-        // Light for a face comes from the cell in front of it, not from the block itself.
         Vector3i anchor = new Vector3i(localX, worldY, localZ) + DirectionUtil.ToUnit(direction);
 
         (Vector3i sourcePos, Chunk sourceChunk) = BlockPropagation.FixReference(world, anchor, chunk, out bool sourceLoaded);
@@ -50,7 +35,6 @@ public sealed class SmoothLighting
             sourceBlock = sourceChunk.GetBlockAt(sourcePos).GetBlock();
         }
 
-        // The face is buried against a solid block, so nothing reaches it.
         if (sourceLoaded && sourceBlock!.IsOpaque)
         {
             Array.Fill(_lightBuffer, _occluded);
@@ -84,8 +68,6 @@ public sealed class SmoothLighting
         Block? blockOne = sideOneLoaded ? GetBlockAt(1) : null;
         Block? blockTwo = sideTwoLoaded ? GetBlockAt(2) : null;
 
-        // Both neighbours sharing this corner are solid, so the corner is fully occluded and takes the
-        // light of the cell in front of the face rather than an average that light cannot reach.
         if (sideOneLoaded && sideTwoLoaded && blockOne!.IsOpaque && blockTwo!.IsOpaque)
         {
             if (!sourceLoaded)
@@ -113,7 +95,6 @@ public sealed class SmoothLighting
         Light lightTwo = SampleLight(2, sideTwoLoaded, blockTwo);
         Light lightCorner = SampleLight(3, cornerLoaded, blockCorner);
 
-        // The channels are summed rather than averaged; the shader divides back down by the brightness.
         return new Light(
             lightSource.GetRedChannel() + lightOne.GetRedChannel() + lightTwo.GetRedChannel() + lightCorner.GetRedChannel(),
             lightSource.GetGreenChannel() + lightOne.GetGreenChannel() + lightTwo.GetGreenChannel() + lightCorner.GetGreenChannel(),
@@ -158,14 +139,8 @@ public sealed class SmoothLighting
         };
     }
 
-    /// <summary>
-    /// The three cells that share the given corner with the anchor cell: the two edge neighbours and the
-    /// diagonal one. Which axes those lie on depends on which way the face points.
-    /// </summary>
     private Vector3i[] GetTargets(Vector3i anchor, Direction direction, Corner corner)
     {
-        // The two axes that span the face plane. The corner naming lines up with these two axes the same
-        // way for every direction, so the sign mapping below is shared.
         (Vector3i first, Vector3i second) = direction switch
         {
             Direction.Top or Direction.Bottom => (new Vector3i(1, 0, 0), new Vector3i(0, 0, 1)),

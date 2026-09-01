@@ -18,7 +18,6 @@ public sealed class BlockStateTnt : BlockState, ILightSource
 
     public BlockStateTnt()
     {
-        // Each block gets its own colour so that a field of TNT lights the world in a mix of colours.
         LightColor = new Vector3i(_random.Next(15), _random.Next(15), _random.Next(15));
     }
 

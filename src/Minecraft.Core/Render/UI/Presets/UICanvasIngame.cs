@@ -5,7 +5,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>The always present in game overlay: the crosshair and the chat.</summary>
 public sealed class UICanvasIngame : UICanvas
 {
     private const int CursorSize = 20;
@@ -13,7 +12,6 @@ public sealed class UICanvasIngame : UICanvas
     private readonly UIImage _crosshair;
     private readonly UIChat _chat;
 
-    /// <summary>Whether the chat input line is open, which is when typing takes priority over the controls.</summary>
     public bool IsTyping => _chat.IsTyping;
 
     public UICanvasIngame(Game game)
@@ -39,10 +37,6 @@ public sealed class UICanvasIngame : UICanvas
 
     public void AddSystemMessage(string message) => _chat.AddSystemMessage(message);
 
-    /// <summary>
-    /// Clears what was said in the world that is being left, so the next one does not open on somebody
-    /// else's conversation.
-    /// </summary>
     public void OnWorldUnloaded() => _chat.Clear();
 
     public override void Update() => _chat.Update();

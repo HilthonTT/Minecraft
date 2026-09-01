@@ -4,7 +4,6 @@ using System.Net.Sockets;
 
 namespace Minecraft.Core.Network;
 
-/// <summary>The socket and the reader and writer wrapped around it for one peer.</summary>
 public sealed class Connection
 {
     private readonly PacketFactory _packetFactory = new();

@@ -6,15 +6,8 @@ using System.Runtime.Versioning;
 
 namespace Minecraft.Core.Shapes;
 
-/// <summary>An uploaded entity mesh together with the skin it has to be drawn with.</summary>
-/// <param name="Mesh">The geometry, uploaded once at startup.</param>
-/// <param name="SkinTextureId">The texture to bind before drawing it.</param>
 public readonly record struct EntityMesh(VAOModel Mesh, int SkinTextureId);
 
-/// <summary>
-/// Holds the uploaded mesh for each entity type. Meshes are built once at startup, since entity models do
-/// not change at runtime.
-/// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class EntityMeshRegistry
 {

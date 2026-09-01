@@ -9,9 +9,6 @@ public sealed class TextMeshBuilder
         int charCount = textComponent.Text.Count(c => c != '\n');
         float[] allVertices = new float[charCount * 6 * 3];
 
-        // Normalised device coordinates run over two units across the canvas, so a canvas pixel is worth
-        // two of them divided by the canvas size. Everything below is laid out in canvas pixels and
-        // converted through this, which is what makes a scale of one draw the font at its authored size.
         float pixelToNdcX = 2.0F / textComponent.ParentCanvas.PixelWidth;
         float pixelToNdcY = 2.0F / textComponent.ParentCanvas.PixelHeight;
 
@@ -48,12 +45,12 @@ public sealed class TextMeshBuilder
 
             int i = charCounter * 18;
             charCounter++;
-            allVertices[i + 0] = bottomLeft.X; allVertices[i + 1] = bottomLeft.Y; allVertices[i + 2] = bottomLeft.Z;  //bottom-left
-            allVertices[i + 3] = bottomRight.X; allVertices[i + 4] = bottomRight.Y; allVertices[i + 5] = bottomRight.Z; //bottom-right
-            allVertices[i + 6] = topRight.X; allVertices[i + 7] = topRight.Y; allVertices[i + 8] = topRight.Z;    //top-right
-            allVertices[i + 9] = bottomLeft.X; allVertices[i + 10] = bottomLeft.Y; allVertices[i + 11] = bottomLeft.Z;  //bottom-left
-            allVertices[i + 12] = topRight.X; allVertices[i + 13] = topRight.Y; allVertices[i + 14] = topRight.Z;    //top-right
-            allVertices[i + 15] = topLeft.X; allVertices[i + 16] = topLeft.Y; allVertices[i + 17] = topLeft.Z;     //top-left
+            allVertices[i + 0] = bottomLeft.X; allVertices[i + 1] = bottomLeft.Y; allVertices[i + 2] = bottomLeft.Z;
+            allVertices[i + 3] = bottomRight.X; allVertices[i + 4] = bottomRight.Y; allVertices[i + 5] = bottomRight.Z;
+            allVertices[i + 6] = topRight.X; allVertices[i + 7] = topRight.Y; allVertices[i + 8] = topRight.Z;
+            allVertices[i + 9] = bottomLeft.X; allVertices[i + 10] = bottomLeft.Y; allVertices[i + 11] = bottomLeft.Z;
+            allVertices[i + 12] = topRight.X; allVertices[i + 13] = topRight.Y; allVertices[i + 14] = topRight.Z;
+            allVertices[i + 15] = topLeft.X; allVertices[i + 16] = topLeft.Y; allVertices[i + 17] = topLeft.Z;
             xPointer += (int)(charc.XAdvance * textComponent.Scale.X);
         }
 
@@ -77,12 +74,12 @@ public sealed class TextMeshBuilder
 
             int i = charCounter * 12;
             charCounter++;
-            allTextures[i + 0] = charc.XTextureMin; allTextures[i + 1] = charc.YTextureMin + charc.YTextureOffset; //bottom-left
-            allTextures[i + 2] = charc.XTextureMin + charc.XTextureOffset; allTextures[i + 3] = charc.YTextureMin + charc.YTextureOffset; //bottom-right
-            allTextures[i + 4] = charc.XTextureMin + charc.XTextureOffset; allTextures[i + 5] = charc.YTextureMin;                        //top-right
-            allTextures[i + 6] = charc.XTextureMin; allTextures[i + 7] = charc.YTextureMin + charc.YTextureOffset; //bottom-left
-            allTextures[i + 8] = charc.XTextureMin + charc.XTextureOffset; allTextures[i + 9] = charc.YTextureMin;                        //top-right
-            allTextures[i + 10] = charc.XTextureMin; allTextures[i + 11] = charc.YTextureMin;                        //top-left
+            allTextures[i + 0] = charc.XTextureMin; allTextures[i + 1] = charc.YTextureMin + charc.YTextureOffset;
+            allTextures[i + 2] = charc.XTextureMin + charc.XTextureOffset; allTextures[i + 3] = charc.YTextureMin + charc.YTextureOffset;
+            allTextures[i + 4] = charc.XTextureMin + charc.XTextureOffset; allTextures[i + 5] = charc.YTextureMin;
+            allTextures[i + 6] = charc.XTextureMin; allTextures[i + 7] = charc.YTextureMin + charc.YTextureOffset;
+            allTextures[i + 8] = charc.XTextureMin + charc.XTextureOffset; allTextures[i + 9] = charc.YTextureMin;
+            allTextures[i + 10] = charc.XTextureMin; allTextures[i + 11] = charc.YTextureMin;
         }
         return allTextures;
     }

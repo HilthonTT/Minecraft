@@ -9,7 +9,6 @@ public sealed class VAOModel
 {
     private int _vaoId;
     private readonly List<int> _buffers = [];
-    /// <summary> Next vertex attribute slot. Tracked separately from <see cref="_buffers"/>, which also holds the index buffer. </summary>
     private int _nextAttribute;
 
     public int IndicesCount { get; private set; }
@@ -74,7 +73,6 @@ public sealed class VAOModel
         _nextAttribute = 0;
     }
 
-
     public void BindVAO()
     {
         GL.BindVertexArray(_vaoId);
@@ -96,7 +94,6 @@ public sealed class VAOModel
         return Marshal.SizeOf(default(T));
     }
 
-    /// <summary> Creates an index buffer object and buffers the given indices. </summary>
     private void CreateIBO(int[] indices)
     {
         int vboID = GL.GenBuffer();
@@ -105,16 +102,9 @@ public sealed class VAOModel
         GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indices.Length * sizeof(int)), indices, BufferUsageHint.StaticDraw);
     }
 
-    /// <summary>
-    /// Creates a vertex bufffer object and buffers the given float values. The integer specifies the number of elements in the datastructure.
-    /// A Vector3 would for example have this integer set to 3 (X, Y, Z)
-    /// </summary>
     private void CreateVBO<T>(int nrOfElementsInStructure, T[] data, int overrideLength = -1)
         where T : struct
     {
-        // The packed light value is declared as 'in uint' by the shaders. An integer vertex attribute has
-        // to be described with the I variant: VertexAttribPointer leaves an integer input undefined, which
-        // shows up as black or garbage lighting depending on the driver.
         bool isIntegerAttribute = typeof(T) == typeof(Light) || typeof(T) == typeof(uint);
 
         int vboID = GL.GenBuffer();

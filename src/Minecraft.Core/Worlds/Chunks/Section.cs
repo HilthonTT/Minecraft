@@ -2,15 +2,10 @@ using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Worlds.Chunks;
 
-/// <summary>
-/// A 16 by 16 by 16 slice of a chunk. Blocks are stored as bare ids, with only the few blocks that carry
-/// per block data kept as full states on the side.
-/// </summary>
 public sealed class Section
 {
     private const int BlocksPerSection = 16 * 16 * 16;
 
-    /// <summary>Block ids indexed by <see cref="GetIndex"/>. Zero means the slot is empty.</summary>
     private readonly ushort[] _blocks = new ushort[BlocksPerSection];
 
     private readonly Dictionary<int, BlockState> _customStates = [];
@@ -20,7 +15,6 @@ public sealed class Section
 
     public byte Height { get; }
 
-    /// <summary>Whether the section contains no opaque blocks, so sunlight passes straight through it.</summary>
     public bool IsFullTransparent { get; private set; }
 
     public bool IsEmpty { get; private set; }
@@ -132,7 +126,6 @@ public sealed class Section
         IsEmpty = _numberOfBlocks == 0;
     }
 
-    /// <summary>The block at the given position within this section, or null when the slot is empty.</summary>
     public BlockState? GetBlockAt(int localX, int localY, int localZ)
     {
         int index = GetIndex(localX, localY, localZ);

@@ -4,10 +4,6 @@ using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>
-/// Dry grassland: heavy on grass and light on everything else, with single trees standing well apart and dead
-/// bushes on the bare stretches between them.
-/// </summary>
 public sealed class SavannaDecorator : IDecorator
 {
     private readonly OakTreeGenerator _oakTreeGenerator = new();

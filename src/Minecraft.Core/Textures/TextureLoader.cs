@@ -21,10 +21,6 @@ public static class TextureLoader
         _textures.Clear();
     }
 
-    /// <param name="smooth">
-    /// Interpolates between texels instead of snapping to the nearest one. Block textures want the hard
-    /// pixels, but a font map that is drawn smaller than it was authored needs the filtering.
-    /// </param>
     public static int LoadTexture(string filePath, bool smooth = false)
     {
         GL.GenTextures(1, out int texture);
@@ -36,7 +32,6 @@ public static class TextureLoader
             ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
         try
         {
-            // Format32bppArgb is laid out BGRA in memory, so the upload has to be told that.
             GL.TexImage2D(
                 TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, data.Width, data.Height, 0,
                 OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
@@ -56,17 +51,6 @@ public static class TextureLoader
         return texture;
     }
 
-    /// <summary>
-    /// Loads the block sheet, turning the white background of its cut out cells into real transparency.
-    /// <para>
-    /// The sheet has no alpha channel of its own and marks the see through parts of a plant in white. Doing
-    /// the conversion here, once, rather than testing for white while drawing means the rule applies to the
-    /// cells that were drawn that way and to no others, so a block that is legitimately white keeps its
-    /// colour. See <see cref="Shapes.BlockAtlas"/>.
-    /// </para>
-    /// </summary>
-    /// <param name="cutOutCells">The cells whose white is a background rather than a colour.</param>
-    /// <param name="cellsPerRow">How many cells the sheet is divided into along each edge.</param>
     public static int LoadBlockAtlas(string filePath, IReadOnlyList<Vector2> cutOutCells, int cellsPerRow)
     {
         GL.GenTextures(1, out int texture);
@@ -74,8 +58,6 @@ public static class TextureLoader
 
         using var image = new Bitmap(filePath);
 
-        // Locked as 32 bit even though the file has no alpha, which gives every texel an opaque alpha byte
-        // for the cut out cells to punch through.
         var data = image.LockBits(
             new Rectangle(0, 0, image.Width, image.Height),
             ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
@@ -83,7 +65,6 @@ public static class TextureLoader
         {
             PunchOutWhiteBackgrounds(data, cutOutCells, cellsPerRow);
 
-            // Format32bppArgb is laid out BGRA in memory, so the upload has to be told that.
             GL.TexImage2D(
                 TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, data.Width, data.Height, 0,
                 OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
@@ -102,7 +83,6 @@ public static class TextureLoader
         return texture;
     }
 
-    /// <summary>Clears the alpha of every white texel inside the given cells, leaving the rest untouched.</summary>
     private static void PunchOutWhiteBackgrounds(BitmapData data, IReadOnlyList<Vector2> cutOutCells, int cellsPerRow)
     {
         int cellWidth = data.Width / cellsPerRow;
@@ -125,7 +105,6 @@ public static class TextureLoader
                     {
                         byte* texel = row + (x * 4);
 
-                        // Laid out blue, green, red, alpha.
                         if (texel[0] == 255 && texel[1] == 255 && texel[2] == 255)
                         {
                             texel[3] = 0;
@@ -136,10 +115,6 @@ public static class TextureLoader
         }
     }
 
-    /// <summary>
-    /// A single opaque white pixel. Drawn through the UI shader it takes on whatever colour and transparency
-    /// the component carries, which is all a flat panel behind text needs.
-    /// </summary>
     public static int LoadSolidWhiteTexture()
     {
         byte[] pixel = [255, 255, 255, 255];
@@ -165,8 +140,7 @@ public static class TextureLoader
 
     public static int LoadDitherTexture()
     {
-        // 8x8 Bayer ordered dithering pattern
-        byte[] pattern = 
+        byte[] pattern =
         [
             0, 32,  8, 40,  2, 34, 10, 42,
             48, 16, 56, 24, 50, 18, 58, 26,

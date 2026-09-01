@@ -4,11 +4,6 @@ namespace Minecraft.Core.Worlds;
 
 public sealed class Sky
 {
-    /*
-     * A colour is given for a handful of hours of the day and left invalid for the rest. The sky
-     * interpolates linearly between the previous and next hour that has one, so the transitions come out
-     * smooth and only the hours where something actually changes have to be written down.
-     */
 
     private readonly Vector3[] _topSkyColors = new Vector3[24];
     private readonly Vector3[] _bottomSkyColors = new Vector3[24];

@@ -5,7 +5,6 @@ namespace Minecraft.Tests.Physics;
 
 public sealed class AxisAlignedBoxTests
 {
-    /// <summary>The unit cube a block occupies, sitting at the origin.</summary>
     private static AxisAlignedBox UnitCube() => new(Vector3.Zero, Vector3.One);
 
     [Fact]
@@ -21,8 +20,6 @@ public sealed class AxisAlignedBoxTests
     [Fact]
     public void TwoBoxesMeetingFaceToFaceDoNot()
     {
-        // Standing on a block is exactly this: touching is not overlapping, or a player would be inside the
-        // floor from the moment they landed on it.
         AxisAlignedBox floor = UnitCube();
         var standingOn = new AxisAlignedBox(new Vector3(0, 1, 0), new Vector3(1, 2, 1));
 
@@ -95,7 +92,6 @@ public sealed class AxisAlignedBoxTests
     [Fact]
     public void ABoxCanBeMovedWithoutBeingRebuilt()
     {
-        // Entity boxes are reused every frame rather than reallocated, so this is the path that matters.
         AxisAlignedBox box = UnitCube();
 
         box.SetDimensions(new Vector3(4, 5, 6), new Vector3(5, 7, 7));

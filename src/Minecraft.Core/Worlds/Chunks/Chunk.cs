@@ -4,19 +4,12 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Chunks;
 
-/// <summary>
-/// A 16 by 16 column of the world spanning the full build height, stored as a stack of
-/// <see cref="Section"/>s so that empty vertical space costs nothing.
-/// </summary>
 public sealed class Chunk
 {
-    /// <summary>Blocks in this chunk that need ticking, keyed by world position.</summary>
     public Dictionary<Vector3i, BlockState> TickableBlocks { get; } = [];
 
-    /// <summary>Blocks in this chunk that emit light, keyed by world position.</summary>
     public Dictionary<Vector3i, BlockState> LightSourceBlocks { get; } = [];
 
-    /// <summary>Indexed by section height. A null entry means that slice contains no blocks at all.</summary>
     public Section?[] Sections { get; } = new Section?[Constants.NUM_SECTIONS_IN_CHUNKS];
 
     public int GridX { get; private set; }
@@ -25,13 +18,8 @@ public sealed class Chunk
 
     public LightMap LightMap { get; } = new();
 
-    /// <summary>The height of the highest non air block in each column, used to speed up lighting.</summary>
     public int[,] TopMostBlocks { get; } = new int[16, 16];
 
-    /// <summary>
-    /// Whether this chunk differs from what the generator would produce for its position. Only dirty chunks
-    /// are written to disk; the rest are regenerated from the world seed, which is cheaper than storing them.
-    /// </summary>
     public bool IsDirty { get; private set; }
 
     public Chunk(int gridX, int gridZ)
@@ -40,15 +28,10 @@ public sealed class Chunk
         GridZ = gridZ;
     }
 
-    /// <summary>Required by the chunk pool, which recycles instances through <see cref="ResetAndAssign"/>.</summary>
     public Chunk()
     {
     }
 
-    /// <summary>
-    /// Wipes this chunk and moves it to a new grid position. Sections are emptied rather than dropped, so a
-    /// recycled chunk does not have to reallocate them.
-    /// </summary>
     public void ResetAndAssign(int gridX, int gridZ)
     {
         TickableBlocks.Clear();
@@ -99,10 +82,6 @@ public sealed class Chunk
         }
     }
 
-    /// <summary>
-    /// Records that this chunk now matches what is on disk, or what the generator just produced. Called
-    /// after generating, loading and saving.
-    /// </summary>
     public void MarkClean()
     {
         IsDirty = false;
@@ -115,7 +94,6 @@ public sealed class Chunk
 
     public void Tick(float deltaTime, World world)
     {
-        // Copied because a block's tick can add or remove tickable blocks in this same chunk.
         foreach (KeyValuePair<Vector3i, BlockState> tickable in TickableBlocks.ToArray())
         {
             tickable.Value.GetBlock().OnTick(tickable.Value, world, tickable.Key, deltaTime);
@@ -167,7 +145,6 @@ public sealed class Chunk
         LightSourceBlocks.Remove(blockPos);
         IsDirty = true;
 
-        // Recomputed after the removal, otherwise the block being removed is still found as the top one.
         if (TopMostBlocks[localX, localZ] == worldY)
         {
             TopMostBlocks[localX, localZ] = FindNewTopMostBlockAt(localX, localZ, worldY);
@@ -210,7 +187,6 @@ public sealed class Chunk
         section.AddBlockAt(localX, worldY & 15, localZ, blockState);
         IsDirty = true;
 
-        // Assigned rather than added: the slot may already hold the state of the block being replaced.
         if (block.IsTickable)
         {
             TickableBlocks[worldPos] = blockState;
@@ -235,10 +211,6 @@ public sealed class Chunk
         }
     }
 
-    /// <summary>
-    /// The height of the lowest section that is see through, counting down from the top while every section
-    /// above is also see through. Sunlight can fill everything above it without any propagation work.
-    /// </summary>
     public uint GetLowestEmptySectionAfterEachOtherFromTop()
     {
         uint lowestSection = Constants.NUM_SECTIONS_IN_CHUNKS - 1;
@@ -257,14 +229,12 @@ public sealed class Chunk
         return lowestSection;
     }
 
-    /// <summary>The number of bytes this chunk takes on the wire.</summary>
     public int GetPayloadSize()
     {
         int size = 0;
 
         for (int i = 0; i < Constants.NUM_SECTIONS_IN_CHUNKS; i++)
         {
-            // One byte flags whether the section has any blocks at all.
             size++;
 
             Section? section = Sections[i];
@@ -279,7 +249,6 @@ public sealed class Chunk
                 {
                     for (int z = 0; z < 16; z++)
                     {
-                        // Every slot carries its block id, plus whatever the state adds on top.
                         size += sizeof(ushort);
                         size += section.GetBlockAt(x, y, z)?.PayloadSize() ?? 0;
                     }

@@ -16,7 +16,6 @@ public sealed class GameWindow : OpenTK.Windowing.Desktop.GameWindow
             GameWindowSettings.Default,
             new NativeWindowSettings
             {
-                // A dedicated server draws nothing, so it gets a token window rather than a real one.
                 ClientSize = startArgs.RunMode == RunMode.Server ? new Vector2i(320, 240) : new Vector2i(1280, 720),
                 Title = "Minecraft OpenGL",
                 APIVersion = new Version(3, 3),

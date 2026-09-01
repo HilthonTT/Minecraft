@@ -56,7 +56,6 @@ public sealed class BlockFlower : Block
             return;
         }
 
-        // The block we are standing on was removed, so there is nothing left to hold this flower up.
         if (blockPos == sourceBlockPos.Up() && world.GetBlockAt(sourceBlockPos).GetBlock() == BlockRegistry.Air)
         {
             world.QueueToRemoveBlockAt(blockPos);

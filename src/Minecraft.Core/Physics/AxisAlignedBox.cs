@@ -38,13 +38,11 @@ public sealed class AxisAlignedBox
         float tmin = Math.Max(Math.Max(Math.Min(t1, t2), Math.Min(t3, t4)), Math.Min(t5, t6));
         float tmax = Math.Min(Math.Min(Math.Max(t1, t2), Math.Max(t3, t4)), Math.Max(t5, t6));
 
-        // if tmax < 0, ray (line) is intersecting AABB, but the whole AABB is behind us
         if (tmax < 0)
         {
             return float.MaxValue;
         }
 
-        // if tmin > tmax, ray doesn't intersect AABB
         if (tmin > tmax)
         {
             return float.MaxValue;

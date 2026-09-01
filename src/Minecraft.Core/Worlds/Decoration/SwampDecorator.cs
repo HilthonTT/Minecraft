@@ -4,11 +4,6 @@ using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>
-/// Marsh: reeds along every waterline, mushrooms and tall grass over the ground between the pools, and oaks
-/// standing singly rather than in a wood. The banks are patched with clay, which is what a swamp has instead
-/// of the sand a proper shore would leave.
-/// </summary>
 public sealed class SwampDecorator : IDecorator
 {
     private readonly OakTreeGenerator _oakTreeGenerator = new();
@@ -21,8 +16,6 @@ public sealed class SwampDecorator : IDecorator
             return;
         }
 
-        // Reeds only grow within reach of the water, which is what draws the edge of every pool rather than
-        // scattering them evenly over the marsh.
         bool besideWater = IsBesideWater(chunk, worldY, localX, localZ);
 
         if (besideWater && random.Next(6) == 1)
@@ -57,11 +50,6 @@ public sealed class SwampDecorator : IDecorator
         }
     }
 
-    /// <summary>
-    /// Whether any of the four cells around this one holds water. Only the chunk's own columns are asked:
-    /// a neighbouring chunk is not loaded while this one is being decorated, and reeds missing from the
-    /// outermost row of a chunk is a far smaller thing than reading blocks that are not there.
-    /// </summary>
     private static bool IsBesideWater(Chunk chunk, int worldY, int localX, int localZ)
     {
         if (localX == 0 || localX == 15 || localZ == 0 || localZ == 15)

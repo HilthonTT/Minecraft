@@ -4,10 +4,6 @@ using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>
-/// Open snow: bare for the most part, with pines standing alone or in small stands and drifts of snow lying
-/// between them. What makes it read as a plain rather than a forest is how much of it is nothing at all.
-/// </summary>
 public sealed class SnowyPlainsDecorator : IDecorator
 {
     private readonly PineTreeGenerator _pineTreeGenerator = new();
@@ -26,7 +22,6 @@ public sealed class SnowyPlainsDecorator : IDecorator
         }
         else if (random.Next(120) == 1)
         {
-            // A drift: the ground here has been under snow long enough to have become it.
             chunk.AddBlockAt(localX, worldY - 1, localZ, BlockRegistry.GetState(BlockRegistry.Snow));
         }
         else if (random.Next(900) == 1)

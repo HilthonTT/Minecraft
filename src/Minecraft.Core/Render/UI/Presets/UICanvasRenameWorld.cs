@@ -4,7 +4,6 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>Gives a saved world a new name. Only ever reached from the world list, one world at a time.</summary>
 public sealed class UICanvasRenameWorld : UICanvasMenu
 {
     private const int MaxNameLength = 32;
@@ -20,10 +19,8 @@ public sealed class UICanvasRenameWorld : UICanvasMenu
     private readonly UIButton _renameButton;
     private readonly UIButton _cancelButton;
 
-    /// <summary>The world this screen was opened for, kept so the rename knows what it is renaming.</summary>
     public string CurrentName { get; private set; } = string.Empty;
 
-    /// <summary>What was typed into the box.</summary>
     public string NewName => _nameField.Value;
 
     public UICanvasRenameWorld(Game game)
@@ -42,7 +39,6 @@ public sealed class UICanvasRenameWorld : UICanvasMenu
         Layout();
     }
 
-    /// <summary>Points the screen at the world whose row was pressed.</summary>
     public void Prepare(string currentName)
     {
         CurrentName = currentName;

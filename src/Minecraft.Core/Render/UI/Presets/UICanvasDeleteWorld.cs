@@ -3,10 +3,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// Asks before a world is deleted. Deleting one cannot be taken back and there is nothing to restore it
-/// from, so it gets a screen of its own that names the world rather than a button that acts on one press.
-/// </summary>
 public sealed class UICanvasDeleteWorld : UICanvasMenu
 {
     private const float MessageScale = 0.34F;
@@ -23,7 +19,6 @@ public sealed class UICanvasDeleteWorld : UICanvasMenu
     private readonly UIButton _cancelButton;
     private readonly UIButton _deleteButton;
 
-    /// <summary>The world this screen was opened for.</summary>
     public string WorldName { get; private set; } = string.Empty;
 
     public UICanvasDeleteWorld(Game game)
@@ -46,15 +41,12 @@ public sealed class UICanvasDeleteWorld : UICanvasMenu
         };
         AddComponentToRender(_warning);
 
-        // Cancel takes the left hand place the other screens give to the button that gets on with things,
-        // so that reaching for the usual spot is the harmless one here.
         _cancelButton = new UIButton(this, "Cancel");
         _deleteButton = new UIButton(this, "Delete") { IsDestructive = true };
 
         Layout();
     }
 
-    /// <summary>Points the screen at the world whose row was pressed.</summary>
     public void Prepare(string worldName)
     {
         WorldName = worldName;
@@ -66,7 +58,6 @@ public sealed class UICanvasDeleteWorld : UICanvasMenu
         bool cancelPressed = _cancelButton.Update(mousePosition, mousePressed);
         bool deletePressed = _deleteButton.Update(mousePosition, mousePressed);
 
-        // Deliberately not bound to the return key: this is not a screen to get past without looking.
         if (deletePressed)
         {
             return MenuAction.Confirm;

@@ -4,18 +4,12 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// The two halves of playing with somebody else: joining a world they are hosting, or hosting one for them
-/// to join. Both are here because a server has to exist before there is anything to connect to, and without
-/// somewhere to start one the join half has nothing to offer on its own.
-/// </summary>
 public sealed class UICanvasMultiplayer : UICanvasMenu
 {
     private const int MaxAddressLength = 64;
     private const float LabelScale = 0.34F;
     private const float HintScale = 0.28F;
 
-    /// <summary>How much space separates the join half from the host half.</summary>
     private const int SectionGap = 26;
 
     private static readonly Vector3 _backdropColor = new(0.06F, 0.07F, 0.09F);
@@ -32,7 +26,6 @@ public sealed class UICanvasMultiplayer : UICanvasMenu
 
     private readonly UIButton _backButton;
 
-    /// <summary>Whatever is currently in the address box, as typed.</summary>
     public string Address => _addressField.Value;
 
     public UICanvasMultiplayer(Game game, string defaultAddress, string hostAddress)
@@ -59,7 +52,6 @@ public sealed class UICanvasMultiplayer : UICanvasMenu
 
     public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
     {
-        // A click anywhere decides where typing goes next, so clicking off the box also gives up its focus.
         if (mousePressed)
         {
             _addressField.HasFocus = _addressField.Contains(mousePosition);
@@ -71,7 +63,6 @@ public sealed class UICanvasMultiplayer : UICanvasMenu
         bool hostPressed = _hostButton.Update(mousePosition, mousePressed);
         bool backPressed = _backButton.Update(mousePosition, mousePressed);
 
-        // Enter belongs to the address box, which is the only thing here that is typed into.
         if (connectPressed ||
             (_addressField.HasFocus && (Game.Input.OnKeyPress(Keys.Enter) || Game.Input.OnKeyPress(Keys.KeyPadEnter))))
         {

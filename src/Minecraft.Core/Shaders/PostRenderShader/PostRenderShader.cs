@@ -16,8 +16,6 @@ public sealed class PostRenderShader : Shader
 
     protected override void BindAttributes()
     {
-        // These have to match the attribute slots ScreenQuad fills. Without them the linker is free to
-        // assign the two inputs either way round, which feeds the UVs into gl_Position.
         BindAttribute(0, "vertexPosition");
         BindAttribute(1, "vertexUv");
     }

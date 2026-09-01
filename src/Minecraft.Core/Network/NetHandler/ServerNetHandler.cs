@@ -13,31 +13,12 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Network.NetHandler;
 
-/// <summary>
-/// Handles the packets a server receives from a single client. Packets a server should never receive throw,
-/// since receiving one means the client is confused about which side it is on.
-/// </summary>
 public sealed class ServerNetHandler : INetHandler
 {
-    /// <summary>
-    /// What a bare fist takes off. The same figure the game this is modelled on gives an empty hand, so the
-    /// mob healths borrowed along with it come out at the number of punches they are supposed to, and the
-    /// tools are worth their own multiples of it: see <see cref="ToolItem.AttackDamage"/>.
-    /// </summary>
     private const int PunchDamage = 1;
 
-    /// <summary>
-    /// How far from a player a mob may be and still be hit. Well beyond the arm's length a client will let
-    /// anyone aim at: the position held here for a player is a tenth of a second behind where they actually
-    /// are and the mob has moved since as well, so a check this side has to leave room for both.
-    /// </summary>
     private const float MaxAttackReach = 6F;
 
-    /// <summary>
-    /// How far from a player a block may be and still drop something when it is broken. Well beyond the
-    /// forty a client will let anyone aim at, since the position held here is a tenth of a second old, but
-    /// finite: a request to break a block on the other side of the world is not a request to be paid for one.
-    /// </summary>
     private const float MaxDropReach = 64F;
 
     private readonly Game _game;
@@ -57,8 +38,6 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessRemoveBlockPacket(RemoveBlockPacket removeBlockPacket)
     {
-        // A break by hand is one block. Everything that arrives here carrying more of them is a debug tool
-        // clearing a volume, and none of that should be paid out as a pile of drops on the floor.
         bool isSingleBreak = removeBlockPacket.BlockPositions.Length == 1;
 
         bool isSurvival = _session.Player is ServerPlayer { IsCreative: false };
@@ -79,10 +58,6 @@ public sealed class ServerNetHandler : INetHandler
         }
     }
 
-    /// <summary>
-    /// Whether a player playing for keeps is allowed through this block at all. Bedrock is the floor of the
-    /// world, and a client will not have let anyone dig at it, so one asking has been told otherwise.
-    /// </summary>
     private bool MayBreak(Vector3i blockPos)
     {
         if (_game.Server.World.GetBlockAt(blockPos).GetBlock().IsBreakable)
@@ -94,15 +69,6 @@ public sealed class ServerNetHandler : INetHandler
         return false;
     }
 
-    /// <summary>
-    /// Throws out whatever the block being broken leaves behind.
-    /// <para>
-    /// Done here rather than off the world's own removal, which everything goes through: water washes
-    /// flowers away, a bank of sand settles a cell at a time and a blast takes a hillside apart, and every
-    /// one of those is an ordinary removal. Only a player swinging at a block earns anything, and this is
-    /// the one place that knows a swing is what this was.
-    /// </para>
-    /// </summary>
     private void DropContentsOf(Vector3i blockPos)
     {
         if (_session.Player is not ServerPlayer breaker)
@@ -127,8 +93,6 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        // What was in the hand decides both whether anything is earned and, for a seam of ore, what. The
-        // server is told what that is as the selection moves; see PlayerHeldItemPacket for why it is trusted.
         if (!Harvesting.CanHarvest(block, breaker.HeldItem))
         {
             return;
@@ -137,17 +101,12 @@ public sealed class ServerNetHandler : INetHandler
         ItemStack dropped = block.GetDrop(state);
         if (!dropped.IsEmpty)
         {
-            // Hung off the removal rather than thrown out now: the block is still standing here until the
-            // end of the next world update, and anything put in a solid cell is lifted out onto the top of
-            // it. See WorldServer.DropWhenRemoved.
             world.DropWhenRemoved(blockPos, dropped);
         }
     }
 
     public void ProcessChatPacket(ChatPacket chatPacket)
     {
-        // A line starting with a slash is a request rather than something to say, and is answered to the one
-        // player who typed it instead of being repeated to the room.
         if (ChatCommands.TryHandle(_game, _session, chatPacket.Message))
         {
             return;
@@ -159,8 +118,6 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessEntityDataPacket(EntityDataPacket entityDataPacket)
     {
-        // A client may only move the player it was given. Anything else is either one that has not finished
-        // joining and is still reporting the position it was built with, or one reaching for another entity.
         if (_session.Player is null || entityDataPacket.EntityID != _session.Player.ID)
         {
             return;
@@ -193,8 +150,6 @@ public sealed class ServerNetHandler : INetHandler
 
         var player = new ServerPlayer(playerId, serverPlayerName, _game.Server.World, spawnPosition);
 
-        // Everyone arrives in whatever mode the world is played in. There is no player database to remember
-        // anyone by, so the world is the only thing that can answer the question.
         player.SetGameMode(_game.Server.World.DefaultGameMode);
 
         _session.AssignPlayer(player);
@@ -209,10 +164,8 @@ public sealed class ServerNetHandler : INetHandler
             player.Health));
         _session.State = SessionState.Accepted;
 
-        // Let everyone already online know about the new player.
         _game.Server.BroadcastPacketExceptTo(_session, new PlayerJoinPacket(serverPlayerName, playerId));
 
-        // And let the new player know about everyone already online.
         foreach (Session.Session client in _game.Server.ConnectedClients)
         {
             if (client.Player is not null && client.Player != player)
@@ -237,11 +190,6 @@ public sealed class ServerNetHandler : INetHandler
         }
     }
 
-    /// <summary>
-    /// A player swinging at a mob. Everything about the blow is decided here — the client is only reporting
-    /// what it aimed at — and what comes back out of it is a hurt packet to everyone who can see the mob,
-    /// followed by the mob itself if that was the last blow it had in it.
-    /// </summary>
     public void ProcessPlayerAttackEntityPacket(PlayerAttackEntityPacket playerAttackEntityPacket)
     {
         if (_session.Player is not ServerPlayer attacker)
@@ -252,7 +200,6 @@ public sealed class ServerNetHandler : INetHandler
         if (!_game.Server.World.LoadedEntities.TryGetValue(playerAttackEntityPacket.EntityID, out Entity? target) ||
             target is not Mob mob)
         {
-            // A mob that died or wandered off between the swing and the packet arriving. Both are ordinary.
             return;
         }
 
@@ -262,21 +209,11 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        // What the blow is worth is decided here and not on the client, the same as its reach: the client
-        // says what it swung with, and this is what says what that is worth. An empty hand is a fist.
         int damage = attacker.HeldItem.Tool?.AttackDamage ?? PunchDamage;
 
-        // Does nothing while the mob is still inside the window a blow of at least this weight already
-        // bought it, which is what a client holding the mouse button down runs into. Everything else —
-        // telling the onlookers, and taking a killed mob out of the world — belongs to the world.
         _game.Server.World.HurtMob(mob, damage, attacker.Position, attacker);
     }
 
-    /// <summary>
-    /// A player reporting a fall. What it cost is decided here, the same way a punch is: the client has just
-    /// simulated the body and is the only thing that can say how far it dropped, and this is the only thing
-    /// that can say what that is worth.
-    /// </summary>
     public void ProcessPlayerFellPacket(PlayerFellPacket playerFellPacket)
     {
         if (_session.Player is not ServerPlayer player)
@@ -286,8 +223,6 @@ public sealed class ServerNetHandler : INetHandler
 
         float fallen = playerFellPacket.FallenBlocks;
 
-        // A fall longer than the world is tall did not happen. Anything the client reports is only ever a
-        // request to be hurt, so the worst a bad one can do is ask for nothing.
         if (!float.IsFinite(fallen) || fallen > Constants.MAX_BUILD_HEIGHT)
         {
             return;
@@ -300,16 +235,6 @@ public sealed class ServerNetHandler : INetHandler
         }
     }
 
-    /// <summary>
-    /// A player throwing down what they were holding. What was thrown is taken on trust, because it has to
-    /// be: the inventory it came out of lives on that client and this side has no copy of it to check
-    /// against. That is the same trust picking something up already runs on, and closing it means moving the
-    /// inventory to the server rather than second guessing it here.
-    /// <para>
-    /// What is checked is that the stack is a real one. A count out of range or an id that names no block
-    /// would otherwise put something impossible into the world, or take the server down reading it.
-    /// </para>
-    /// </summary>
     public void ProcessPlayerDropItemPacket(PlayerDropItemPacket playerDropItemPacket)
     {
         if (_session.Player is not ServerPlayer thrower)
@@ -317,8 +242,6 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        // Creative has a bottomless supply behind every slot, so a stack thrown out of one is a stack made
-        // from nothing. Throwing is survival's alone for the same reason the block list is creative's.
         if (thrower.IsCreative)
         {
             Logger.Warn("Player " + thrower.ID + " tried to throw an item down in creative.");
@@ -343,10 +266,6 @@ public sealed class ServerNetHandler : INetHandler
             new ItemStack(thrown, playerDropItemPacket.Count, playerDropItemPacket.Damage));
     }
 
-    /// <summary>
-    /// A player reporting what they have just taken into their hand. Kept on the player so that the next
-    /// block they break can be asked what that would earn.
-    /// </summary>
     public void ProcessPlayerHeldItemPacket(PlayerHeldItemPacket playerHeldItemPacket)
     {
         if (_session.Player is not ServerPlayer player)
@@ -354,8 +273,6 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        // An empty hand is sent as a zero, which is no item's id, so an unknown id and an empty hand come to
-        // the same thing here: nothing that would speed a break up or earn a drop that a hand would not.
         Item? held = ItemRegistry.TryGet(playerHeldItemPacket.ItemId);
 
         player.HeldItem = held is null
@@ -370,7 +287,6 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessPlayerLeavePacket(PlayerLeavePacket playerKickPacket)
     {
-        // A client announcing its own departure is advisory; the session closing is what actually removes it.
         Logger.Info("Client " + _session.Player?.ID + " announced it is leaving: " + playerKickPacket.Message);
         _session.State = SessionState.Closed;
     }

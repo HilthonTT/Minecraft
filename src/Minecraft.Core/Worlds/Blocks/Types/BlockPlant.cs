@@ -6,14 +6,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Blocks.Types;
 
-/// <summary>
-/// Something growing out of the ground with no body of its own: a flower, a mushroom, a tuft of grass. It
-/// cannot be walked into, and it uproots itself as soon as whatever was holding it up is taken away.
-/// </summary>
-/// <param name="growsOn">
-/// The blocks this plant will stand on. Evaluated lazily, since the registry is still being filled in while
-/// its blocks are being constructed.
-/// </param>
 public sealed class BlockPlant : Block
 {
     private readonly Func<Block[]> _growsOnSelector;
@@ -39,8 +31,6 @@ public sealed class BlockPlant : Block
 
     public override AxisAlignedBox[] GetSelectionBox(BlockState state, Vector3i blockPos)
     {
-        // Drawn as two crossed quads that stop short of the edges of the cell, so the outline is pulled in to
-        // match rather than framing a whole block of empty air.
         const float Inset = 0.25F;
 
         var min = new Vector3(blockPos.X + Inset, blockPos.Y, blockPos.Z + Inset);

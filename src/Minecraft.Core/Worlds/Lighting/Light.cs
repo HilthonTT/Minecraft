@@ -1,16 +1,7 @@
 namespace Minecraft.Core.Worlds.Lighting;
 
-/// <summary>
-/// A packed per vertex light value, uploaded to the shader as a single unsigned integer.
-/// <code>
-/// 0000 0000 0000 0000 0000 0000 0000 0000
-///     II IIII SSSS SSBB BBBB GGGG GGRR RRRR
-/// </code>
-/// I = illumination, S = sunlight, RGB = the red, green and blue block light channels.
-/// </summary>
 public struct Light
 {
-    /// <summary>Every field is six bits wide, so this is the largest value any of them can hold.</summary>
     public const uint MaxChannelValue = 63;
 
     private const uint ChannelMask = 0x3F;
@@ -56,7 +47,6 @@ public struct Light
 
     private void SetChannel(uint value, int shift, string parameterName)
     {
-        // Anything wider than six bits would spill into the neighbouring channel rather than be clipped.
         if (value > MaxChannelValue)
         {
             throw new ArgumentOutOfRangeException(
@@ -68,7 +58,6 @@ public struct Light
         _storage = (_storage & ~(ChannelMask << shift)) | (value << shift);
     }
 
-    /// <summary>Adds two lights channel by channel, without packing the result back into six bit fields.</summary>
     public static (uint Red, uint Green, uint Blue, uint Sunlight, uint Brightness) Add(Light first, Light second)
     {
         return (

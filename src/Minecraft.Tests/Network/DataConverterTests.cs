@@ -4,13 +4,8 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Tests.Network;
 
-/// <summary>
-/// The two halves of the wire format, checked against each other. Everything written by one side is read by
-/// the other, so what matters is not what the bytes are but that a round trip is the identity.
-/// </summary>
 public sealed class DataConverterTests
 {
-    /// <summary>Writes through the packet writer and hands back the bytes that came out of it.</summary>
     private static byte[] Written(Action<BufferedDataStream> write)
     {
         using var memory = new MemoryStream();

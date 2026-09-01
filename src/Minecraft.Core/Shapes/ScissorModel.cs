@@ -5,10 +5,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;
 
-/// <summary>
-/// A model made of two quads crossing each other diagonally, the usual shape for plants. It covers no side
-/// of its cell, so its faces are always emitted and always double sided.
-/// </summary>
 public abstract class ScissorModel : BlockModel
 {
     protected Vector3[] _bladeOneFace = [new(1, 0, 1), new(0, 0, 0), new(0, 1, 0), new(1, 1, 1)];

@@ -1,21 +1,13 @@
 ﻿namespace Minecraft.Core.Audio;
 
-/// <summary>
-/// The sounds the game raises by name. The two that vary by what a block is made of — walking on it and
-/// breaking it — are not here; they are asked for by material through <see cref="SoundRegistry"/> instead.
-/// </summary>
 public enum Sound
 {
-    /// <summary>Going into water, whether by walking in or falling in.</summary>
     Splash,
 
-    /// <summary>A stroke while swimming, the water equivalent of a footstep.</summary>
     Swim,
 
-    /// <summary>A lit fuse, played where the TNT that was struck is standing.</summary>
     TntFuse,
 
-    /// <summary>The blast at the end of it.</summary>
     Explode,
 
     SheepSay,
@@ -27,25 +19,14 @@ public enum Sound
     ZombieSay,
     ZombieStep,
 
-    /// <summary>
-    /// Being hit, and the blow that finishes it. Not every mob has both on disk: the set is Minecraft's own,
-    /// and there a sheep and a pig cry out in their ordinary voice when struck rather than in one of their
-    /// own, so those two are missing from here and asked for as calls instead.
-    /// </summary>
     PigDeath,
     CowHurt,
     ZombieHurt,
     ZombieDeath,
 
-    /// <summary>
-    /// The player themselves being hurt, whatever did it. One sound for a zombie's swing and for a landing
-    /// from a height, since what it is telling the player is that the bar has moved and not what moved it.
-    /// </summary>
     PlayerHurt,
 
-    /// <summary>A stack being swept up off the ground.</summary>
     ItemPickup,
 
-    /// <summary>A tool giving out, played at the player who was swinging it.</summary>
     ToolBroke,
 }

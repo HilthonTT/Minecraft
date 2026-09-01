@@ -6,24 +6,13 @@ namespace Minecraft.Core.Render.UI;
 
 public class UICanvas
 {
-    // A list rather than a set, because components are drawn in the order they were added and one drawn
-    // later has to end up on top of the ones before it.
     private readonly List<UIComponent> _components = [];
     private readonly HashSet<UIComponent> _toCleanComponents = new();
 
     public RenderSpace RenderSpace { get; protected set; }
 
-    /// <summary>
-    /// Whether the canvas takes part in updating and drawing. A switched off canvas keeps its meshes, and is
-    /// still cleaned, so turning it back on costs nothing and shows it exactly as it was left.
-    /// </summary>
     public virtual bool IsEnabled { get; set; } = true;
 
-    /// <summary>
-    /// Whether this canvas is drawn after the block icons rather than before them. The icons are a three
-    /// dimensional pass spliced into the middle of the interface, so anything that has to sit on top of one —
-    /// the count in the corner of a slot, the name of what the cursor is over — belongs on an overlay.
-    /// </summary>
     public bool IsOverlay { get; protected set; }
 
     public int PixelWidth { get; private set; }
@@ -55,8 +44,6 @@ public class UICanvas
 
         OnDimensionsChanged();
 
-        // Meshes are built in normalised device coordinates out of canvas pixels, so every one of them is
-        // now stale, whether or not the component itself moved.
         foreach (UIComponent component in _components)
         {
             AddComponentToClean(component);
@@ -110,6 +97,5 @@ public class UICanvas
 
     public virtual void Update() { }
 
-    /// <summary>Called after the canvas was resized, for canvases that lay their components out in pixels.</summary>
     protected virtual void OnDimensionsChanged() { }
 }

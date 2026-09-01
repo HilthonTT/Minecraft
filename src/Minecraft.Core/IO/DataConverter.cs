@@ -23,7 +23,6 @@ public static class DataConverter
 
     public static ushort BytesToUInt16(byte[] bytes, ref int head)
     {
-        //Little endian
         ushort value = (ushort)(bytes[head] | (bytes[head + 1] << 8));
         head += 2;
         return value;
@@ -31,7 +30,6 @@ public static class DataConverter
 
     public static int BytesToInt32(byte[] bytes, ref int head)
     {
-        //Little endian
         int value = bytes[head] | (bytes[head + 1] << 8) | (bytes[head + 2] << 16) | (bytes[head + 3] << 24);
         head += 4;
         return value;
@@ -39,7 +37,6 @@ public static class DataConverter
 
     public static unsafe float BytesToFloat(byte[] bytes, ref int head)
     {
-        //Little endian
         int value = BytesToInt32(bytes, ref head);
         return *(float*)&value;
     }
@@ -51,11 +48,8 @@ public static class DataConverter
         return value;
     }
 
-    /// <summary>Reads a single byte and reinterprets it as <typeparamref name="T"/>, typically a byte backed enum.</summary>
     public static unsafe T BytesToByteStruct<T>(byte[] bytes, ref int head) where T : unmanaged
     {
-        // Boxing the byte and unboxing it as T would throw for every type but byte itself,
-        // including the byte backed enums this is meant to read.
         if (sizeof(T) != 1)
         {
             throw new NotSupportedException($"{typeof(T).Name} is not a single byte type.");
@@ -83,9 +77,6 @@ public static class DataConverter
         Chunk chunk = world.ChunkPool.GetObject();
         chunk.ResetAndAssign(gridX, gridZ);
 
-        // A chunk that cannot be read through goes back to the pool on the way out. Payloads arrive from a
-        // socket and from disk, and both can be truncated or corrupt: without this, every failed read would
-        // strand one pooled chunk, lent out to a caller that no longer exists and never handed back.
         try
         {
             for (int i = 0; i < Constants.NUM_SECTIONS_IN_CHUNKS; i++)

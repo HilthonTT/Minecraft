@@ -37,7 +37,6 @@ public sealed class BlockModelDeadBush(TextureAtlas textureAtlas) : ScissorModel
     protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.DeadBush);
 }
 
-/// <summary>Wheat swaps its texture as the crop matures.</summary>
 public sealed class BlockModelWheat(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
 {
     private Vector2[] _uvHalfMaturity = [];
@@ -69,10 +68,6 @@ public sealed class BlockModelWheat(TextureAtlas textureAtlas) : ScissorModel(te
     }
 }
 
-/// <summary>
-/// Grass blades are jittered in size and position by a noise sample at their block position, so that a
-/// field of them does not read as a perfectly regular grid.
-/// </summary>
 public sealed class BlockModelGrassBlade(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
 {
     private const float NoiseDetail = 0.75F;

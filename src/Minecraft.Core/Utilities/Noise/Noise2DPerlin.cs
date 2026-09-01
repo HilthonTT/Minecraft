@@ -4,14 +4,12 @@ namespace Minecraft.Core.Utilities.Noise;
 
 public static class Noise2DPerlin
 {
-    /// <summary>Size of the permutation and gradient tables. Must stay a power of two so <see cref="TableMask"/> works.</summary>
     private const int TableSize = 256;
     private const int TableMask = TableSize - 1;
 
     private readonly static int[] _permutation = new int[TableSize];
     private readonly static Vector2[] _gradients = new Vector2[TableSize];
 
-    /// <summary>The four corners of the unit cell. Static so the hot path does not allocate per sample.</summary>
     private readonly static Vector2[] _corners =
     [
         new Vector2(0, 0),
@@ -25,9 +23,6 @@ public static class Noise2DPerlin
         Reseed(new Random());
     }
 
-    /// <summary>
-    /// Samples the noise field. The result lies in [-1, 1] and is 0 on the integer lattice.
-    /// </summary>
     public static float Noise(float x, float y)
     {
         var cell = new Vector2(MathF.Floor(x), MathF.Floor(y));
@@ -50,26 +45,16 @@ public static class Noise2DPerlin
         return Math.Clamp(total, -1f, 1f);
     }
 
-    /// <summary>
-    /// Samples the noise field remapped to [0, 1], the form usually wanted for height and climate maps.
-    /// </summary>
     public static float Noise01(float x, float y)
     {
         return (Noise(x, y) + 1f) * 0.5f;
     }
 
-    /// <summary>
-    /// Generates a new permutation and gradient set from a non deterministic source.
-    /// </summary>
     public static void Reseed()
     {
         Reseed(new Random());
     }
 
-    /// <summary>
-    /// Generates a new permutation and gradient set. The same seed always yields the same noise field,
-    /// which is what world generation needs to reproduce a world from its seed.
-    /// </summary>
     public static void Reseed(int seed)
     {
         Reseed(new Random(seed));
@@ -88,7 +73,6 @@ public static class Noise2DPerlin
             p[i] = i;
         }
 
-        /// unbiased Fisher-Yates shuffle
         for (var i = p.Length - 1; i > 0; i--)
         {
             var source = random.Next(i + 1);

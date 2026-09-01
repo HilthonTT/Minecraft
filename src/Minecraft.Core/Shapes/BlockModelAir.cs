@@ -5,10 +5,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;
 
-/// <summary>
-/// An empty model. Air is never stored in a section, so this is only reached if a lookup goes wrong, where
-/// drawing nothing beats throwing on the meshing thread.
-/// </summary>
 public sealed class BlockModelAir(TextureAtlas textureAtlas) : BlockModel(textureAtlas)
 {
     public override bool IsOpaqueOnSide(Direction direction) => false;

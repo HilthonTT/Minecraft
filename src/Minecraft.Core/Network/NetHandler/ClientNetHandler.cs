@@ -36,11 +36,6 @@ public sealed class ClientNetHandler : INetHandler
         _game.World.QueueToRemoveBlocksAt(removeBlockPacket.BlockPositions);
     }
 
-    /// <summary>
-    /// Something said, or something the game itself is saying. An empty sender is what marks the second: a
-    /// command's answer went to one player and belongs to nobody, so it is drawn in the game's own colour
-    /// rather than dressed up as a message from a player with no name.
-    /// </summary>
     public void ProcessChatPacket(ChatPacket chatPacket)
     {
         if (chatPacket.Sender.Length == 0)
@@ -97,8 +92,6 @@ public sealed class ClientNetHandler : INetHandler
 
     public void ProcessEntitySpawnPacket(EntitySpawnPacket entitySpawnPacket)
     {
-        // The tracker on the server only sends a spawn for something it has not already told us about, but a
-        // duplicate would otherwise replace a live entity with a fresh one that has to interpolate in again.
         if (_game.World.LoadedEntities.ContainsKey(entitySpawnPacket.EntityID))
         {
             return;
@@ -125,23 +118,14 @@ public sealed class ClientNetHandler : INetHandler
 
     public void ProcessEntityDespawnPacket(EntityDespawnPacket entityDespawnPacket)
     {
-        // Despawns for entities that were never tracked are not worth complaining about: a mob can leave
-        // range in the same update it would first have been sent in.
         if (_game.World.LoadedEntities.ContainsKey(entityDespawnPacket.EntityID))
         {
             _game.World.DespawnEntity(entityDespawnPacket.EntityID);
         }
     }
 
-    /// <summary>
-    /// A mob having been hit, which is all this side is told: it plays the mob's own cry and marks it red
-    /// for as long as the blow keeps it from being hit again. A death is followed by an ordinary despawn a
-    /// moment later, which is what actually takes the mob out of the world.
-    /// </summary>
     public void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket)
     {
-        // Nothing to show and nowhere to play it from. A mob can leave this client's range in the same
-        // update the blow that killed it was reported in.
         if (!_game.World.LoadedEntities.TryGetValue(entityHurtPacket.EntityID, out Entity? entity))
         {
             return;
@@ -155,16 +139,11 @@ public sealed class ClientNetHandler : INetHandler
         }
     }
 
-    /// <summary>
-    /// The mode this player has been put into. What it changes is not only what the controls do: the
-    /// inventory is a different thing in each of the two, so it is started over rather than carried across.
-    /// </summary>
     public void ProcessPlayerGameModePacket(PlayerGameModePacket playerGameModePacket)
     {
         _game.ClientPlayer.SetGameMode(playerGameModePacket.GameMode);
     }
 
-    /// <summary>What this player has left, which is the bar along the bottom of the screen and nothing more.</summary>
     public void ProcessPlayerHealthPacket(PlayerHealthPacket playerHealthPacket)
     {
         bool died = playerHealthPacket.Health <= 0 && _game.ClientPlayer.Health > 0;
@@ -182,16 +161,11 @@ public sealed class ClientNetHandler : INetHandler
         }
     }
 
-    /// <summary>
-    /// Being put back at the spawn. The one thing the server ever does to a body this side simulates, and it
-    /// only happens on a death, when what the client thought it was doing has stopped being true.
-    /// </summary>
     public void ProcessPlayerRespawnPacket(PlayerRespawnPacket playerRespawnPacket)
     {
         _game.ClientPlayer.RespawnAt(playerRespawnPacket.SpawnPosition);
     }
 
-    /// <summary>A stack lying on the ground that has come into view.</summary>
     public void ProcessItemSpawnPacket(ItemSpawnPacket itemSpawnPacket)
     {
         if (_game.World.LoadedEntities.ContainsKey(itemSpawnPacket.EntityID))
@@ -220,14 +194,8 @@ public sealed class ClientNetHandler : INetHandler
         _game.World.SpawnEntity(item);
     }
 
-    /// <summary>
-    /// Something this player has just walked over. The server has already taken it out of the world; what
-    /// arrives here is what it was, since the inventory it goes into lives on this side alone.
-    /// </summary>
     public void ProcessItemPickupPacket(ItemPickupPacket itemPickupPacket)
     {
-        // Dropped here as well as by the despawn that follows, so the thing being collected stops being
-        // drawn on the frame the sound plays rather than a tenth of a second later.
         if (_game.World.LoadedEntities.ContainsKey(itemPickupPacket.EntityID))
         {
             _game.World.DespawnEntity(itemPickupPacket.EntityID);
@@ -279,24 +247,17 @@ public sealed class ClientNetHandler : INetHandler
         _game.ClientPlayer.Name = playerJoinAcceptPacket.Name;
         _game.ClientPlayer.Position = playerJoinAcceptPacket.SpawnPosition;
 
-        // Before the world is drawn even once, so the hotbar is never seen full for a frame in a world that
-        // is played empty handed.
         _game.ClientPlayer.SetGameMode(playerJoinAcceptPacket.GameMode);
         _game.ClientPlayer.SetHealth(playerJoinAcceptPacket.Health);
 
         _session.State = SessionState.Accepted;
 
-        // Said now rather than left to the first time the selection moves: until the server hears it, it has
-        // to assume an empty hand, and would refuse the drop from the first block broken with a tool.
         _game.ClientPlayer.ReportHeldItem();
 
         _game.World.Environment.CurrentTime = playerJoinAcceptPacket.CurrentTime;
 
         _game.World.SpawnEntity(_game.ClientPlayer);
 
-        // Neither the seed nor the fact that a hosted world is open to other players is shown anywhere else,
-        // and both are worth knowing, so they are said once on the way in. The seed comes from the world
-        // rather than from what was asked for, since an existing world keeps its own.
         if (_game.IsServer)
         {
             _game.MasterRenderer.IngameCanvas.AddSystemMessage(
@@ -328,7 +289,6 @@ public sealed class ClientNetHandler : INetHandler
         {
             Logger.Info("Player " + playerLeavePacket.ID + " left for reason " + playerLeavePacket.Reason + " with message " + playerLeavePacket.Message);
 
-            // The name only lives on the entity, which is about to be despawned.
             if (_game.World.LoadedEntities.TryGetValue(playerLeavePacket.ID, out Entity? leavingEntity) &&
                 leavingEntity is OtherClientPlayer leavingPlayer)
             {

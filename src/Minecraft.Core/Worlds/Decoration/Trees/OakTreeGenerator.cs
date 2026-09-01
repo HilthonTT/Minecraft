@@ -5,10 +5,6 @@ namespace Minecraft.Core.Worlds.Decoration.Trees;
 
 public sealed class OakTreeGenerator : ITreeGenerator
 {
-    /// <summary>
-    /// The canopy reaches two blocks out from the trunk, so a trunk closer than this to a chunk edge would
-    /// need to write into the neighbouring chunk, which is not loaded while this one is being generated.
-    /// </summary>
     private const int CanopyMargin = 2;
 
     public void GenerateTreeAt(Chunk chunk, int localX, int worldY, int localZ, Random random)
@@ -31,7 +27,6 @@ public sealed class OakTreeGenerator : ITreeGenerator
             chunk.AddBlockAt(localX, worldY + y, localZ, log);
         }
 
-        // The canopy is a five by five slab two blocks deep, starting where the trunk stops being bare.
         worldY += trunkHeight;
         localX -= CanopyMargin;
         localZ -= CanopyMargin;
@@ -51,7 +46,6 @@ public sealed class OakTreeGenerator : ITreeGenerator
             }
         }
 
-        // A smaller cap on top, offset by one so the crown is not a flat square.
         localX += CanopyMargin;
         localZ++;
         worldY += 2;

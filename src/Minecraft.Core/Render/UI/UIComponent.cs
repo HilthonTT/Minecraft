@@ -9,10 +9,6 @@ public abstract class UIComponent
 
     public UICanvas ParentCanvas { get; private set; }
 
-    /// <summary>
-    /// The top left corner of the component in canvas pixels. Moving it does not rebuild the mesh straight
-    /// away; the component is queued with its canvas and rebuilt once per frame.
-    /// </summary>
     public Vector2 PixelPositionInCanvas
     {
         get => _pixelPositionInCanvas;
@@ -28,7 +24,6 @@ public abstract class UIComponent
         }
     }
 
-    /// <summary>Whether the component takes part in rendering. Hiding one keeps its mesh around.</summary>
     public bool IsVisible { get; set; } = true;
 
     public float Transparency { get; set; } = 1.0F;

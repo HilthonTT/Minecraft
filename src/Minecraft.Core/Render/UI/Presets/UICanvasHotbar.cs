@@ -4,46 +4,28 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// The nine slots along the bottom of the screen, and the name of whatever has just been selected fading
-/// above them.
-/// <para>
-/// It shows the hotbar half of the player's inventory and nothing else — the same nine slots the inventory
-/// screen ends with, so a stack dragged down there is under the number keys the moment the screen closes.
-/// </para>
-/// </summary>
 public sealed class UICanvasHotbar : UICanvas
 {
     private const float SlotSize = 44F;
     private const float SlotGap = 4F;
 
-    /// <summary>How far the bar sits off the bottom of the screen.</summary>
     private const float BottomMargin = 16F;
 
-    /// <summary>How far the backdrop is drawn out past the slots on every side.</summary>
     private const float BackdropPadding = 5F;
 
-    /// <summary>How far the highlight stands out past the slot it is around.</summary>
     private const float SelectionOutline = 3F;
 
     private const float NameScale = 0.34F;
 
-    /// <summary>
-    /// How many hearts the bar is drawn as. Each one is two of what the server counts, which is what makes a
-    /// zombie's three point swing land as a heart and a half.
-    /// </summary>
     private const int Hearts = Constants.PLAYER_MAX_HEALTH / 2;
 
     private const float HeartSize = 9F;
     private const float HeartGap = 3F;
 
-    /// <summary>How far above the bar the hearts sit, and how far above them the block name then goes.</summary>
     private const float HeartMargin = 7F;
 
-    /// <summary>How far above the bar the name of the selected block sits.</summary>
     private const float NameMargin = 12F;
 
-    /// <summary>How long the name of a newly selected block stays up, and how long it then takes to go.</summary>
     private const float NameVisibleSeconds = 2.0F;
     private const float NameFadeSeconds = 0.8F;
 
@@ -51,8 +33,6 @@ public sealed class UICanvasHotbar : UICanvas
     private static readonly Vector3 _selectionColor = new(0.92F, 0.92F, 0.95F);
     private static readonly Vector3 _nameColor = new(0.96F, 0.96F, 0.96F);
 
-    // Three shades rather than two, so a heart that is half gone reads as half rather than as gone: the
-    // dimmed red is still recognisably a heart with something in it.
     private static readonly Vector3 _fullHeartColor = new(0.86F, 0.16F, 0.18F);
     private static readonly Vector3 _halfHeartColor = new(0.52F, 0.11F, 0.13F);
     private static readonly Vector3 _emptyHeartColor = new(0.14F, 0.09F, 0.10F);
@@ -67,10 +47,8 @@ public sealed class UICanvasHotbar : UICanvas
     private readonly UISlotGrid _slots;
     private readonly Font _font;
 
-    /// <summary>The counts and the label, drawn after the blocks in the slots rather than behind them.</summary>
     public UIOverlayCanvas Overlay { get; }
 
-    /// <summary>What the label last said, so a reselection of the same block does not restart the fade.</summary>
     private string _shownName = string.Empty;
     private DateTime _nameShownAt = DateTime.Now;
 
@@ -97,8 +75,6 @@ public sealed class UICanvasHotbar : UICanvas
 
         Overlay = new UIOverlayCanvas(PixelWidth, PixelHeight);
 
-        // Added in the order they are drawn: the backdrop, then the highlight, which shows only as the border
-        // the slot on top of it does not cover, and then the slots themselves.
         _backdrop = new UIImage(this, Vector2.Zero, Vector2.Zero, UITextures.White)
         {
             Color = _backdropColor,
@@ -120,8 +96,6 @@ public sealed class UICanvasHotbar : UICanvas
             SlotSize,
             SlotGap);
 
-        // On the panel canvas rather than the overlay: nothing is ever drawn standing in a heart, so there
-        // is nothing for it to have to be read over.
         for (int heart = 0; heart < Hearts; heart++)
         {
             _hearts[heart] = new UIImage(this, Vector2.Zero, new Vector2(HeartSize, HeartSize), UITextures.White)
@@ -142,7 +116,6 @@ public sealed class UICanvasHotbar : UICanvas
         LayOut();
     }
 
-    /// <summary>Puts the fading label back to nothing, so the next world does not open on the last one's.</summary>
     public void OnWorldUnloaded()
     {
         _shownName = string.Empty;
@@ -165,14 +138,9 @@ public sealed class UICanvasHotbar : UICanvas
         UpdateHearts();
         UpdateSelectedName(inventory);
 
-        // Written to on the line above and on a canvas that may already have been cleaned this frame.
         Overlay.Clean();
     }
 
-    /// <summary>
-    /// Draws what the player has left, above the bar. Hidden entirely in creative, where nothing can take
-    /// any of it: a bar that is always full says nothing, and takes up the room the block name is read in.
-    /// </summary>
     private void UpdateHearts()
     {
         if (_game.ClientPlayer.IsCreative)
@@ -201,10 +169,6 @@ public sealed class UICanvasHotbar : UICanvas
         }
     }
 
-    /// <summary>
-    /// Names whatever has just been reached for, and fades it out again. What is held is drawn in the
-    /// player's hand and shown in its slot, but neither of those says what it is called.
-    /// </summary>
     private void UpdateSelectedName(Inventory inventory)
     {
         ItemStack selected = inventory.Selected;
@@ -254,8 +218,6 @@ public sealed class UICanvasHotbar : UICanvas
             SlotSize + (2 * SelectionOutline),
             SlotSize + (2 * SelectionOutline));
 
-        // The row of hearts sits just above the bar, its left edge lined up with the bar's own, so the two
-        // read as one thing rather than as an overlay that happens to be nearby.
         float heartsTop = top - BackdropPadding - HeartMargin - HeartSize;
         for (int heart = 0; heart < Hearts; heart++)
         {
@@ -271,11 +233,8 @@ public sealed class UICanvasHotbar : UICanvas
     {
         float width = _font.MeasureWidth(_name.Text, NameScale);
 
-        // Sat on the line above the bar by where the ink ends rather than by where the text box does, since
-        // glyphs hang below their box by an offset that changes with the font.
         (_, float inkBottom) = _font.MeasureVerticalBounds(_name.Text, NameScale);
 
-        // Above the hearts as well as the bar, so the two never overlap in a world that has both.
         float baseline = PixelHeight - BottomMargin - _slots.Height - BackdropPadding
                          - HeartMargin - HeartSize - NameMargin;
 

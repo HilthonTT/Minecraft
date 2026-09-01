@@ -39,8 +39,6 @@ public sealed class MathUtilsTests
     [Fact]
     public void AnglesTurnTheShorterWayRound()
     {
-        // A tenth of the way from just under a full turn to just over zero is a small step forwards, not
-        // most of a turn backwards.
         float from = MathF.Tau - 0.1F;
         float stepped = MathUtils.LerpAngle(from, 0.1F, 0.5F);
 

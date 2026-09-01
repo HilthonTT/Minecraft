@@ -7,16 +7,10 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Games;
 
-/// <summary>
-/// Which menu screen is up and what the buttons on it do. The screens themselves only report what was
-/// clicked; turning that into starting, leaving or closing a game happens here.
-/// </summary>
 public sealed class MenuController
 {
     private enum Screen
     {
-        /// <summary>No menu at all, which is what being in a world looks like.</summary>
-        /// <summary>No menu at all, which is what being in a world looks like.</summary>
         None,
         Main,
         Multiplayer,
@@ -43,13 +37,8 @@ public sealed class MenuController
 
     private Screen _screen = Screen.None;
 
-    /// <summary>Which screen the world list was opened from, and so where backing out of it goes.</summary>
     private Screen _worldListOpenedFrom = Screen.Main;
 
-    /// <summary>
-    /// The same for the options, which are reached both from the title and from a paused game and have to go
-    /// back to whichever of the two it was.
-    /// </summary>
     private Screen _optionsOpenedFrom = Screen.Main;
 
     public MenuController(Game game, string defaultServerAddress, int hostPort, string defaultWorldName)
@@ -70,8 +59,6 @@ public sealed class MenuController
         _pauseMenu = new UICanvasPauseMenu(game);
         _options = new UICanvasOptions(game);
 
-        // Registered once and left there. Which of them is drawn is decided by the canvas being enabled,
-        // so switching screens does not rebuild anything.
         game.MasterRenderer.AddCanvas(_mainMenu);
         game.MasterRenderer.AddCanvas(_multiplayerMenu);
         game.MasterRenderer.AddCanvas(_worldList);
@@ -88,11 +75,6 @@ public sealed class MenuController
 
     public void Hide() => SetScreen(Screen.None);
 
-    /// <summary>
-    /// Escape steps back out of a screen that was opened from another one, and reports whether it did. What
-    /// it means when there is nowhere left to step back to is the game's business rather than the menu's: on
-    /// the title screen it means nothing, and over a paused world it means carry on playing.
-    /// </summary>
     public bool OnEscape()
     {
         if (_screen is Screen.None or Screen.Main or Screen.Pause)
@@ -112,8 +94,6 @@ public sealed class MenuController
             return;
         }
 
-        // A click while the window is not focused is the click that focused it, and should not also press
-        // whatever happened to be under the cursor.
         bool mousePressed = _game.Window.IsFocused && Game.Input.OnMousePress(MouseButton.Left);
         Vector2 mousePosition = Game.Input.MousePosition;
 
@@ -142,13 +122,12 @@ public sealed class MenuController
                 break;
 
             case MenuAction.PlaySelected:
-                // A world that already exists carries its own seed and mode, so neither is offered here.
                 Play(_worldList.SelectedWorld, seed: null, gameMode: null);
                 break;
 
             case MenuAction.CreateWorld:
                 _worldSetup.SetTitle(_worldList.Title);
-                _worldSetup.Prepare(WorldStorage.SuggestUnusedWorldName(_savesRoot, _defaultWorldName));
+                _worldSetup.Prepare(WorldSaves.SuggestUnusedWorldName(_savesRoot, _defaultWorldName));
                 SetScreen(Screen.WorldSetup);
                 break;
 
@@ -192,11 +171,6 @@ public sealed class MenuController
         }
     }
 
-    /// <summary>
-    /// Opens the list of saved worlds. It is the same list either way round: a hosted world always accepts
-    /// other players, so singleplayer and hosting are the same thing seen from different sides, and only the
-    /// heading says which side that was.
-    /// </summary>
     private void OpenWorldList(Screen openedFrom, string title)
     {
         _worldListOpenedFrom = openedFrom;
@@ -224,7 +198,6 @@ public sealed class MenuController
             isError: true);
     }
 
-    /// <summary>Goes through with whatever the screen that is up was asking about.</summary>
     private void Confirm()
     {
         switch (_screen)
@@ -249,7 +222,7 @@ public sealed class MenuController
         }
 
         string oldName = _renameWorld.CurrentName;
-        WorldRenameResult result = WorldStorage.TryRenameWorld(_savesRoot, oldName, newName);
+        WorldRenameResult result = WorldSaves.TryRenameWorld(_savesRoot, oldName, newName);
 
         switch (result)
         {
@@ -278,7 +251,7 @@ public sealed class MenuController
     {
         string worldName = _deleteWorld.WorldName;
 
-        if (!WorldStorage.TryDeleteWorld(_savesRoot, worldName))
+        if (!WorldSaves.TryDeleteWorld(_savesRoot, worldName))
         {
             _deleteWorld.SetStatus("Could not delete it. Something else may have it open.", isError: true);
             return;
@@ -290,7 +263,6 @@ public sealed class MenuController
 
     private void GoBack() => SetScreen(ParentOf(_screen));
 
-    /// <summary>The screen that backing out of the given one returns to.</summary>
     private Screen ParentOf(Screen screen) => screen switch
     {
         Screen.WorldList => _worldListOpenedFrom,
@@ -320,10 +292,6 @@ public sealed class MenuController
             isError: true);
     }
 
-    /// <summary>
-    /// Reads a <c>host</c> or <c>host:port</c> address. Leaving the port off is common enough to be worth
-    /// allowing, and falls back to the one the game listens on by default.
-    /// </summary>
     private static bool TryParseAddress(string address, out string host, out int port)
     {
         host = string.Empty;
@@ -367,18 +335,14 @@ public sealed class MenuController
         _pauseMenu.IsEnabled = screen == Screen.Pause;
         _options.IsEnabled = screen == Screen.Options;
 
-        // Written out on the way off the options rather than on every step of a slider, which would put the
-        // file through a hundred rewrites over a single drag.
         if (previous == Screen.Options)
         {
             _game.Settings.Save();
         }
 
-        // Read again every time it is shown, since a world may have been created, renamed or deleted since
-        // the last look, and by the screens this one leads to at that.
         if (screen == Screen.WorldList)
         {
-            _worldList.SetWorlds(WorldStorage.ListWorlds(_savesRoot));
+            _worldList.SetWorlds(WorldSaves.ListWorlds(_savesRoot));
         }
 
         GetCanvas(screen)?.OnShown();

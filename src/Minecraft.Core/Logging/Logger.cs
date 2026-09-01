@@ -13,12 +13,8 @@ public static class Logger
 
     private static void Print(string message, LogLevel level)
     {
-        // The message is concatenated, never used as a format string: log output such as a shader
-        // info log can legitimately contain braces and would otherwise throw a FormatException.
         string line = $"[{DateTime.Now:HH:mm:ss}][{level}] {message}";
         Console.WriteLine(line);
-        // Also emitted to the debugger, so the log is visible in the IDE's output window and not only
-        // in the console window the game was launched from.
         Debug.WriteLine(line);
     }
 

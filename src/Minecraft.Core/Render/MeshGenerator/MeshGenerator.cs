@@ -7,23 +7,10 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.MeshGenerator;
 
-/// <summary>
-/// Builds the vertex buffers for a chunk. A chunk produces two meshes rather than one, since its water has
-/// to be drawn after everything else, and both are filled in a single walk over the blocks.
-/// </summary>
 public abstract class MeshGenerator
 {
-    /// <summary>
-    /// Upper bound on the solid vertex data a single chunk can produce. A chunk that exceeded this would
-    /// have to be almost entirely made of plants, which each contribute far more geometry than a solid
-    /// block.
-    /// </summary>
     private const int OpaqueBufferCapacity = 1048576;
 
-    /// <summary>
-    /// The same for the water. Far smaller, because the inside of a body of water carries no geometry at
-    /// all: only the faces where it meets air are drawn, which for a sea is its surface and little else.
-    /// </summary>
     private const int LiquidBufferCapacity = 262144;
 
     protected readonly BlockModelRegistry _blockModelRegistry;
@@ -31,7 +18,6 @@ public abstract class MeshGenerator
     private readonly MeshBuffers _opaqueBuffers = new(OpaqueBufferCapacity);
     private readonly MeshBuffers _liquidBuffers = new(LiquidBufferCapacity);
 
-    /// <summary>Whichever of the two the block being meshed right now belongs in.</summary>
     private MeshBuffers _target;
 
     protected MeshGenerator(BlockModelRegistry blockModelRegistry)
@@ -49,7 +35,6 @@ public abstract class MeshGenerator
 
     protected abstract ChunkMesh GenerateMesh(World world, Chunk chunk);
 
-    /// <summary>Directs everything emitted from here on into one buffer set or the other.</summary>
     protected void TargetLiquidBuffers(bool liquid)
     {
         _target = liquid ? _liquidBuffers : _opaqueBuffers;
@@ -106,11 +91,6 @@ public abstract class MeshGenerator
         AddFacesToMeshFromBack(toAddFaces, blockPos, lights, flip);
     }
 
-    /// <summary>
-    /// Emits one quad as two triangles. A quad has no single correct diagonal: splitting it the wrong way
-    /// across an ambient occlusion gradient produces a visible seam, so the caller can ask for the other
-    /// diagonal through <paramref name="flip"/>.
-    /// </summary>
     private void AddFace(
         BlockFace face,
         Vector3i blockPos,

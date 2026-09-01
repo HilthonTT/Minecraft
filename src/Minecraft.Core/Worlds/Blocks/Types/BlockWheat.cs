@@ -46,7 +46,6 @@ public sealed class BlockWheat : Block
 
         wheat.ElapsedTimeSinceLastGrowth = 0;
 
-        // Maturity is baked into the mesh, so growing means replacing the block rather than mutating it.
         world.QueueToRemoveBlockAt(blockPos);
         var grownWheat = (BlockStateWheat)BlockRegistry.GetState(BlockRegistry.Wheat);
         grownWheat.Maturity = (ushort)(wheat.Maturity + 1);

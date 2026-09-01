@@ -22,7 +22,6 @@ public sealed class BasicShader : Shader
 
     public int LocationAmbientColor { get; private set; }
 
-    /// <summary>Where the camera is, which the distance the fog is taken over is measured from.</summary>
     public int LocationCameraPosition { get; private set; }
 
     public int LocationFogColor { get; private set; }
@@ -31,7 +30,6 @@ public sealed class BasicShader : Shader
 
     public int LocationFogEnd { get; private set; }
 
-    /// <summary>How solid what is being drawn is. One for everything except the water pass.</summary>
     public int LocationMaterialAlpha { get; private set; }
 
     protected override void BindAttributes()

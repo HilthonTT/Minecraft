@@ -3,10 +3,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Entities.Mobs;
 
-/// <summary>
-/// The busiest of the animals: it covers less ground than a sheep but makes up its mind twice as often, so a
-/// drove of them is forever shuffling about rather than standing still.
-/// </summary>
 public sealed class Pig : Animal
 {
     public const float BodyWidth = 0.9F;

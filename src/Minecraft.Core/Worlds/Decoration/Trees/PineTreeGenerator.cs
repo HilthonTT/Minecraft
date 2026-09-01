@@ -3,10 +3,6 @@ using Minecraft.Core.Worlds.Chunks;
 
 namespace Minecraft.Core.Worlds.Decoration.Trees;
 
-/// <summary>
-/// A pine: a dark trunk under a spire of leaves that steps in as it climbs, and that starts low enough down
-/// the trunk to give the tree a skirt.
-/// </summary>
 public sealed class PineTreeGenerator : TreeGenerator
 {
     private const int MinTrunkHeight = 7;
@@ -24,15 +20,11 @@ public sealed class PineTreeGenerator : TreeGenerator
         int trunkHeight = random.Next(MinTrunkHeight, MaxTrunkHeight + 1);
         PlaceTrunk(chunk, log, localX, worldY, localZ, trunkHeight);
 
-        // The skirt starts a couple of blocks off the ground and the spire tapers from there. Each pair of
-        // layers steps in by one and then flares back out, which is what gives a conifer its tiered look
-        // instead of a smooth cone.
         int skirtBase = worldY + 2;
         int layers = trunkHeight - 2;
 
         for (int layer = 0; layer < layers; layer++)
         {
-            // Counted down from the top so the taper holds however tall this particular tree came out.
             int fromTop = layers - 1 - layer;
             int radius = fromTop switch
             {
@@ -44,7 +36,6 @@ public sealed class PineTreeGenerator : TreeGenerator
             PlaceLeafDisc(chunk, leaves, localX, skirtBase + layer, localZ, radius, cutCorners: radius > 1);
         }
 
-        // A single block closing the top of the trunk off.
         PlaceLeafDisc(chunk, leaves, localX, worldY + trunkHeight, localZ, radius: 0, cutCorners: false);
     }
 }

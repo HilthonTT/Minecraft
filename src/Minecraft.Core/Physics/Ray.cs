@@ -40,9 +40,6 @@ public struct Ray
                 continue;
             }
 
-            // Water is stepped over rather than stopped at, so a click aimed through it reaches the ground
-            // underneath. Stopping here instead would leave the trace with nothing to hit, since water has
-            // no selection box, and standing in a lake would mean being unable to touch anything at all.
             Block block = state.GetBlock();
             if (block == BlockRegistry.Air || block.IsLiquid)
             {

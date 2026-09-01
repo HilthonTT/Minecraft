@@ -4,10 +4,6 @@ using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>
-/// Dense woodland: oak throughout with birch standing among it, over undergrowth of grass, flowers and the
-/// mushrooms that grow in the shade of it.
-/// </summary>
 public sealed class ForestDecorator : IDecorator
 {
     private readonly OakTreeGenerator _oakTreeGenerator = new();
@@ -37,8 +33,6 @@ public sealed class ForestDecorator : IDecorator
         }
         else if (random.Next(40) == 1)
         {
-            // Birch is the minority tree, so a stand of it stays something you come across rather than the
-            // usual state of the wood.
             if (random.Next(4) == 0)
             {
                 _birchTreeGenerator.GenerateTreeAt(chunk, localX, worldY, localZ, random);

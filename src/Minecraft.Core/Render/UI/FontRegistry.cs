@@ -5,7 +5,7 @@ namespace Minecraft.Core.Render.UI;
 
 public static class FontRegistry
 {
-    private static ReadOnlyDictionary<FontType, Font> _fonts = 
+    private static ReadOnlyDictionary<FontType, Font> _fonts =
         new(new Dictionary<FontType, Font>());
 
     public static void Initialize()

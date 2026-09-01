@@ -1,9 +1,5 @@
 namespace Minecraft.Core.Utilities;
 
-/// <summary>
-/// A thread safe pool of reusable instances. Chunks are large enough that allocating a fresh one per load
-/// would keep the garbage collector busy, so they are recycled through here instead.
-/// </summary>
 public sealed class ObjectPool<T>
     where T : class, new()
 {

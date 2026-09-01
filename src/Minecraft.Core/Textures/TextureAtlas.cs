@@ -34,11 +34,6 @@ public sealed class TextureAtlas : Texture
         return GetTextureCoords(atlatGrid.X, atlatGrid.Y);
     }
 
-    /// <summary>
-    /// The corners of a rectangle within one cell, given as fractions of that cell measured from its top left
-    /// corner. A model narrower than the cell it is drawn from — a torch is a couple of texels wide — would
-    /// otherwise have to squash the whole cell onto itself.
-    /// </summary>
     public Vector2[] GetTextureCoords(Vector2 atlasGrid, Vector2 minFraction, Vector2 maxFraction)
     {
         float xMin = (atlasGrid.X + minFraction.X) * _cellUVSize;

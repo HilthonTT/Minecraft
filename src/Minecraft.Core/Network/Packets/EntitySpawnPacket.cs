@@ -5,10 +5,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Network.Packets;
 
-/// <summary>
-/// Tells a client about an entity the server owns that has come within range of it. Players have their own
-/// join packet, since they carry a name as well.
-/// </summary>
 public sealed class EntitySpawnPacket : Packet
 {
     public EntityType EntityType { get; private set; }

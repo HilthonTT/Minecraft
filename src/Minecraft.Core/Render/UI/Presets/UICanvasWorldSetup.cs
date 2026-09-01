@@ -7,11 +7,6 @@ using System.Globalization;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// Names the world to play and picks the seed it is generated from. A seed only ever decides a world that
-/// does not exist yet, so the screen keeps saying which of the two the current name would do, and the button
-/// that starts the game says the same thing.
-/// </summary>
 public sealed class UICanvasWorldSetup : UICanvasMenu
 {
     private const int MaxNameLength = 32;
@@ -40,7 +35,6 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
     private readonly UIButton _playButton;
     private readonly UIButton _backButton;
 
-    /// <summary>What the preview was last worked out for, so the save directory is not read every frame.</summary>
     private string _previewedName = string.Empty;
     private string _previewedSeed = string.Empty;
     private GameMode _previewedGameMode = GameMode.Creative;
@@ -49,10 +43,6 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
 
     public string SeedText => _seedField.Value;
 
-    /// <summary>
-    /// Which mode the world would be created in. Like the seed, it only ever decides a world that does not
-    /// exist yet, and the preview underneath says so when the name typed is one already saved.
-    /// </summary>
     public GameMode GameMode { get; private set; } = ArgsParser.DefaultGameMode;
 
     public UICanvasWorldSetup(Game game, string savesRoot)
@@ -78,17 +68,11 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         Layout();
     }
 
-    /// <summary>
-    /// Points the screen at a world name before it is shown. The suggested name is one nothing is saved
-    /// under, so that arriving here and pressing play generates a world rather than reopening the last one.
-    /// </summary>
     public void Prepare(string suggestedName)
     {
         _nameField.Value = suggestedName;
         _seedField.Value = string.Empty;
 
-        // Back to survival every time the screen is opened rather than left where it was last put, so that a
-        // world is never created in a mode chosen for a different one and not looked at since.
         SetGameMode(ArgsParser.DefaultGameMode);
         RefreshPreview();
     }
@@ -110,13 +94,10 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
 
         if (_randomSeedButton.Update(mousePosition, mousePressed))
         {
-            // Written into the box rather than left blank, so that whatever comes up can be read off and
-            // used again.
             _seedField.Value = Random.Shared.Next().ToString(CultureInfo.InvariantCulture);
             Focus(_seedField);
         }
 
-        // Two of them, so the button carries the mode it is currently on and pressing it moves to the other.
         if (_gameModeButton.Update(mousePosition, mousePressed))
         {
             SetGameMode(GameMode == GameMode.Survival ? GameMode.Creative : GameMode.Survival);
@@ -135,13 +116,10 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         return backPressed ? MenuAction.Back : MenuAction.None;
     }
 
-    /// <summary>Clicking decides which box is typed into, and tab steps between them.</summary>
     private void UpdateFocus(Vector2 mousePosition, bool mousePressed)
     {
         if (mousePressed)
         {
-            // A click on neither box leaves the focus where it was, so that pressing a button does not also
-            // take the keyboard away from what was being typed.
             if (_nameField.Contains(mousePosition))
             {
                 Focus(_nameField);
@@ -158,17 +136,12 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         }
     }
 
-    /// <summary>Gives one box the keyboard, which means taking it away from the other.</summary>
     private void Focus(UITextField field)
     {
         _nameField.HasFocus = field == _nameField;
         _seedField.HasFocus = field == _seedField;
     }
 
-    /// <summary>
-    /// Says what pressing play would do with what has been typed. Only worked out again when something
-    /// changed, since answering it means looking at the saves directory.
-    /// </summary>
     private void RefreshPreview()
     {
         if (_previewedName == _nameField.Value &&
@@ -192,10 +165,9 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
 
         _playButton.IsEnabled = true;
 
-        // What the world will really be called, which is not always what was typed.
-        string savedAs = WorldStorage.SanitiseWorldName(name);
+        string savedAs = WorldSaves.SanitiseWorldName(name);
 
-        if (WorldStorage.WorldExists(_savesRoot, name))
+        if (WorldSaves.WorldExists(_savesRoot, name))
         {
             _playButton.Text = "Continue World";
             SetPreview("'" + savedAs + "' already exists, so it is carried on and keeps its own seed and mode.");
@@ -217,11 +189,6 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         _gameModeButton.Text = DescribeGameMode(gameMode);
     }
 
-    /// <summary>
-    /// What the button says. The mode it is currently set to rather than the one pressing it would move to,
-    /// since a button that names the other of two is read as saying which one is chosen about as often as it
-    /// is read as an offer.
-    /// </summary>
     private static string DescribeGameMode(GameMode gameMode) => gameMode switch
     {
         GameMode.Creative => "Creative",
@@ -262,8 +229,6 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         _seedLabel.PixelPositionInCanvas = new Vector2(RowLeft, top);
         top += labelHeight + LabelToFieldGap;
 
-        // The seed box gives up its right hand end to the button that fills it in, which is measured from
-        // the font so its label is never trimmed by a few pixels.
         float randomWidth = Math.Min(UIButton.MeasureRequiredWidth(Font, RandomLabel), RowWidth / 2.5F);
         float seedWidth = RowWidth - randomWidth - UIButton.Gap;
 
@@ -276,8 +241,6 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         _gameModeLabel.PixelPositionInCanvas = new Vector2(RowLeft, top);
         top += labelHeight + LabelToFieldGap;
 
-        // Only as wide as the longer of the two words it ever carries, since a button spanning the whole row
-        // reads as the thing that starts the game rather than as a setting on it.
         float gameModeWidth = Math.Min(
             UIButton.MeasureRequiredWidth(Font, DescribeGameMode(Games.GameMode.Survival)) * 1.6F,
             RowWidth / 2F);
@@ -288,8 +251,6 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         _preview.PixelPositionInCanvas = new Vector2(CenteredTextLeft(_preview.Text, PreviewScale), top);
         top += previewHeight + SectionGap;
 
-        // Not an even split: the button that starts the game carries the longer of the two labels, since it
-        // says which of creating and continuing pressing it would do.
         float playWidth = (RowWidth - UIButton.Gap) * 0.65F;
         float backWidth = RowWidth - UIButton.Gap - playWidth;
 

@@ -3,10 +3,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Entities.Mobs;
 
-/// <summary>
-/// The heaviest of the animals, and the slowest to decide anything. It walks further than the others when it
-/// finally does move, which is what keeps a herd spread across a field instead of bunched where it appeared.
-/// </summary>
 public sealed class Cow : Animal
 {
     public const float BodyWidth = 0.9F;

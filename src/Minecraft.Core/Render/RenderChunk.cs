@@ -13,7 +13,6 @@ public sealed class RenderChunk
 
     public VAOModel? HardBlocksModel { get; set; }
 
-    /// <summary>The chunk's water, held apart from the solid blocks because it is drawn in a later pass.</summary>
     public VAOModel? LiquidBlocksModel { get; set; }
 
     public Matrix4 TransformationMatrix { get; set; }

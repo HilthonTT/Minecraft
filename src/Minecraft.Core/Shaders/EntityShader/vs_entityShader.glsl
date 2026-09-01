@@ -16,8 +16,6 @@ uniform mat4 projectionMatrix;
 
 void main()
 {
-	// Needed on its own, and not only folded into gl_Position, because the fog is measured as a distance
-	// from the camera through the world.
 	vec4 worldSpacePosition = transformationMatrix * vec4(vertexPosition, 1.0);
 
     gl_Position = projectionMatrix * viewMatrix * worldSpacePosition;

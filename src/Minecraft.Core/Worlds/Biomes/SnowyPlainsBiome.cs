@@ -5,17 +5,11 @@ using Minecraft.Core.Worlds.Structures;
 
 namespace Minecraft.Core.Worlds.Biomes;
 
-/// <summary>
-/// Flat snow country at the cold, dry end of the world. Nothing here is high enough to reach the snow line
-/// the mountains are capped by, so what covers it is its own frozen ground rather than an altitude: it is
-/// what makes cold read as somewhere you can be at sea level instead of only at the top of a climb.
-/// </summary>
 public sealed class SnowyPlainsBiome : Biome
 {
     private const float TerrainDetail = 0.0048F;
     private const double HeightVariation = 8;
 
-    /// <inheritdoc cref="ForestBiome" path="/summary"/>
     private const float DomainOffset = 7229.13F;
 
     protected override void DefineProperties()

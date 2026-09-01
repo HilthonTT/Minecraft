@@ -3,10 +3,6 @@ using Minecraft.Core.Worlds.Chunks;
 
 namespace Minecraft.Core.Worlds.Decoration.Trees;
 
-/// <summary>
-/// A birch: a tall pale trunk carrying a crown that sits entirely at the top of it, so a birch wood is open
-/// underneath in a way an oak wood is not.
-/// </summary>
 public sealed class BirchTreeGenerator : TreeGenerator
 {
     private const int MinTrunkHeight = 6;
@@ -24,7 +20,6 @@ public sealed class BirchTreeGenerator : TreeGenerator
         int trunkHeight = random.Next(MinTrunkHeight, MaxTrunkHeight + 1);
         PlaceTrunk(chunk, log, localX, worldY, localZ, trunkHeight);
 
-        // Two wide layers around the last of the bare trunk, then a narrow cap over the top of it.
         int crownBase = worldY + trunkHeight - 3;
         PlaceLeafDisc(chunk, leaves, localX, crownBase, localZ, radius: 2, cutCorners: true);
         PlaceLeafDisc(chunk, leaves, localX, crownBase + 1, localZ, radius: 2, cutCorners: true);

@@ -11,10 +11,6 @@ using System.Collections.ObjectModel;
 
 namespace Minecraft.Core.Worlds;
 
-/// <summary>
-/// The blocks, chunks and entities that make up a world. Block changes are queued rather than applied
-/// immediately, so that a block modifying its neighbours cannot mutate the world part way through a tick.
-/// </summary>
 public class World
 {
     private const float SecondsPerTick = 0.05F;
@@ -23,29 +19,20 @@ public class World
     private readonly Queue<(Vector3i BlockPos, BlockState State)> _toAddBlocks = new();
     private readonly Queue<Entity> _toRemoveEntities = new();
 
-    /// <summary>How many players can currently see each chunk. A chunk unloads when this reaches zero.</summary>
     private readonly Dictionary<Vector2, int> _chunkPlayerPopulation = [];
 
     private readonly Dictionary<int, Entity> _loadedEntities = [];
     private readonly Dictionary<Vector2, Chunk> _loadedChunks = [];
 
-    /// <summary>
-    /// Block positions waiting to be looked at again, against the tick they come due on. Only what is
-    /// actually in motion is in here, which is what lets water and sand be simulated at all: a still ocean
-    /// holds no entries, and a cell only earns one once something next to it changed.
-    /// </summary>
     private readonly Dictionary<Vector3i, long> _scheduledBlockUpdates = [];
 
-    /// <summary>Refilled every tick, so that an update can schedule another without disturbing the round.</summary>
     private readonly List<Vector3i> _dueBlockUpdates = [];
 
     private float _elapsedSecondsSinceLastTick;
     private long _tickCount;
 
-    /// <summary>Length of one full day and night cycle, in seconds.</summary>
     public const int DayLengthSeconds = 2400;
 
-    /// <summary>Midday. A world that has never been saved starts here.</summary>
     public const float MiddayTimeSeconds = DayLengthSeconds / 2F;
 
     public ObjectPool<Chunk> ChunkPool { get; } = new(128);
@@ -173,7 +160,6 @@ public class World
         ChunkPool.ReturnObject(chunk);
     }
 
-    /// <summary>Called once per tick, after everything in the world has ticked.</summary>
     protected virtual void OnTick(float deltaTime)
     {
     }
@@ -229,7 +215,6 @@ public class World
 
         _tickCount++;
 
-        // Ticking a block can queue chunk loads, so the collections are copied before being walked.
         foreach (Chunk chunk in _loadedChunks.Values.ToArray())
         {
             chunk.Tick(_elapsedSecondsSinceLastTick, this);
@@ -247,16 +232,6 @@ public class World
         _elapsedSecondsSinceLastTick = 0;
     }
 
-    /// <summary>
-    /// Asks for <see cref="Blocks.Block.OnScheduledUpdate"/> at the given position once the given number of
-    /// ticks have gone by. A position already waiting keeps whichever of the two delays comes first, so that
-    /// a cell poked from several sides within a tick is still only looked at once.
-    /// <para>
-    /// Only the server simulates. A client is told what came of an update rather than working it out for
-    /// itself, so asking for one there does nothing: two sides running the same flow against block changes
-    /// that arrive a moment apart would not agree on the result.
-    /// </para>
-    /// </summary>
     public void ScheduleBlockUpdate(Vector3i blockPos, int delayTicks)
     {
         if (this is not WorldServer)
@@ -273,11 +248,6 @@ public class World
         _scheduledBlockUpdates[blockPos] = dueTick;
     }
 
-    /// <summary>
-    /// Fires everything that has come due. An update commonly asks for another, which is what carries a flow
-    /// or a fall along, so what is due is taken out of the table before any of it runs: whatever is asked
-    /// for while the round is running belongs to a later one.
-    /// </summary>
     private void RunScheduledBlockUpdates()
     {
         if (_scheduledBlockUpdates.Count == 0)
@@ -302,14 +272,11 @@ public class World
 
         foreach (Vector3i blockPos in _dueBlockUpdates)
         {
-            // Whatever was here may be gone by now, taken away either by an earlier update in this same
-            // round or by a player. Air answers for that on its own, having nothing to do.
             BlockState state = GetBlockAt(blockPos);
             state.GetBlock().OnScheduledUpdate(state, this, blockPos);
         }
     }
 
-    /// <summary>The grid position of the chunk containing the given world coordinates.</summary>
     public static Vector2 GetChunkPosition(float worldX, float worldZ)
     {
         return new Vector2(
@@ -374,8 +341,6 @@ public class World
 
         BlockState oldState = GetBlockAt(blockPos);
 
-        // Only the server validates placement. The client trusts what it is told, since the server has
-        // already checked it and the client may not have the surrounding blocks loaded.
         if (this is WorldServer && !CanPlaceBlockAt(blockPos, oldState, newBlockState))
         {
             return false;
@@ -418,10 +383,6 @@ public class World
         return true;
     }
 
-    /// <summary>
-    /// Whether something is standing in the space the given block would take up. A block that stops nothing,
-    /// water among them, is never in anybody's way and so is never blocked.
-    /// </summary>
     public bool IsBlockedByEntity(Vector3i blockPos, BlockState blockState)
     {
         AxisAlignedBox[] collisionBoxes = blockState.GetBlock().GetCollisionBox(blockState, blockPos);
@@ -432,8 +393,6 @@ public class World
 
         foreach (Entity entity in _loadedEntities.Values)
         {
-            // A stack on the ground is not in anybody's way: it is swept up by walking over it, and a block
-            // built over one would otherwise be refused for a thing the builder cannot even push aside.
             if (entity is DroppedItem)
             {
                 continue;
@@ -453,21 +412,12 @@ public class World
         return worldY < 0 || worldY >= Constants.MAX_BUILD_HEIGHT;
     }
 
-    /// <summary>
-    /// Whether the given position is somewhere blocks can actually be read and written. A block that moves
-    /// of its own accord has to ask, because everywhere else answers an unloaded chunk with air: water would
-    /// take that for somewhere to run into and sand for somewhere to fall through, and what either of them
-    /// then tried to put there would be dropped on the floor at the edge of the loaded world.
-    /// </summary>
     public bool IsBlockPositionLoaded(Vector3i blockPos)
     {
         return !IsOutsideBuildHeight(blockPos.Y) &&
                _loadedChunks.ContainsKey(GetChunkPosition(blockPos.X, blockPos.Z));
     }
 
-    /// <summary>
-    /// The block at the given world position, or air when the position lies in a chunk that is not loaded.
-    /// </summary>
     public BlockState GetBlockAt(Vector3i blockPos)
     {
         Vector2 chunkPos = GetChunkPosition(blockPos.X, blockPos.Z);
@@ -479,7 +429,6 @@ public class World
         return chunk.GetBlockAt(blockPos.ToChunkLocal());
     }
 
-    /// <summary>The loaded chunks diagonally adjacent to the given one.</summary>
     public List<Chunk> GetCardinalChunks(Chunk chunk)
     {
         List<Chunk> chunks = [];

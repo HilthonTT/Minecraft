@@ -3,10 +3,6 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render.UI;
 
-/// <summary>
-/// A key that fires once when it goes down and then keeps firing while it is held, the way a text field is
-/// expected to behave when backspace is held down.
-/// </summary>
 public sealed class HeldKey
 {
     private const float SecondsBeforeRepeating = 0.4F;

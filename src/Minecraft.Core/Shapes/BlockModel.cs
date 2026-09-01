@@ -5,10 +5,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;
 
-/// <summary>
-/// The geometry of a single block type. A model splits its geometry into faces that are only emitted when
-/// the neighbouring block does not hide them, and faces that are always emitted regardless of neighbours.
-/// </summary>
 public abstract class BlockModel
 {
     protected readonly TextureAtlas _textureAtlas;
@@ -16,10 +12,6 @@ public abstract class BlockModel
 
     protected bool _back, _right, _front, _left, _top, _bottom;
 
-    /// <summary>
-    /// Whether the always visible faces need emitting from both sides. True for models made of thin quads,
-    /// which would otherwise disappear when looked at from behind.
-    /// </summary>
     public bool DoubleSidedFaces { get; protected set; }
 
     protected BlockModel(TextureAtlas textureAtlas)
@@ -27,10 +19,6 @@ public abstract class BlockModel
         _textureAtlas = textureAtlas;
     }
 
-    /// <summary>
-    /// Whether this model completely covers the given side, in which case the neighbour on that side can
-    /// skip emitting the face it shares with this block.
-    /// </summary>
     public virtual bool IsOpaqueOnSide(Direction direction)
     {
         return direction switch

@@ -3,7 +3,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>The screen the game opens on: pick a world to host, a server to join, or leave.</summary>
 public sealed class UICanvasMainMenu : UICanvasMenu
 {
     private static readonly Vector3 _backdropColor = new(0.06F, 0.07F, 0.09F);
@@ -54,8 +53,6 @@ public sealed class UICanvasMainMenu : UICanvasMenu
         const int rowCount = 4;
         float columnHeight = (rowCount * UIButton.Height) + ((rowCount - 1) * UIButton.Gap);
 
-        // Nudged below the middle, which leaves the title room above it without pushing the buttons off a
-        // short window.
         float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
         var rowSize = new Vector2(RowWidth, UIButton.Height);
 

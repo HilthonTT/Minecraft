@@ -4,17 +4,9 @@ using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Tests.Inventories;
 
-/// <summary>
-/// Ids are what travels over the wire and what is written into a save, so these are the tests that fail when
-/// one of them moves. A renumbering is not a refactor: it changes what every existing world says.
-/// </summary>
 [Collection(RegistryCollection.Name)]
 public sealed class ItemRegistryTests
 {
-    /// <summary>
-    /// A spot check of block ids across the whole run of them, oldest and newest. Written out by hand rather
-    /// than read from the registry, so that this disagrees with it when one of them is changed.
-    /// </summary>
     [Theory]
     [InlineData(1, "Air")]
     [InlineData(2, "Dirt")]
@@ -85,7 +77,6 @@ public sealed class ItemRegistryTests
     [InlineData(int.MaxValue)]
     public void AnIdOffTheWireThatMeansNothingComesBackAsNothing(int id)
     {
-        // Zero is how an empty hand is sent, and the gap between the blocks and the loose items is unused.
         Assert.Null(ItemRegistry.TryGet(id));
     }
 
@@ -110,7 +101,6 @@ public sealed class ItemRegistryTests
         Assert.Equal(ToolMaterial.Diamond, stack.Tool.Material);
     }
 
-    /// <summary>The name of the <see cref="BlockRegistry"/> field holding this block.</summary>
     private static string NameOfField(Block block) =>
         typeof(BlockRegistry)
             .GetFields()

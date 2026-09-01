@@ -20,6 +20,5 @@ public sealed class BlockStone : Block
         return new BlockStateStone();
     }
 
-    /// <summary>Stone comes apart on the way out, which is where every pile of cobblestone comes from.</summary>
     public override ItemStack GetDrop(BlockState blockState) => new(BlockRegistry.Cobblestone, 1);
 }

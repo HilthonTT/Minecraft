@@ -1,16 +1,7 @@
 namespace Minecraft.Core.Worlds.Structures.Villages;
 
-/// <summary>
-/// A road from a doorstep back to the well, bent once so that it runs along the axes rather than diagonally.
-/// <para>
-/// A road follows the ground instead of levelling it, so it climbs whatever it crosses. It is laid before the
-/// buildings are, which lets a building pave over the stretch running under it rather than the other way
-/// round.
-/// </para>
-/// </summary>
 public sealed class VillageRoad : VillagePiece
 {
-    /// <summary>How much open space is cleared above the road, enough to take out grass and undergrowth.</summary>
     private const int Clearance = 2;
 
     private readonly (int X, int Z)[] _tiles;
@@ -24,9 +15,6 @@ public sealed class VillageRoad : VillagePiece
 
     public override StructureBounds Bounds => _bounds;
 
-    /// <summary>
-    /// Lays a road between two points, running along x first and then along z.
-    /// </summary>
     public static VillageRoad Between((int X, int Z) from, (int X, int Z) to)
     {
         var tiles = new List<(int X, int Z)>();

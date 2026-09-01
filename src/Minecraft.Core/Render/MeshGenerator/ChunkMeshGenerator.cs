@@ -9,23 +9,13 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.MeshGenerator;
 
-/// <summary>
-/// Meshes the blocks of a chunk. A face is only emitted when the neighbour on that side does not cover it,
-/// which is what keeps the interior of the terrain out of the vertex buffer entirely. Water is separated
-/// out into a mesh of its own on the way past, since it has to be drawn after everything else.
-/// </summary>
 public sealed class ChunkMeshGenerator : MeshGenerator
 {
-    // Faces are shaded by orientation so that a flat lit scene still reads as three dimensional.
     private const uint StaticTopLight = 60;
     private const uint StaticBottomLight = 36;
     private const uint StaticSideXLight = 52;
     private const uint StaticSideZLight = 44;
 
-    /// <summary>
-    /// Lightmap values are 0..15 while the packed light channels are 0..63, so samples are scaled up on
-    /// the way into a vertex.
-    /// </summary>
     private const uint LightScale = 4;
 
     private readonly SmoothLighting _smoothLighting = new();
@@ -101,15 +91,12 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         Block block = state.GetBlock();
         BlockModel blockModel = _blockModelRegistry.Models[block.Id];
 
-        // Everything emitted for this block goes to the buffer set matching how it has to be drawn.
         TargetLiquidBuffers(block.IsLiquid);
 
         int worldY = sectionLocalY + sectionHeight * 16;
         var chunkLocalPos = new Vector3i(localX, worldY, localZ);
         var worldPos = new Vector3i(localX + chunk.GridX * 16, worldY, localZ + chunk.GridZ * 16);
 
-        // Faces that are always drawn have no neighbour of their own to take light from, so they average
-        // the light of whichever sides did get drawn.
         uint averageRed = 0;
         uint averageGreen = 0;
         uint averageBlue = 0;
@@ -208,10 +195,6 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         count++;
     }
 
-    /// <summary>
-    /// Reads the lightmap of the cell one step along the horizontal offset, crossing into the neighbouring
-    /// chunk when the offset leaves this one.
-    /// </summary>
     private static Light SampleNeighbourLight(
         Chunk chunk,
         Chunk? neighbourChunk,
@@ -272,10 +255,6 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         AddFacesToMeshFromFront(faces, chunkLocalPos, lights, ShouldFlipTriangles(lights));
     }
 
-    /// <summary>
-    /// Picks the diagonal that splits the quad along the flatter light gradient. Without this a quad with
-    /// one dark corner shows a hard triangular seam instead of a smooth falloff.
-    /// </summary>
     private static bool ShouldFlipTriangles(Light[] lights)
     {
         (uint red1, uint green1, uint blue1, uint sun1, uint _) = Light.Add(lights[0], lights[2]);
@@ -283,10 +262,6 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         return red1 + green1 + blue1 + sun1 > red2 + green2 + blue2 + sun2;
     }
 
-    /// <summary>
-    /// Whether the face towards the given neighbouring cell needs drawing. The coordinates may leave the
-    /// current chunk, in which case the neighbouring chunk is consulted instead.
-    /// </summary>
     private bool ShouldAddFace(
         Block block,
         Chunk? neighbourChunk,
@@ -321,16 +296,6 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         return ShouldAddFaceTowards(block, neighbour, facingBack);
     }
 
-    /// <summary>
-    /// Whether a face between a block and the given neighbour needs drawing. A face is skipped when the
-    /// neighbour covers it, and also when both sides are water: the inside of a sea is not a surface, and
-    /// drawing it would fill every body of water with a grid of blended quads.
-    /// <para>
-    /// Water lying against shallower water is the one place where that does not hold. The two stand at
-    /// different heights, so the strip of side above the shallower one's waterline is open to the air and has
-    /// to be drawn, or a flow running downhill would be see through along every step of its way.
-    /// </para>
-    /// </summary>
     private bool ShouldAddFaceTowards(Block block, BlockState neighbour, Direction facingBack)
     {
         if (block is BlockWater water && neighbour.GetBlock() is BlockWater neighbourWater)
@@ -342,10 +307,6 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         return !_blockModelRegistry.Models[neighbour.GetBlock().Id].IsOpaqueOnSide(facingBack);
     }
 
-    /// <summary>
-    /// Whether the top or bottom face needs drawing. Vertical neighbours may live in the section above or
-    /// below rather than in a neighbouring chunk.
-    /// </summary>
     private bool ShouldAddVerticalFace(
         Block block,
         Chunk chunk,

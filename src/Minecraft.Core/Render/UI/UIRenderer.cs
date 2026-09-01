@@ -5,10 +5,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI;
 
-/// <summary>
-/// Draws every registered canvas. Screen space canvases are drawn with identity matrices so their vertices
-/// are already in normalised device coordinates, while world space canvases go through the active camera.
-/// </summary>
 public sealed class UIRenderer
 {
     private readonly Dictionary<RenderSpace, List<UICanvas>> _canvasses = [];
@@ -29,7 +25,6 @@ public sealed class UIRenderer
 
     private void OnCameraProjectionChanged(ProjectionMatrixInfo projectionInfo)
     {
-        // Screen space canvases are sized in pixels, so they have to follow the window.
         foreach (UICanvas canvas in _canvasses[RenderSpace.Screen])
         {
             canvas.SetDimensions(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
@@ -58,10 +53,6 @@ public sealed class UIRenderer
         spaceCanvasses.Remove(canvas);
     }
 
-    /// <summary>
-    /// Drops every canvas drawn in the given space. Used when a world is left, since the canvases that live
-    /// in it belong to entities that are gone with it.
-    /// </summary>
     public void RemoveCanvassesIn(RenderSpace renderSpace)
     {
         if (_canvasses.TryGetValue(renderSpace, out List<UICanvas>? spaceCanvasses))
@@ -70,21 +61,14 @@ public sealed class UIRenderer
         }
     }
 
-    /// <summary>
-    /// Updates every canvas and draws all but the overlays, which are left for <see cref="RenderOverlays"/>
-    /// once the block icons have been laid down over this.
-    /// </summary>
     public void Render()
     {
         foreach (KeyValuePair<RenderSpace, List<UICanvas>> spaceCanvasses in _canvasses)
         {
-            // Iterated by index because a canvas can remove itself from this list while updating.
             for (int i = spaceCanvasses.Value.Count - 1; i >= 0; i--)
             {
                 UICanvas canvas = spaceCanvasses.Value[i];
 
-                // A switched off canvas is still cleaned, so that a resize it sat through does not leave it
-                // with meshes built for the wrong canvas size once it comes back.
                 if (canvas.IsEnabled)
                 {
                     canvas.Update();
@@ -97,10 +81,6 @@ public sealed class UIRenderer
         Draw(overlays: false);
     }
 
-    /// <summary>
-    /// Draws the overlay canvases. Their components were already updated and cleaned by <see cref="Render"/>,
-    /// so this is only the second half of the same pass and is never called on its own.
-    /// </summary>
     public void RenderOverlays() => Draw(overlays: true);
 
     private void Draw(bool overlays)

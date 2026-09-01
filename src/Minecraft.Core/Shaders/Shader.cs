@@ -25,8 +25,6 @@ public abstract class Shader
         GL.GetProgram(_programId, GetProgramParameterName.LinkStatus, out int linked);
         if (linked == 0)
         {
-            // A program that failed to link still has a valid id, so nothing downstream would notice;
-            // it simply draws nothing and every uniform location comes back as -1.
             Logger.Error($"Could not link shader program for '{vertexFile}' and '{fragmentFile}'.");
             Logger.Error(GL.GetProgramInfoLog(_programId));
         }
@@ -100,7 +98,6 @@ public abstract class Shader
         GL.BindTexture(target, textureId);
     }
 
-    /// <summary> Loads and compiles a shader stage. The path is relative to the output directory. </summary>
     public static int LoadShader(string file, ShaderType type)
     {
         string source = File.ReadAllText(Assets.Path(file));

@@ -19,6 +19,5 @@ public sealed class BlockGrass : Block
         return new BlockStateGrass();
     }
 
-    /// <summary>The green is only the top of it; what is dug up is the dirt underneath.</summary>
     public override ItemStack GetDrop(BlockState blockState) => new(BlockRegistry.Dirt, 1);
 }

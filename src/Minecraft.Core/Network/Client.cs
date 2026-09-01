@@ -8,16 +8,10 @@ using Minecraft.Core.Network.Session;
 
 namespace Minecraft.Core.Network;
 
-/// <summary>
-/// The client half of the connection. Socket reads and writes happen on their own thread so that a slow
-/// network never stalls a frame; the packets they produce are handed to the main thread to process.
-/// </summary>
 public sealed class Client
 {
-    /// <summary>How long the server waits before considering a silent client gone.</summary>
     public const float KeepAliveTimeoutSeconds = 35;
 
-    /// <summary>How often a keep alive is sent. Has to stay comfortably below the timeout.</summary>
     private const float KeepAliveIntervalSeconds = 30;
 
     private readonly Game _game;
@@ -72,7 +66,6 @@ public sealed class Client
         session.OnStateChangedHandler += OnStateChanged;
         netHandler.AssignSession(session);
 
-        // Published last: the transfer thread starts using the session the moment this is visible to it.
         _session = session;
 
         Logger.Info("Connected to server IP: " + host + " Port: " + port);
@@ -82,8 +75,6 @@ public sealed class Client
 
     private void HandlePacketCommunication()
     {
-        // A client that is stopped before it ever connected has no session to wait on, so the flag is what
-        // lets this thread go rather than leaving it waiting for one that will never arrive.
         while (_isRunning && (_session is null || _session.State == SessionState.Started))
         {
             Thread.Sleep(5);
@@ -112,8 +103,6 @@ public sealed class Client
                 }
                 catch (Exception e)
                 {
-                    // Once the session is closing, the socket being torn down underneath this thread is
-                    // how shutdown is meant to look rather than a failure worth reporting.
                     if (_session.State != SessionState.Closed)
                     {
                         Logger.Error("Failed reading packet: " + e.Message);

@@ -8,7 +8,6 @@ try
 }
 catch (ArgumentException e)
 {
-    // A bad start argument is a usage mistake, so report it plainly instead of as a crash.
     Console.Error.WriteLine(e.Message);
     Console.Error.WriteLine();
     Console.Error.WriteLine(ArgsParser.Usage);

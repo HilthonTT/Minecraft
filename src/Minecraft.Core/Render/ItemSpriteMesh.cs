@@ -4,34 +4,14 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render;
 
-/// <summary>
-/// Builds one cell of the item sheet as a mesh: a square standing upright, wearing that cell on both of its
-/// faces.
-/// <para>
-/// Where a block is drawn as the block itself, turned onto a corner so that its shape is what identifies it,
-/// an item has no shape to turn — a pickaxe is a picture of a pickaxe, and a pickaxe seen edge on would be a
-/// line. So it is drawn flat and given a second face pointing the other way, which is what keeps one lying on
-/// the ground visible all the way round as it turns.
-/// </para>
-/// <para>
-/// The cut out is the artwork's own: the sheet carries a real alpha channel and the fragment shader already
-/// throws away anything under half of it, which is the same test the see through cells of the block sheet go
-/// through. Nothing here has to know the silhouette.
-/// </para>
-/// </summary>
 public static class ItemSpriteMesh
 {
-    /// <summary>
-    /// Lit flat and from no direction in particular. There is no lit side and shaded side of a flat square,
-    /// and shading its two faces differently would make an item lying on the ground flicker as it turned.
-    /// </summary>
     private const uint Brightness = 56;
 
     public static VAOModel Build(TextureAtlas itemAtlas, Vector2 iconCell)
     {
         Vector2[] uvs = itemAtlas.GetTextureCoords(iconCell);
 
-        // Built around its own middle, so that turning it spins it on the spot the way a block icon does.
         Vector3[] corners =
         [
             new(0.5F, -0.5F, 0F),

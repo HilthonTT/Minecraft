@@ -5,35 +5,20 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.Particles;
 
-/// <summary>
-/// Holds and moves every speck in the air. Purely client side: nothing here is told to the server or read
-/// back from it, since a puff of dust changes nothing about the world it was thrown up out of.
-/// <para>
-/// Slots are a fixed array reused in place, so a busy moment costs no allocation and a full one drops the
-/// newest speck rather than growing without bound.
-/// </para>
-/// </summary>
 public sealed class ParticleSystem
 {
-    /// <summary>
-    /// How many specks may be in the air at once. Reached only by something like a blast, and past it a new
-    /// one is dropped: what is already flying covers it.
-    /// </summary>
     public const int Capacity = 1200;
 
-    /// <summary>How much of its speed a speck keeps after bouncing off something.</summary>
     private const float BounceRestitution = 0.24F;
 
     private readonly Particle[] _particles = new Particle[Capacity];
 
-    /// <summary>Where the search for a free slot starts, so filling up is not a walk from zero every time.</summary>
     private int _nextSlotHint;
 
     public int LiveCount { get; private set; }
 
     public ReadOnlySpan<Particle> Particles => _particles;
 
-    /// <summary>Adds a speck, or does nothing when every slot is taken.</summary>
     public void Spawn(in Particle particle)
     {
         for (int offset = 0; offset < Capacity; offset++)
@@ -50,7 +35,6 @@ public sealed class ParticleSystem
         }
     }
 
-    /// <summary>Drops everything in the air, for a world that is being left.</summary>
     public void Clear()
     {
         Array.Clear(_particles);
@@ -94,18 +78,11 @@ public sealed class ParticleSystem
         LiveCount = live;
     }
 
-    /// <summary>
-    /// Moves a speck one axis at a time, so that one blocked direction does not stop the other two. A speck
-    /// has no width, so where a body would need a swept box this only has to ask what is in the cell it is
-    /// about to enter.
-    /// </summary>
     private static void MoveAgainstWorld(ref Particle particle, World world, float deltaTime)
     {
         Vector3 step = particle.Velocity * deltaTime;
         Vector3 position = particle.Position;
 
-        // Most of the speed is lost into whatever was hit, and what is left sends the speck back the way it
-        // came, which is what makes a chip of stone skitter along a floor rather than stick to it.
         if (!TryStep(world, ref position, new Vector3(step.X, 0, 0)))
         {
             particle.Velocity.X *= -BounceRestitution;
@@ -124,10 +101,6 @@ public sealed class ParticleSystem
         particle.Position = position;
     }
 
-    /// <summary>
-    /// Takes one axis of a step, reporting whether it went through. Moving an axis at a time is what lets a
-    /// speck slide along a wall it has run into rather than stopping dead against it.
-    /// </summary>
     private static bool TryStep(World world, ref Vector3 position, Vector3 step)
     {
         Vector3 destination = position + step;
@@ -150,8 +123,6 @@ public sealed class ParticleSystem
 
         BlockState state = world.GetBlockAt(blockPos);
 
-        // Measured by whether the block has a body to stop something rather than by whether it can be seen
-        // through, so a speck falls past grass and into water and is stopped by leaves.
         return state.GetBlock().GetCollisionBox(state, blockPos).Length > 0;
     }
 }

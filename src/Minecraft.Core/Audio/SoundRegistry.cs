@@ -3,36 +3,21 @@ using Minecraft.Core.Utilities;
 
 namespace Minecraft.Core.Audio;
 
-/// <summary>
-/// Holds every sound the game can play, decoded once at startup.
-/// <para>
-/// The sound set on disk is far larger than what is used: it carries a mob for every creature Minecraft has
-/// and sounds for machinery this game has none of. Only what is named here is read, which is what keeps
-/// startup and the memory it costs down to the handful of sets actually reachable.
-/// </para>
-/// </summary>
 public sealed class SoundRegistry
 {
     private const string SoundRoot = "Resources/sound-effects";
 
-    /// <summary>Stands in for any set that has not finished loading, and plays nothing.</summary>
     private static readonly SoundGroup _silence = new([]);
 
     private Dictionary<Sound, SoundGroup>? _sounds;
     private Dictionary<BlockSoundMaterial, SoundGroup>? _steps;
     private Dictionary<BlockSoundMaterial, SoundGroup>? _digs;
 
-    /// <summary>
-    /// Starts reading the sound set. Decoding it takes the better part of a second, which is long enough to
-    /// be seen as a stall if it were done before the window came up, so it is done off the main thread and
-    /// the game is silent for the moment it takes rather than held up by it.
-    /// </summary>
     public SoundRegistry()
     {
         Task.Run(Load);
     }
 
-    /// <summary>Whether the set has finished loading. Nothing plays until it has.</summary>
     public bool IsReady => _sounds is not null;
 
     private void Load()
@@ -74,8 +59,6 @@ public sealed class SoundRegistry
         sounds[Sound.ZombieHurt] = LoadGroup("mob/zombie", "hurt", ref loaded);
         sounds[Sound.ZombieDeath] = LoadGroup("mob/zombie", "death", ref loaded);
 
-        // The three are published together and only once every one of them is filled, so a lookup either
-        // finds the whole set or finds nothing and stays quiet.
         _steps = steps;
         _digs = digs;
         Volatile.Write(ref _sounds, sounds);
@@ -90,19 +73,16 @@ public sealed class SoundRegistry
         return sounds is null ? _silence : sounds[sound];
     }
 
-    /// <summary>The sound of walking on a block of this material.</summary>
     public SoundGroup Step(BlockSoundMaterial material)
     {
         return Volatile.Read(ref _sounds) is null ? _silence : _steps![material];
     }
 
-    /// <summary>The sound of a block of this material being broken, which is also what placing one uses.</summary>
     public SoundGroup Dig(BlockSoundMaterial material)
     {
         return Volatile.Read(ref _sounds) is null ? _silence : _digs![material];
     }
 
-    /// <summary>What the set for a material is called on disk, which is Minecraft's own naming.</summary>
     private static string FileNameOf(BlockSoundMaterial material) => material switch
     {
         BlockSoundMaterial.Stone => "stone",
@@ -115,10 +95,6 @@ public sealed class SoundRegistry
         _ => "stone",
     };
 
-    /// <summary>
-    /// Reads every numbered variant of one sound out of a folder: 'grass' picks up grass1 through grass6,
-    /// however many of them there happen to be, so a set can grow or shrink without anything here changing.
-    /// </summary>
     private static SoundGroup LoadGroup(string folder, string baseName, ref int loaded)
     {
         string directory = Assets.Path(System.IO.Path.Combine(SoundRoot, folder));
@@ -128,7 +104,6 @@ public sealed class SoundRegistry
             return new SoundGroup([]);
         }
 
-        // Ordered so that the set is the same every run, which a directory listing does not promise.
         List<string> files = [.. Directory
             .EnumerateFiles(directory, baseName + "*.ogg")
             .Where(path => IsVariantOf(System.IO.Path.GetFileNameWithoutExtension(path), baseName))
@@ -154,11 +129,6 @@ public sealed class SoundRegistry
         return new SoundGroup([.. clips]);
     }
 
-    /// <summary>
-    /// Whether a file is one of the numbered variants of a sound rather than a different sound that merely
-    /// starts the same way. Without this, asking for the zombie's 'say' would also pick up nothing, but
-    /// asking for 'step' in a folder holding 'stepgrass' would quietly take both.
-    /// </summary>
     private static bool IsVariantOf(string fileName, string baseName)
     {
         if (!fileName.StartsWith(baseName, StringComparison.Ordinal))

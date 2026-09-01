@@ -1,10 +1,5 @@
 namespace Minecraft.Core.Worlds.Structures;
 
-/// <summary>
-/// The footprint of a structure or one of its pieces in world coordinates, inclusive on both ends. Height is
-/// left out: a structure is placed one chunk column at a time, so only the horizontal extent decides which
-/// chunks it reaches into.
-/// </summary>
 public readonly record struct StructureBounds(int MinX, int MinZ, int MaxX, int MaxZ)
 {
     public int Width => MaxX - MinX + 1;
@@ -15,7 +10,6 @@ public readonly record struct StructureBounds(int MinX, int MinZ, int MaxX, int 
 
     public int CenterZ => (MinZ + MaxZ) / 2;
 
-    /// <summary>A box of the given size centred on a position, rounded down on the even sides.</summary>
     public static StructureBounds FromCenter(int centerX, int centerZ, int width, int depth)
     {
         int minX = centerX - (width / 2);
@@ -33,7 +27,6 @@ public readonly record struct StructureBounds(int MinX, int MinZ, int MaxX, int 
         return worldX >= MinX && worldX <= MaxX && worldZ >= MinZ && worldZ <= MaxZ;
     }
 
-    /// <summary>Whether any part of this footprint falls inside the given chunk.</summary>
     public bool IntersectsChunk(int chunkX, int chunkZ)
     {
         int chunkMinX = chunkX * 16;

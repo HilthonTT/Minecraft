@@ -4,32 +4,16 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Entities.Mobs;
 
-/// <summary>
-/// An entity the server steers. Only the server runs a mob's behaviour and physics; every client eases the
-/// mob towards the last position and facing it was told about, the same way it does for other players.
-/// </summary>
 public abstract class Mob : Entity
 {
-    /// <summary>How close to a target counts as having arrived at it.</summary>
     private const float ArrivalDistance = 0.6F;
 
-    /// <summary>
-    /// The hop a mob makes to get over a step. The player's jump clears a block, so borrowing it means a
-    /// mob can go anywhere a player walking the same route could.
-    /// </summary>
     private const float JumpForce = Constants.PLAYER_JUMP_FORCE;
 
-    /// <summary>
-    /// How long a mob is left alone after a blow, and how long it shows red for. One figure rather than
-    /// two: the flash lasting exactly as long as the mob cannot be hit again is what makes it read as
-    /// telling you when the next punch will land, which is what it does in the game this is modelled on.
-    /// </summary>
     private const float HurtSeconds = 0.5F;
 
-    /// <summary>How fast a blow throws a mob backwards, in blocks per second before friction eats it.</summary>
     private const float KnockbackSpeed = 7F;
 
-    /// <summary>The lift a blow gives, as a share of the hop a mob makes to climb a step.</summary>
     private const float KnockbackLift = JumpForce * 0.45F;
 
     private Vector3 _target;
@@ -37,71 +21,28 @@ public abstract class Mob : Entity
     private int _ticksUntilNextWanderDecision;
     private float _hurtSecondsRemaining;
 
-    /// <summary>
-    /// What the blow that opened the current window was worth. Only read while that window is open; see
-    /// <see cref="TryHurt"/> for what it is for.
-    /// </summary>
     private int _lastDamageTaken;
 
-    /// <summary>Whether the mob is currently on its way somewhere.</summary>
     protected bool HasTarget { get; private set; }
 
-    /// <summary>
-    /// What the mob has left. Only ever meaningful on the server: a client is told that a blow landed and
-    /// whether it was the last, never what is left behind it, since nothing on that side shows a number.
-    /// </summary>
     public int Health { get; private set; }
 
     public bool IsAlive => Health > 0;
 
-    /// <summary>
-    /// Whether the mob was hit recently enough to still be showing it. The same window is what stops the
-    /// next blow from landing, so on the server this is being invulnerable and on a client it is being red.
-    /// </summary>
     public bool IsHurt => _hurtSecondsRemaining > 0F;
 
-    /// <summary>
-    /// Whether this is one of the mobs that comes out at night and goes for the player.
-    /// <para>
-    /// The spawner counts the hostile mobs and the peaceful ones against caps of their own. Sharing one cap
-    /// starves out the animals: a hostile mob follows the player and so never wanders far enough off to be
-    /// despawned, while an animal drifts away and is cleared, until after a night or two nothing is left but
-    /// what came out of it.
-    /// </para>
-    /// </summary>
     public abstract bool IsHostile { get; }
 
-    /// <summary>How hard the mob accelerates while walking.</summary>
     protected abstract float MoveSpeed { get; }
 
-    /// <summary>
-    /// What it is actually walking at, which is the above unless something has it running: a frightened
-    /// animal moves at a good deal more than the amble it grazes at.
-    /// </summary>
     protected virtual float CurrentMoveSpeed => MoveSpeed;
 
-    /// <summary>
-    /// How much a mob of this kind can take arrives as an argument rather than as an abstract property, the
-    /// way the rest of what a mob is made of does. It is needed here, in the constructor, and an override
-    /// cannot be trusted to answer before the class that declares it has finished being built.
-    /// </summary>
     protected Mob(int id, World? world, Vector3 position, EntityType entityType, int maxHealth)
         : base(id, world, position, entityType)
     {
         Health = maxHealth;
     }
 
-    /// <summary>
-    /// Takes a blow, on the server. Where it came from is a position rather than an entity, because not
-    /// everything that can hurt a mob is one: a blast has a centre and nobody behind it. An
-    /// <paramref name="attacker"/> is passed as well when there is one, for the mobs that care who it was.
-    /// <para>
-    /// A blow arriving inside the window the last one opened only lands if it is the harder of the two, and
-    /// then only for the difference. That is Minecraft's own rule and it earns its keep here: the window is
-    /// what stops a held mouse button from emptying a mob in a single frame, and without this exception it
-    /// would also let a mob shrug off a stick of TNT for having been punched a fraction of a second before.
-    /// </para>
-    /// </summary>
     public bool TryHurt(int damage, Vector3 from, Entity? attacker = null, float knockbackMultiplier = 1F)
     {
         if (!IsAlive || (IsHurt && damage <= _lastDamageTaken))
@@ -119,39 +60,21 @@ public abstract class Mob : Entity
         return true;
     }
 
-    /// <summary>
-    /// Starts the flash without taking anything off. This is what a client does: it is told a mob was hit
-    /// rather than working it out, and the health behind the blow is never sent because nothing shows it.
-    /// </summary>
     public void ShowHurt() => _hurtSecondsRemaining = HurtSeconds;
 
-    /// <summary>
-    /// How the mob takes being hit. Animals bolt from wherever it came from; a zombie takes note of who did
-    /// it, when there is a who. Called on the server only, after the damage has been applied, so
-    /// <see cref="IsAlive"/> already says whether it survived.
-    /// </summary>
     protected virtual void OnHurtBy(Vector3 from, Entity? attacker)
     {
     }
 
-    /// <summary>
-    /// Throws the mob away from whatever struck it, and a little off the ground with it, so a blow reads as
-    /// having landed even on something that was standing still and goes back to standing still. A blast
-    /// passes a multiplier well above one, since being caught by one should look nothing like being punched.
-    /// </summary>
     private void ThrowBackwardsAwayFrom(Vector3 source, float multiplier)
     {
         var away = new Vector3(Position.X - source.X, 0, Position.Z - source.Z);
 
-        // Whatever hit it is standing exactly where it is, which leaves no direction to be thrown in, so it
-        // goes over whichever way it happened to be facing.
         away = away.LengthSquared < 0.0001F ? _moveForward : away.Normalized();
 
         Velocity.X = away.X * KnockbackSpeed * multiplier;
         Velocity.Z = away.Z * KnockbackSpeed * multiplier;
 
-        // Only off the ground it is standing on. Adding lift to one already in the air would let a mob be
-        // punched up a wall a blow at a time.
         if (!_isInAir)
         {
             _verticalSpeed = KnockbackLift * multiplier;
@@ -161,8 +84,6 @@ public abstract class Mob : Entity
 
     public override void Update(float deltaTime, World world)
     {
-        // Wound down on both sides of the connection: the server is counting out an invulnerability and a
-        // client is counting out a flash, and they are the same half second.
         _hurtSecondsRemaining = MathF.Max(_hurtSecondsRemaining - deltaTime, 0F);
 
         if (world is not WorldServer)
@@ -195,10 +116,8 @@ public abstract class Mob : Entity
         }
     }
 
-    /// <summary>Called every tick on the server, to choose what the mob should be doing.</summary>
     protected abstract void DecideWhatToDo(WorldServer world);
 
-    /// <summary>Sends the mob walking towards a world position, which it re-aims at as it goes.</summary>
     protected void SetTarget(Vector3 target)
     {
         _target = target;
@@ -216,17 +135,11 @@ public abstract class Mob : Entity
             return;
         }
 
-        // A yaw of zero looks along positive Z, so the components go into Atan2 the other way round from
-        // the usual, which measures from positive X.
         Yaw = MathF.Atan2(toTarget.X, toTarget.Z);
         UpdateMovementBasisFromYaw();
         MoveHorizontally(0, CurrentMoveSpeed);
     }
 
-    /// <summary>
-    /// Walking into something is what tells a mob there is a step in front of it. It hops on the following
-    /// frame and either clears the obstacle or, if it was more than a block tall, walks into it again.
-    /// </summary>
     protected override void OnHorizontalCollision()
     {
         _shouldJump = true;
@@ -250,10 +163,6 @@ public abstract class Mob : Entity
         _isInAir = true;
     }
 
-    /// <summary>
-    /// Sends the mob off to a random nearby spot every so often, and leaves it standing the rest of the
-    /// time. Mobs with nothing better to do fall back on this.
-    /// </summary>
     protected void TickWandering(int radius, int ticksBetweenDecisions, int oneInChanceOfMoving)
     {
         if (HasTarget)
@@ -269,7 +178,6 @@ public abstract class Mob : Entity
 
         _ticksUntilNextWanderDecision = ticksBetweenDecisions;
 
-        // Most decisions are to stay put, so a group of mobs does not set off as one.
         if (Random.Shared.Next(oneInChanceOfMoving) != 0)
         {
             return;
@@ -281,7 +189,6 @@ public abstract class Mob : Entity
             Random.Shared.Next(-radius, radius + 1)));
     }
 
-    /// <summary>The player nearest to the given point within the radius, or null when none is that close.</summary>
     protected static ServerPlayer? FindNearestPlayer(World world, Vector3 from, float maxDistance)
     {
         ServerPlayer? nearest = null;

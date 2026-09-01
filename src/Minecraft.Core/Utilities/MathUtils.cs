@@ -21,10 +21,6 @@ public static class MathUtils
             Matrix4.CreateTranslation(translation);
     }
 
-    /// <summary>
-    /// Builds a unit direction vector from angles in radians. Yaw turns around the Y axis,
-    /// pitch tilts up and down.
-    /// </summary>
     public static Vector3 CreateLookAtVector(float yaw, float pitch)
     {
         double cosPitch = Math.Cos(pitch);
@@ -49,20 +45,12 @@ public static class MathUtils
         return from + (to - from) * t;
     }
 
-    /// <summary>
-    /// Interpolates between two angles in radians, turning whichever way round is shorter. Interpolating
-    /// them as plain numbers would send anything crossing the wrap point spinning the long way instead.
-    /// </summary>
     public static float LerpAngle(float from, float to, float t)
     {
-        // Folded into (-pi, pi], which is the shorter of the two ways round by definition.
         float difference = ((to - from + MathF.PI) % MathF.Tau + MathF.Tau) % MathF.Tau - MathF.PI;
         return from + difference * t;
     }
 
-    /// <summary>
-    /// Converts from one range to another. Boundaries are all inclusive.
-    /// </summary>
     public static float ConvertRange(float oldMin, float oldMax, float newMin, float newMax, float oldValue)
     {
         float oldRange = oldMax - oldMin;

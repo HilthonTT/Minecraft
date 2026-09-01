@@ -4,10 +4,6 @@ using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>
-/// The cold slopes: pine forest low down, thinning as the ground climbs, and nothing at all on the bare snow
-/// of the summits.
-/// </summary>
 public sealed class SnowyDecorator : IDecorator
 {
     private readonly PineTreeGenerator _pineTreeGenerator = new();
@@ -16,7 +12,6 @@ public sealed class SnowyDecorator : IDecorator
     {
         Block ground = SurfaceFeatures.GetGroundAt(chunk, worldY, localX, localZ);
 
-        // Above the snow line the ground is bare snow, and the peaks are meant to look it.
         if (ground == BlockRegistry.Snow)
         {
             return;

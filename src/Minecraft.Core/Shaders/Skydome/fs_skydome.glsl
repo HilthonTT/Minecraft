@@ -26,44 +26,37 @@ void main()
 	float posDotMoonPos = dot(position, moonPosition);
     float distToMoon = length(moonPosition - position);
 
-	//Calculate the horizon thickness, which is dependant on the position of the sunColor
-	//For example during sunset the horizon turns orange-ish and becomes thicker on the side
-	//of the sun.
-	float dist = posDotSunPos + 1.0F; 
+	float dist = posDotSunPos + 1.0F;
 	float horizonThickness = max(0.025F * dist * dist, 0.000F);
 
 	vec3 skyGradiant = vec3(0.0F);
-	if(fragmentHeight <= horizonThickness && fragmentHeight >= -horizonThickness) //Horizon
+	if(fragmentHeight <= horizonThickness && fragmentHeight >= -horizonThickness)
 	{
-		skyGradiant = horizonColor;	
-	}else if(fragmentHeight > horizonThickness) //Top sky color
+		skyGradiant = horizonColor;
+	}else if(fragmentHeight > horizonThickness)
 	{
 		skyGradiant = mix(horizonColor, topSkyColor, fragmentHeight - horizonThickness);
-	}else //Bottom sky color
+	}else
 	{
 		skyGradiant = mix(horizonColor, bottomSkyColor, abs(fragmentHeight) - horizonThickness);
 	}
 
-	//Sun glow color
-	if(distToSun < 0.25F)	
+	if(distToSun < 0.25F)
 	{
 		float mixPerc = distToSun / 0.25F;
 		skyGradiant = mix(sunGlowColor, skyGradiant, mixPerc);
 	}
-	//Sun color
 	if(distToSun < 0.1F)
 	{
 		float mixPerc = distToSun / 0.1F;
 		skyGradiant = mix(sunColor, skyGradiant, mixPerc * mixPerc * mixPerc);
-	}	
+	}
 
-	//Moon glow color
-	if(distToMoon < 0.25F)	
+	if(distToMoon < 0.25F)
 	{
 		float mixPerc = distToMoon / 0.25F;
 		skyGradiant = mix(moonGlowColor, skyGradiant, mixPerc);
 	}
-	//Moon color
 	if(distToMoon < 0.1F)
 	{
 		float mixPerc = distToMoon / 0.1F;
@@ -72,7 +65,5 @@ void main()
 
 	fragmentColor = vec4(skyGradiant, 1.0F);
 
-	//Apply dithering to remove any possible color banding effects
-	//texture2D was removed in core profile GLSL, so the core 'texture' is used instead.
 	fragmentColor += vec4(texture(ditherTexture, gl_FragCoord.xy / 8.0).r / 32.0 - (1.0 / 128.0));
 }

@@ -5,14 +5,12 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI;
 
-/// <summary>A single textured quad on a canvas, positioned and sized in canvas pixels.</summary>
 public sealed class UIImage : UIComponent
 {
     private Vector2 _dimension;
 
     private Texture _texture;
 
-    /// <summary>The size of the quad in canvas pixels.</summary>
     public Vector2 Dimension
     {
         get => _dimension;
@@ -49,14 +47,11 @@ public sealed class UIImage : UIComponent
         _texture = texture;
         _dimension = dimension;
 
-        // The quad geometry depends on the canvas size, so it is built on the next clean pass.
         parentCanvas.AddComponentToClean(this);
     }
 
     public override void Clean()
     {
-        // Canvas pixels have their origin at the top left, normalised device coordinates at the centre with
-        // Y pointing up, hence the flip on the vertical axis.
         float xNdc = PixelPositionInCanvas.X / ParentCanvas.PixelWidth * 2 - 1;
         float yNdc = 1 - PixelPositionInCanvas.Y / ParentCanvas.PixelHeight * 2;
         float width = 2 * _dimension.X / ParentCanvas.PixelWidth;
@@ -79,12 +74,12 @@ public sealed class UIImage : UIComponent
 
         float[] textureCoords =
         [
-            0, 1, // bottom-left
-            1, 1, // bottom-right
-            1, 0, // top-right
-            0, 1, // bottom-left
-            1, 0, // top-right
-            0, 0, // top-left
+            0, 1,
+            1, 1,
+            1, 0,
+            0, 1,
+            1, 0,
+            0, 0,
         ];
 
         _vaoModel?.CleanUp();

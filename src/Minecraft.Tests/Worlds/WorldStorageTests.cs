@@ -3,10 +3,6 @@ using Minecraft.Core.Worlds.Storage;
 
 namespace Minecraft.Tests.Worlds;
 
-/// <summary>
-/// Everything a save is apart from its chunks: where a world name is allowed to land on disk, and what
-/// <c>level.dat</c> says when it is read back.
-/// </summary>
 public sealed class WorldStorageTests : IDisposable
 {
     private readonly string _savesRoot =
@@ -33,13 +29,13 @@ public sealed class WorldStorageTests : IDisposable
     [InlineData("trailing.", "trailing")]
     public void AWorldNameCannotEscapeTheSavesDirectory(string typed, string expected)
     {
-        Assert.Equal(expected, WorldStorage.SanitiseWorldName(typed));
+        Assert.Equal(expected, WorldSaves.SanitiseWorldName(typed));
     }
 
     [Fact]
     public void AWorldDirectorySitsInsideTheSavesDirectory()
     {
-        string directory = WorldStorage.GetWorldDirectory(_savesRoot, "../escape");
+        string directory = WorldSaves.GetWorldDirectory(_savesRoot, "../escape");
 
         Assert.Equal(
             Path.GetFullPath(_savesRoot),
@@ -56,7 +52,7 @@ public sealed class WorldStorageTests : IDisposable
         Assert.Equal(7, metadata.Seed);
         Assert.Equal(GameMode.Survival, metadata.GameMode);
         Assert.Equal(WorldMetadata.CurrentVersion, metadata.Version);
-        Assert.False(WorldStorage.WorldExists(_savesRoot, "fresh"));
+        Assert.False(WorldSaves.WorldExists(_savesRoot, "fresh"));
     }
 
     [Fact]
@@ -78,7 +74,7 @@ public sealed class WorldStorageTests : IDisposable
         Assert.Equal(-1234, metadata.Seed);
         Assert.Equal(812.5F, metadata.CurrentTime, 3);
         Assert.Equal(GameMode.Creative, metadata.GameMode);
-        Assert.True(WorldStorage.WorldExists(_savesRoot, "saved"));
+        Assert.True(WorldSaves.WorldExists(_savesRoot, "saved"));
     }
 
     [Fact]
@@ -137,7 +133,7 @@ public sealed class WorldStorageTests : IDisposable
         Save("two");
         Directory.CreateDirectory(Path.Combine(_savesRoot, "not-a-world"));
 
-        List<string> worlds = WorldStorage.ListWorlds(_savesRoot);
+        List<string> worlds = WorldSaves.ListWorlds(_savesRoot);
 
         Assert.Equal(2, worlds.Count);
         Assert.Contains("one", worlds);
@@ -147,7 +143,7 @@ public sealed class WorldStorageTests : IDisposable
     [Fact]
     public void ThereAreNoWorldsBeforeAnyHaveBeenSaved()
     {
-        Assert.Empty(WorldStorage.ListWorlds(_savesRoot));
+        Assert.Empty(WorldSaves.ListWorlds(_savesRoot));
     }
 
     [Fact]
@@ -155,8 +151,8 @@ public sealed class WorldStorageTests : IDisposable
     {
         Save("world");
 
-        Assert.Equal("world2", WorldStorage.SuggestUnusedWorldName(_savesRoot, "world"));
-        Assert.Equal("other", WorldStorage.SuggestUnusedWorldName(_savesRoot, "other"));
+        Assert.Equal("world2", WorldSaves.SuggestUnusedWorldName(_savesRoot, "world"));
+        Assert.Equal("other", WorldSaves.SuggestUnusedWorldName(_savesRoot, "other"));
     }
 
     [Fact]
@@ -164,9 +160,9 @@ public sealed class WorldStorageTests : IDisposable
     {
         Save("before");
 
-        Assert.Equal(WorldRenameResult.Renamed, WorldStorage.TryRenameWorld(_savesRoot, "before", "after"));
-        Assert.False(WorldStorage.WorldExists(_savesRoot, "before"));
-        Assert.True(WorldStorage.WorldExists(_savesRoot, "after"));
+        Assert.Equal(WorldRenameResult.Renamed, WorldSaves.TryRenameWorld(_savesRoot, "before", "after"));
+        Assert.False(WorldSaves.WorldExists(_savesRoot, "before"));
+        Assert.True(WorldSaves.WorldExists(_savesRoot, "after"));
     }
 
     [Fact]
@@ -175,9 +171,9 @@ public sealed class WorldStorageTests : IDisposable
         Save("here");
         Save("taken");
 
-        Assert.Equal(WorldRenameResult.SourceMissing, WorldStorage.TryRenameWorld(_savesRoot, "missing", "new"));
-        Assert.Equal(WorldRenameResult.NameTaken, WorldStorage.TryRenameWorld(_savesRoot, "here", "taken"));
-        Assert.Equal(WorldRenameResult.Unchanged, WorldStorage.TryRenameWorld(_savesRoot, "here", "here"));
+        Assert.Equal(WorldRenameResult.SourceMissing, WorldSaves.TryRenameWorld(_savesRoot, "missing", "new"));
+        Assert.Equal(WorldRenameResult.NameTaken, WorldSaves.TryRenameWorld(_savesRoot, "here", "taken"));
+        Assert.Equal(WorldRenameResult.Unchanged, WorldSaves.TryRenameWorld(_savesRoot, "here", "here"));
     }
 
     [Fact]
@@ -185,8 +181,8 @@ public sealed class WorldStorageTests : IDisposable
     {
         Save("lower");
 
-        Assert.Equal(WorldRenameResult.Renamed, WorldStorage.TryRenameWorld(_savesRoot, "lower", "Lower"));
-        Assert.Contains("Lower", WorldStorage.ListWorlds(_savesRoot));
+        Assert.Equal(WorldRenameResult.Renamed, WorldSaves.TryRenameWorld(_savesRoot, "lower", "Lower"));
+        Assert.Contains("Lower", WorldSaves.ListWorlds(_savesRoot));
     }
 
     [Fact]
@@ -194,9 +190,9 @@ public sealed class WorldStorageTests : IDisposable
     {
         Save("doomed");
 
-        Assert.True(WorldStorage.TryDeleteWorld(_savesRoot, "doomed"));
-        Assert.False(WorldStorage.WorldExists(_savesRoot, "doomed"));
-        Assert.False(WorldStorage.TryDeleteWorld(_savesRoot, "doomed"));
+        Assert.True(WorldSaves.TryDeleteWorld(_savesRoot, "doomed"));
+        Assert.False(WorldSaves.WorldExists(_savesRoot, "doomed"));
+        Assert.False(WorldSaves.TryDeleteWorld(_savesRoot, "doomed"));
     }
 
     [Fact]
@@ -204,8 +200,6 @@ public sealed class WorldStorageTests : IDisposable
     {
         using var storage = new WorldStorage(_savesRoot, "empty");
 
-        // A null chunk is how storage says "not here"; the world generator takes it from there. Passing no
-        // world is safe precisely because nothing is read.
         Assert.Null(storage.TryLoadChunk(null!, 0, 0));
     }
 
@@ -217,7 +211,7 @@ public sealed class WorldStorageTests : IDisposable
 
     private void WriteLevelDat(string worldName, params string[] lines)
     {
-        string directory = WorldStorage.GetWorldDirectory(_savesRoot, worldName);
+        string directory = WorldSaves.GetWorldDirectory(_savesRoot, worldName);
         Directory.CreateDirectory(directory);
         File.WriteAllLines(Path.Combine(directory, "level.dat"), lines);
     }

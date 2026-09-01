@@ -7,10 +7,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Network.Session;
 
-/// <summary>
-/// One end of a connection between a client and a server, holding the player it belongs to and the handler
-/// that interprets its packets.
-/// </summary>
 public abstract class Session
 {
     private static readonly PlayerSettings _defaultPlayerSettings = new()
@@ -18,16 +14,10 @@ public abstract class Session
         ViewDistance = Constants.VIEW_DISTANCE_CHUNKS,
     };
 
-    /// <summary>
-    /// The furthest a client may ask to see. A view distance is honoured because it is the client's own
-    /// business how much of the world it wants, but it costs the server generation and streaming work, so it
-    /// is not left for a client to name any number it likes.
-    /// </summary>
     private const int MaxAcceptedViewDistance = 16;
 
     private SessionState _state;
 
-    /// <summary>Null until the server has accepted the connection and assigned a player to it.</summary>
     public Player? Player { get; private set; }
 
     public INetHandler NetHandler { get; }
@@ -66,10 +56,6 @@ public abstract class Session
         State = SessionState.AwaitingAcceptance;
     }
 
-    /// <summary>
-    /// Takes the view distance the client asked for, held to what this server is willing to serve. The chunk
-    /// provider reads it every update, so this takes effect on the next one rather than at the next session.
-    /// </summary>
     public void SetViewDistance(int viewDistance)
     {
         PlayerSettings = PlayerSettings with
@@ -84,10 +70,6 @@ public abstract class Session
         OnPlayerAssignedHandler?.Invoke();
     }
 
-    /// <summary>
-    /// Whether the chunk falls inside the player's view distance. Always false before a player has been
-    /// assigned, since there is nowhere to measure from yet.
-    /// </summary>
     public bool IsChunkVisible(Vector2 chunkPosition)
     {
         if (Player is null)

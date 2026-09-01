@@ -12,14 +12,8 @@ public sealed class PlayerJoinAcceptPacket : Packet
     public Vector3 SpawnPosition { get; private set; }
     public float CurrentTime { get; private set; }
 
-    /// <summary>
-    /// Which mode the world is played in, carried here rather than sent after the fact so that the client
-    /// never has a world in front of it and the wrong rules for a frame or two: the mode decides whether the
-    /// hotbar opens full or empty, and filling it and then emptying it again would be seen.
-    /// </summary>
     public GameMode GameMode { get; private set; }
 
-    /// <summary>What the player has left, which is full for anyone who has only just arrived.</summary>
     public int Health { get; private set; }
 
     public PlayerJoinAcceptPacket(

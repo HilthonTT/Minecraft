@@ -8,44 +8,29 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Chunks;
 
-/// <summary>
-/// Loads and unloads chunks for one player. Every session has its own, which is what lets a chunk stay
-/// loaded for as long as at least one player can see it and no longer.
-/// </summary>
 public sealed class ChunkProvider
 {
     private readonly struct GenerateChunkRequestOutgoing(Vector2 gridPosition, World world)
     {
-        /// <summary>The chunk grid position a chunk was requested at.</summary>
         public Vector2 GridPosition { get; } = gridPosition;
 
-        /// <summary>The world the chunk was requested for.</summary>
         public World World { get; } = world;
     }
 
-    /// <summary>
-    /// The square of the velocity at which chunk loading is deferred entirely. A player moving this fast
-    /// would outrun the terrain generator, so loading waits until they slow down.
-    /// </summary>
     private const int MaxVelocitySquaredForLoading = 7225;
 
     private readonly ServerSession _session;
 
-    /// <summary>All chunk positions currently loaded for the player.</summary>
     private readonly HashSet<Vector2> _currentlyLoadedChunks = [];
 
-    /// <summary>Chunk data that has come back from the generator and is ready to be sent to the player.</summary>
     private readonly Queue<GenerateChunkOutput> _receivedChunkData = new();
 
-    /// <summary>Outgoing requests for chunks that were not already loaded, so none is asked for twice.</summary>
     private readonly HashSet<GenerateChunkRequestOutgoing> _outgoingChunkRequests = [];
 
     private readonly Lock _chunkRetrievalLock = new();
 
-    /// <summary>The chunk positions still to be asked for, nearest to the player first.</summary>
     private Queue<(int DistanceToPlayer, Vector2 GridPosition)> _remainingChunkRequests = new();
 
-    /// <summary>The session's player, available only once the join handshake has assigned one.</summary>
     private Player? _player;
 
     public ChunkProvider(ServerSession session)
@@ -67,7 +52,6 @@ public sealed class ChunkProvider
     {
         _remainingChunkRequests = GetChunkLoadQueue(world, playerGridPos);
 
-        // Unload everything that has fallen outside the view distance.
         UnloadChunks(world, _currentlyLoadedChunks.Where(chunk => !_session.IsChunkVisible(chunk)).ToList());
     }
 
@@ -95,10 +79,6 @@ public sealed class ChunkProvider
         _session.WritePacket(new ChunkUnloadPacket(chunkPositions));
     }
 
-    /// <summary>
-    /// Sends the chunk straight to the player if the server already has it, otherwise asks the world
-    /// generator to produce it.
-    /// </summary>
     private void LoadChunk(World world, Vector2 chunkPos)
     {
         if (world.LoadedChunks.TryGetValue(chunkPos, out Chunk? chunk))
@@ -131,15 +111,10 @@ public sealed class ChunkProvider
         }
     }
 
-    /// <summary>
-    /// Builds the queue of chunk positions the player still needs, walking outwards from the player in a
-    /// spiral so that the nearest chunks are always requested first.
-    /// </summary>
     private Queue<(int DistanceToPlayer, Vector2 GridPosition)> GetChunkLoadQueue(World world, Vector2 playerGridPosition)
     {
         Queue<(int, Vector2)> visibleChunks = new();
 
-        // The visible area is a square with sides (view distance * 2) + 1 centred on the player.
         int dist = _session.PlayerSettings.ViewDistance * 2 + 1;
         float halfDist = dist / 2.0F;
 
@@ -161,8 +136,6 @@ public sealed class ChunkProvider
                     bool shouldEnqueue;
                     lock (_chunkRetrievalLock)
                     {
-                        // Skip anything already asked for, and anything already generated but not yet handed
-                        // over to the player.
                         shouldEnqueue = !_outgoingChunkRequests.Contains(request) &&
                                         !_receivedChunkData.Any(data =>
                                             new Vector2(data.Chunk.GridX, data.Chunk.GridZ) == chunkPos);
@@ -176,7 +149,6 @@ public sealed class ChunkProvider
                 }
             }
 
-            // Turn at each corner of the spiral.
             if (x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z))
             {
                 (dx, dz) = (-dz, dx);
@@ -189,7 +161,6 @@ public sealed class ChunkProvider
         return visibleChunks;
     }
 
-    /// <summary>Called from the world generator thread once a requested chunk has been generated.</summary>
     private void ChunkRetrievedCallback(GenerateChunkOutput output)
     {
         lock (_chunkRetrievalLock)
@@ -216,8 +187,6 @@ public sealed class ChunkProvider
             return;
         }
 
-        // The faster the player moves, the tighter the radius chunks are loaded within, so that generation
-        // effort is not spent on chunks that will be behind them by the time they arrive.
         Vector3 velocity = _player.Velocity;
         int velocitySquared = (int)(velocity.X * velocity.X + velocity.Z * velocity.Z);
 

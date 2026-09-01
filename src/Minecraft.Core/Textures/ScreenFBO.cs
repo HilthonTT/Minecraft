@@ -20,44 +20,32 @@ public sealed class ScreenFBO
 
     private void CreateFBO(int screenWidth, int screenHeight)
     {
-        // A minimised window reports a zero-sized client area, which would make every attachment
-        // incomplete. One pixel keeps the FBO valid until the window is restored.
         screenWidth = Math.Max(1, screenWidth);
         screenHeight = Math.Max(1, screenHeight);
 
-        // Create and bind FBO
         _fbo = GL.GenFramebuffer();
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _fbo);
 
-        // Create and bind color texture
         ColorTextureID = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, ColorTextureID);
-        // Set some color texture Settings
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, screenWidth, screenHeight, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-        // Sampling the edge of the screen must not wrap around to the opposite side.
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-        // Attach color texture to FBO
         GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, ColorTextureID, 0);
 
-        // Create and bind normal/depth texture
         NormalDepthTextureID = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, NormalDepthTextureID);
-        // Set some color texture Settings
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, screenWidth, screenHeight, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-        // Attach normal/depth texture to FBO
         GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, NormalDepthTextureID, 0);
 
         GL.BindTexture(TextureTarget.Texture2D, 0);
 
-        // Declare both color attachments as draw buffers. This has to happen after the attachments
-        // exist, otherwise the FBO is incomplete for drawing.
         DrawBuffersEnum[] buffers = new DrawBuffersEnum[2];
         for (int i = 0; i < 2; i++)
         {
@@ -65,11 +53,9 @@ public sealed class ScreenFBO
         }
         GL.DrawBuffers(2, buffers);
 
-        // Create render buffer object and bind it
         _renderBuffer = GL.GenRenderbuffer();
         GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, _renderBuffer);
 
-        // Set internal format to depth component
         GL.RenderbufferStorage(RenderbufferTarget.Renderbuffer, RenderbufferStorage.DepthComponent24, screenWidth, screenHeight);
         GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, _renderBuffer);
         GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);

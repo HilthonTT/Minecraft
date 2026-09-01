@@ -7,10 +7,6 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render;
 
-/// <summary>
-/// Outlines every cell in the player's chunk whose sunlight intensity matches a chosen level, which makes
-/// it possible to see how light propagated. The arrow keys pick the level.
-/// </summary>
 public sealed class LightDebugRenderer
 {
     private const uint MinLightLevel = 1;
@@ -29,8 +25,6 @@ public sealed class LightDebugRenderer
 
     public void RenderLightArea()
     {
-        // The arrow keys only pick the level while the player has the controls; a menu on top of the world
-        // has its own use for them.
         if (_game.IsGameplayInputEnabled)
         {
             if (Game.Input.OnKeyPress(Keys.Down) && DesiredLightLevel > MinLightLevel)

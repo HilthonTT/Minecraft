@@ -4,15 +4,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Network.Packets;
 
-/// <summary>
-/// Tells a client about a stack lying on the ground that has come within range of it. Separate from the
-/// ordinary entity spawn because it carries what the stack is of, which no mob has to say — everything else
-/// the tracker sends is identified by its type alone.
-/// <para>
-/// The wear travels with it so that a pickaxe thrown down with one swing left in it is still a pickaxe with
-/// one swing left in it when somebody picks it up. Everything that is not a tool sends a zero.
-/// </para>
-/// </summary>
 public sealed class ItemSpawnPacket : Packet
 {
     public int EntityID { get; private set; }

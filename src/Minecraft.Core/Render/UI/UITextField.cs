@@ -5,14 +5,8 @@ using System.Text;
 
 namespace Minecraft.Core.Render.UI;
 
-/// <summary>
-/// A single line text box. Like <see cref="UIButton"/> it is not a component itself but a panel, a run of
-/// text and a caret that are moved together. While it has focus it reads the keyboard directly, in the same
-/// way the chat input line does.
-/// </summary>
 public sealed class UITextField
 {
-    /// <summary>How tall a text box is, in canvas pixels.</summary>
     public const int Height = 40;
 
     private const float TextScale = 0.36F;
@@ -43,7 +37,6 @@ public sealed class UITextField
     private int _caretIndex;
     private DateTime _lastEditAt = DateTime.Now;
 
-    /// <summary>Whether typing goes into this box.</summary>
     public bool HasFocus { get; set; }
 
     public string Value
@@ -62,8 +55,6 @@ public sealed class UITextField
         _maxLength = maxLength;
         _font = FontRegistry.GetFont(FontType.Arial);
 
-        // The border is a slightly larger panel drawn underneath the box itself, which is cheaper than
-        // giving the shader an outline of its own.
         _border = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White) { Color = _borderColor };
         canvas.AddComponentToRender(_border);
 
@@ -162,7 +153,6 @@ public sealed class UITextField
             _lastEditAt = DateTime.Now;
         }
 
-        // A shortcut produces no typed characters of its own, so the clipboard is read directly.
         if ((Game.Input.OnKeyDown(Keys.LeftControl) || Game.Input.OnKeyDown(Keys.RightControl)) &&
             Game.Input.OnKeyPress(Keys.V))
         {
@@ -187,7 +177,6 @@ public sealed class UITextField
 
     private void Insert(string text)
     {
-        // Control characters would break the single line the box is, so they are dropped rather than drawn.
         var cleaned = new StringBuilder(text.Length);
         foreach (char character in text)
         {
@@ -210,9 +199,6 @@ public sealed class UITextField
         _lastEditAt = DateTime.Now;
     }
 
-    /// <summary>
-    /// Shows as much of the value as fits, scrolled sideways far enough that the caret is always in view.
-    /// </summary>
     private void UpdateVisibleText()
     {
         float textWidth = _size.X - (2 * HorizontalPaddingPixels);
@@ -241,19 +227,12 @@ public sealed class UITextField
         float caretOffset = _font.MeasureWidth(_value[firstVisible.._caretIndex], TextScale);
         _caret.PixelPositionInCanvas = new Vector2(_position.X + HorizontalPaddingPixels + caretOffset, GlyphBoxTop);
 
-        // The caret holds still while something is being typed and only starts blinking once it stops, so it
-        // never blinks out from under the character just entered.
         double secondsSinceEdit = (DateTime.Now - _lastEditAt).TotalSeconds;
         _caret.IsVisible = secondsSinceEdit % CaretBlinkSeconds < CaretBlinkSeconds / 2;
     }
 
-    /// <summary>
-    /// Measured against a fixed run rather than what is in the box, so that the line does not shift about as
-    /// characters of different heights are typed into it.
-    /// </summary>
     private const string HeightReference = "Ag0";
 
-    /// <summary>Where the drawn glyphs start, which is what the caret is lined up against.</summary>
     private float GlyphBoxTop => _position.Y + ((_size.Y - GlyphBoxHeight) / 2.0F);
 
     private float GlyphBoxHeight
@@ -265,9 +244,5 @@ public sealed class UITextField
         }
     }
 
-    /// <summary>
-    /// Where the text component goes. Glyphs are drawn below it by an offset of their own, which is taken
-    /// back out here so that what is seen ends up in the middle of the box.
-    /// </summary>
     private float TextTopPixels => GlyphBoxTop - _font.MeasureVerticalBounds(HeightReference, TextScale).Top;
 }

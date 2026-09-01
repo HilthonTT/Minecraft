@@ -3,10 +3,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// What Escape opens while a world is loaded. The world is still drawn behind it, so the backdrop only dims
-/// it rather than covering it.
-/// </summary>
 public sealed class UICanvasPauseMenu : UICanvasMenu
 {
     private const float BackdropTransparency = 0.65F;

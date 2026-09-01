@@ -3,24 +3,8 @@ using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Inventories.Items;
 
-/// <summary>
-/// The single source of truth for everything a slot can hold, and where the ids that travel over the wire are
-/// assigned.
-/// <para>
-/// Two halves share one run of ids. Every block gets an item carrying the block's own id, filled in by walking
-/// <see cref="BlockRegistry"/> rather than by naming each of them again here, so a block added there needs
-/// nothing done to it to become something that can be carried. Everything that is not a block starts at
-/// <see cref="FirstLooseItemId"/>, well clear of the block ids, so that the two can grow without either
-/// reaching the other.
-/// </para>
-/// </summary>
 public static class ItemRegistry
 {
-    /// <summary>
-    /// Where the ids of things that are not blocks begin. Far enough above the blocks that a good many more
-    /// of them could be registered before the two ran together, and a round number so that an id read out of
-    /// a log says at a glance which half it came from.
-    /// </summary>
     public const ushort FirstLooseItemId = 256;
 
     public static readonly SpriteItem Stick = new(256, "Stick", ItemAtlas.Stick);
@@ -54,13 +38,10 @@ public static class ItemRegistry
     public static readonly ToolItem GoldenSword = new(280, ToolKind.Sword, ToolMaterial.Gold, ItemAtlas.Sword(3));
     public static readonly ToolItem DiamondSword = new(281, ToolKind.Sword, ToolMaterial.Diamond, ItemAtlas.Sword(4));
 
-    /// <summary>Every registered item, indexed by its own id. Sparse: the gap under the loose ids is empty.</summary>
     private static Item?[] _byId = [];
 
-    /// <summary>The item for each block, indexed by block id, which is also that item's id.</summary>
     private static BlockItem[] _byBlockId = [];
 
-    /// <summary>Everything that is not a block, in the order the creative screen lays them out.</summary>
     public static IReadOnlyList<SpriteItem> LooseItems => _looseItems;
 
     private static readonly SpriteItem[] _looseItems =
@@ -72,15 +53,8 @@ public static class ItemRegistry
         WoodenSword, StoneSword, IronSword, GoldenSword, DiamondSword,
     ];
 
-    /// <summary>
-    /// Builds the table. Must be called after <see cref="BlockRegistry.RegisterBlocks"/>, since half of what
-    /// goes in it is made out of what that registered.
-    /// </summary>
     public static void RegisterItems()
     {
-        // The two halves share one run of numbers, so the blocks have to stop short of where the loose items
-        // begin. A block registered past that point would take an id an item already answers to, and quietly
-        // change what a number already written into a save and sent over the wire means.
         if (BlockRegistry.Count >= FirstLooseItemId)
         {
             throw new InvalidOperationException(
@@ -124,7 +98,6 @@ public static class ItemRegistry
         }
     }
 
-    /// <summary>The item that puts the given block down. Every block has one.</summary>
     public static BlockItem For(Block block)
     {
         if (block.Id >= _byBlockId.Length)
@@ -137,10 +110,6 @@ public static class ItemRegistry
         return _byBlockId[block.Id];
     }
 
-    /// <summary>
-    /// The item with the given id, or null when there is none. For ids that came off the wire, where an
-    /// unknown one is something to turn down rather than something to fall over.
-    /// </summary>
     public static Item? TryGet(int id) =>
         id >= 0 && id < _byId.Length ? _byId[id] : null;
 }

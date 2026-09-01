@@ -55,7 +55,6 @@ public sealed class ItemStackTests
     [InlineData(int.MaxValue, 59)]
     public void WearIsClampedToWhatTheItemHasInIt(int damage, int expected)
     {
-        // Wooden tools last 59 swings, and a stack arriving off the wire may claim any number at all.
         var stack = new ItemStack(ItemRegistry.WoodenPickaxe, 1, damage);
 
         Assert.Equal(expected, stack.Damage);
@@ -121,7 +120,6 @@ public sealed class ItemStackTests
         Assert.False(ItemStack.Empty.CanStackWith(coal));
         Assert.False(ItemStack.Empty.CanStackWith(ItemStack.Empty));
 
-        // Two of the same tool are two pickaxes and not one pickaxe worn twice.
         Assert.False(pickaxe.CanStackWith(otherPickaxe));
     }
 

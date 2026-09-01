@@ -6,10 +6,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// A name tag floating above another player. It lives in world space and turns to face the local player
-/// every frame.
-/// </summary>
 public sealed class UICanvasEntityName : UICanvas
 {
     private static readonly Vector3 _nameTagOffset = new(0, 1, 0);
@@ -40,8 +36,6 @@ public sealed class UICanvasEntityName : UICanvas
     {
         Position = _otherEntity.Position + _nameTagOffset;
 
-        // Signed angle between the world forward axis and the direction to the local player, so the tag
-        // always turns the shorter way round.
         Vector3 direction = _localPlayer.Position - _otherEntity.Position;
         float theta = MathF.Atan2(
             direction.X * Vector3.UnitZ.Z - direction.Z * Vector3.UnitZ.X,

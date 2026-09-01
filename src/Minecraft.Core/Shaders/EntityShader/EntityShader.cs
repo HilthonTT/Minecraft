@@ -10,7 +10,6 @@ public sealed class EntityShader : Shader
     {
     }
 
-    /// <summary>The skin sheet of whichever entity is being drawn, rebound as the kind of entity changes.</summary>
     public int LocationSkinTexture { get; private set; }
 
     public int LocationTransformationMatrix { get; private set; }
@@ -19,7 +18,6 @@ public sealed class EntityShader : Shader
 
     public int LocationProjectionMatrix { get; private set; }
 
-    /// <summary>Where the camera is, which the distance the fog is taken over is measured from.</summary>
     public int LocationCameraPosition { get; private set; }
 
     public int LocationFogColor { get; private set; }
@@ -28,7 +26,6 @@ public sealed class EntityShader : Shader
 
     public int LocationFogEnd { get; private set; }
 
-    /// <summary>How red the entity being drawn is, which is how recently it was hit.</summary>
     public int LocationHurtFlash { get; private set; }
 
     protected override void BindAttributes()

@@ -5,20 +5,14 @@ using Minecraft.Core.Worlds.Structures;
 
 namespace Minecraft.Core.Worlds.Biomes;
 
-/// <summary>
-/// Dry grassland broken up by flat topped plateaus. Its height map is stepped rather than smooth, which is
-/// what gives it tables of level ground with a short scramble between one and the next.
-/// </summary>
 public sealed class SavannaBiome : Biome
 {
     private const float TerrainDetail = 0.0035F;
     private const double HeightVariation = 30;
 
-    /// <summary>How many plateaus the height range is cut into, and how much of each one is level.</summary>
     private const int PlateauCount = 5;
     private const float PlateauFlatness = 0.72F;
 
-    /// <inheritdoc cref="ForestBiome" path="/summary"/>
     private const float DomainOffset = 3571.19F;
 
     protected override void DefineProperties()

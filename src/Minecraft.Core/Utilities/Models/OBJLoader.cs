@@ -20,8 +20,6 @@ public static class OBJLoader
             Logger.Error($"Could not load model '{fileName}': {e.Message}");
         }
 
-        // Empty rather than default, so a failed load cannot hand null arrays to whoever asked for the
-        // model. The result draws nothing instead of throwing far away from the actual problem.
         return new ModelData
         {
             positions = [],
@@ -33,7 +31,6 @@ public static class OBJLoader
 
     private static ModelData Load(TextReader textReader)
     {
-        // Kept local so a failed load cannot leak half a model into the next one.
         List<float> vertices = [];
         List<float> normals = [];
         List<float> texCoords = [];
@@ -48,16 +45,14 @@ public static class OBJLoader
                 continue;
             }
 
-            // Only positions and triangular faces are consumed. Anything else a modelling package may
-            // have written is skipped rather than treated as an error, so that a richer file still loads.
             switch (parameters[0])
             {
-                case "v": // vertex position
+                case "v":
                     vertices.Add(float.Parse(parameters[1], CultureInfo.InvariantCulture));
                     vertices.Add(float.Parse(parameters[2], CultureInfo.InvariantCulture));
                     vertices.Add(float.Parse(parameters[3], CultureInfo.InvariantCulture));
                     break;
-                case "f": // face
+                case "f":
                     if (parameters.Length == 4)
                     {
                         ParseFace(parameters[1], vertices, indices);
@@ -90,8 +85,6 @@ public static class OBJLoader
 
         if (vertexIndex < 0)
         {
-            // OBJ indices are 1 based; a negative one counts back from the last vertex read so far.
-            // The list holds three floats per vertex, so the vertex count is a third of its length.
             vertexIndex = (vertices.Count / 3) + vertexIndex;
         }
         else

@@ -10,7 +10,6 @@ public sealed class CraftingTests
 {
     private static Item Planks => ItemRegistry.For(BlockRegistry.Planks);
 
-    /// <summary>Lays a bench out from a picture of it, one character per cell, a dot for an empty one.</summary>
     private static CraftingGrid Lay(int size, string cells, params (char Symbol, Item Item)[] key)
     {
         var grid = new CraftingGrid(size);
@@ -69,7 +68,6 @@ public sealed class CraftingTests
     [Fact]
     public void APatternIsRecognisedAnywhereOnTheBench()
     {
-        // The same two planks, in the top left corner of a three by three and then in the bottom right.
         CraftingGrid topLeft = Lay(3, "P..P.....", ('P', Planks));
         CraftingGrid bottomRight = Lay(3, ".....P..P", ('P', Planks));
 
@@ -97,7 +95,6 @@ public sealed class CraftingTests
     [Fact]
     public void ARecipeTooBigForTheBenchIsNeverOffered()
     {
-        // The same pickaxe, as far as it will go into a two by two: nothing on that bench can make one.
         CraftingGrid small = Lay(2, "SS.T", ('S', ItemRegistry.For(BlockRegistry.Cobblestone)), ('T', ItemRegistry.Stick));
 
         Assert.True(small.Result.IsEmpty);

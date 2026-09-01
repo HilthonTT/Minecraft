@@ -4,11 +4,6 @@ using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>
-/// Close pine forest: denser in trees than anything else in the world, with little under them but moss,
-/// mushrooms and the odd boulder. What undergrowth there is stays low, since the point of a taiga next to a
-/// forest is that the trunks are what you see.
-/// </summary>
 public sealed class TaigaDecorator : IDecorator
 {
     private readonly PineTreeGenerator _pineTreeGenerator = new();
@@ -31,8 +26,6 @@ public sealed class TaigaDecorator : IDecorator
         }
         else if (random.Next(220) == 1)
         {
-            // Mushrooms do well in the shade a close wood casts, so they are commoner here than out in an
-            // open forest.
             Block mushroom = random.Next(2) == 0 ? BlockRegistry.RedMushroom : BlockRegistry.BrownMushroom;
             chunk.AddBlockAt(localX, worldY, localZ, BlockRegistry.GetState(mushroom));
         }

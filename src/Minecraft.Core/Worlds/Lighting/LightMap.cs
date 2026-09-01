@@ -23,9 +23,6 @@ public sealed class LightMap
         }
     }
 
-    /*
-    * Red channel
-    */
     public void SetRedBlockLightAt(uint localX, uint worldY, uint localZ, uint lightValue)
     {
         _map[(worldY << 8) + (localX << 4) + localZ] = (ushort)((_map[(worldY << 8) + (localX << 4) + localZ] & 0xFFF0) | (ushort)lightValue);
@@ -46,9 +43,6 @@ public sealed class LightMap
         return GetRedBlockLightAt((uint)chunkLocalPos.X, (uint)chunkLocalPos.Y, (uint)chunkLocalPos.Z);
     }
 
-    /*
-     * Green channel
-     */
     public void SetGreenBlockLightAt(uint localX, uint worldY, uint localZ, uint lightValue)
     {
         _map[(worldY << 8) + (localX << 4) + localZ] = (ushort)((_map[(worldY << 8) + (localX << 4) + localZ] & 0xFF0F) | (ushort)(lightValue << 4));
@@ -69,9 +63,6 @@ public sealed class LightMap
         return GetGreenBlockLightAt((uint)chunkLocalPos.X, (uint)chunkLocalPos.Y, (uint)chunkLocalPos.Z);
     }
 
-    /*
-     * Blue channel
-     */
     public void SetBlueBlockLightAt(uint localX, uint worldY, uint localZ, uint lightValue)
     {
         _map[(worldY << 8) + (localX << 4) + localZ] = (ushort)((_map[(worldY << 8) + (localX << 4) + localZ] & 0xF0FF) | (ushort)(lightValue << 8));
@@ -92,9 +83,6 @@ public sealed class LightMap
         return GetBlueBlockLightAt((uint)chunkLocalPos.X, (uint)chunkLocalPos.Y, (uint)chunkLocalPos.Z);
     }
 
-    /*
-     * Sun light intensity
-     */
     public void SetSunLightIntensityAt(uint localX, uint worldY, uint localZ, uint lightValue)
     {
         _map[(worldY << 8) + (localX << 4) + localZ] = (ushort)((_map[(worldY << 8) + (localX << 4) + localZ] & 0x0FFF) | (ushort)(lightValue << 12));
@@ -115,13 +103,6 @@ public sealed class LightMap
         return GetSunLightIntensityAt((uint)chunkLocalPos.X, (uint)chunkLocalPos.Y, (uint)chunkLocalPos.Z);
     }
 
-    /*
-     * General
-     */
-
-    /// <summary>
-    /// Returns the red, green and blue channel at the given coordinates and sets them in the returned light.
-    /// </summary>
     public Light GetLightColorAt(uint localX, uint worldY, uint localZ, uint mult = 1)
     {
         var light = new Light();

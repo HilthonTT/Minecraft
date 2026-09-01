@@ -8,7 +8,6 @@ using System.Text;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>The F2 debug readout: position, chunk, lighting and performance information.</summary>
 public sealed class UICanvasDebug : UICanvas
 {
     private readonly Game _game;
@@ -108,7 +107,6 @@ public sealed class UICanvasDebug : UICanvas
             $" G={cursorChunk.LightMap.GetGreenBlockLightAt(mouseBlockLocalPos)}" +
             $" B={cursorChunk.LightMap.GetBlueBlockLightAt(mouseBlockLocalPos)}");
 
-        // Read from the chunk the block is actually in, which need not be the one the player stands in.
         bool isTopBlock = cursorChunk.TopMostBlocks[mouseBlockLocalPos.X, mouseBlockLocalPos.Z] == mouseBlockLocalPos.Y;
         builder.AppendLine($"Is Top Block={isTopBlock}");
     }

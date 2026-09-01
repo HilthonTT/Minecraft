@@ -41,8 +41,6 @@ public sealed class PacketFactory
                 byte[] removalBytes = reader.ReadBytes(byteSize);
                 int numOfBlocks = DataConverter.BytesToInt32(removalBytes, ref head);
 
-                // The count is only believed as far as the bytes that arrived with it. Sizing the array from
-                // it alone would let one small packet ask for an array of any length at all.
                 if (numOfBlocks < 0 || (long)numOfBlocks * 3 * sizeof(int) > removalBytes.Length - head)
                 {
                     throw new InvalidDataException(
@@ -209,34 +207,17 @@ public sealed class PacketFactory
         }
     }
 
-    /// <summary>
-    /// The largest a length prefixed payload is allowed to say it is. A whole chunk, which is the biggest
-    /// thing that travels, is a fraction of this.
-    /// </summary>
     private const int MaxPayloadBytes = 4 * 1024 * 1024;
 
-    /// <summary>Room for far more text than anything typed into the chat box.</summary>
     private const int MaxStringBytes = 64 * 1024;
 
-    /// <summary>A block state is a handful of bytes; this is only a ceiling for one that lies about it.</summary>
     private const int MaxBlockStateBytes = 4 * 1024;
 
-    /// <summary>More chunks than a view distance could ever unload in one go.</summary>
     private const int MaxChunkUnloadCount = 64 * 1024;
 
     private static Vector3 ReadVector3(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
     private static Vector3i ReadVector3i(BinaryReader reader) => new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
 
-    /// <summary>
-    /// Reads a count written by the other end and refuses one that is out of range.
-    /// <para>
-    /// Every length here arrives from a socket, and on the server that socket is a client that may be saying
-    /// anything at all. Handed straight to <see cref="BinaryReader.ReadBytes"/> or to <c>new T[]</c>, a
-    /// four byte field is an invitation to allocate two gigabytes; a packet that never sends the bytes to
-    /// fill it costs the sender nothing. The read is cheap and the ceiling is far above anything the game
-    /// itself writes, so a number over it is a lie rather than a large message.
-    /// </para>
-    /// </summary>
     private static int ReadLength(BinaryReader reader, int maximum, string what)
     {
         int length = reader.ReadInt32();

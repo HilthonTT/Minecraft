@@ -3,13 +3,8 @@ using Minecraft.Core.Worlds.Blocks;
 
 namespace Minecraft.Core.Worlds.Structures.Villages;
 
-/// <summary>
-/// A fenced crop field: rows of wheat on tilled soil, split by walkways, with a gap in the fence facing the
-/// village.
-/// </summary>
 public sealed class VillageFarm : VillageBuilding
 {
-    /// <summary>How many rows of crops sit between two walkways.</summary>
     private const int RowsPerWalkway = 3;
 
     private readonly StructureBounds _plot;
@@ -17,7 +12,6 @@ public sealed class VillageFarm : VillageBuilding
     private readonly int _gateX;
     private readonly int _gateZ;
 
-    /// <param name="facing">The side the gate is on, which is the one turned towards the village centre.</param>
     public VillageFarm(StructureBounds plot, int floorY, Direction facing)
         : base(plot, facing, 1)
     {
@@ -51,7 +45,6 @@ public sealed class VillageFarm : VillageBuilding
                     continue;
                 }
 
-                // Every few rows is left bare so the field can be walked through.
                 if ((worldX - _plot.MinX) % RowsPerWalkway == 0)
                 {
                     writer.SetBlock(worldX, _floorY, worldZ, palette.Path);

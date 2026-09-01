@@ -2,8 +2,8 @@
 layout (location = 0) in vec3 vertexPosition;
 layout (location = 1) in vec2 vertexUv;
 
-out vec2 uv;				
-out vec2 fragmentPosition;				
+out vec2 uv;
+out vec2 fragmentPosition;
 
 void main()
 {

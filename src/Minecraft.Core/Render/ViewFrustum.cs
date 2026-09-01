@@ -4,12 +4,8 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render;
 
-/// <summary>
-/// Representation of a view frustum used for culling objects.
-/// </summary>
 public sealed class ViewFrustum
 {
-    //Implementation based on: https://cgvr.cs.uni-bremen.de/teaching/cg_literatur/lighthouse3d_view_frustum_culling/index.html
 
     internal struct FrustumPlane
     {
@@ -48,10 +44,10 @@ public sealed class ViewFrustum
         Vector3 nearCenter = camera.Position - zAxis * camera.CurrentProjection.DistanceNearPlane;
         Vector3 farCenter = camera.Position - zAxis * camera.CurrentProjection.DistanceFarPlane;
 
-        _frustumPlanes[0].normal = -zAxis; //near plane
+        _frustumPlanes[0].normal = -zAxis;
         _frustumPlanes[0].distanceToOrigin = Vector3.Dot(_frustumPlanes[0].normal, nearCenter);
 
-        _frustumPlanes[1].normal = zAxis; //far plane
+        _frustumPlanes[1].normal = zAxis;
         _frustumPlanes[1].distanceToOrigin = Vector3.Dot(_frustumPlanes[1].normal, farCenter);
 
         Vector3 temporary, normal;
@@ -59,25 +55,25 @@ public sealed class ViewFrustum
         temporary = (nearCenter + yAxis * _nearHeight) - camera.Position;
         temporary.Normalize();
         normal = Vector3.Cross(temporary, xAxis);
-        _frustumPlanes[2].normal = normal; //top plane
+        _frustumPlanes[2].normal = normal;
         _frustumPlanes[2].distanceToOrigin = Vector3.Dot(_frustumPlanes[2].normal, nearCenter + yAxis * _nearHeight);
 
         temporary = (nearCenter - yAxis * _nearHeight) - camera.Position;
         temporary.Normalize();
         normal = Vector3.Cross(xAxis, temporary);
-        _frustumPlanes[3].normal = normal; //bottom plane
+        _frustumPlanes[3].normal = normal;
         _frustumPlanes[3].distanceToOrigin = Vector3.Dot(_frustumPlanes[3].normal, nearCenter - yAxis * _nearHeight);
 
         temporary = (nearCenter - xAxis * _nearWidth) - camera.Position;
         temporary.Normalize();
         normal = Vector3.Cross(temporary, yAxis);
-        _frustumPlanes[4].normal = normal; //left plane
+        _frustumPlanes[4].normal = normal;
         _frustumPlanes[4].distanceToOrigin = Vector3.Dot(_frustumPlanes[4].normal, nearCenter - xAxis * _nearWidth);
 
         temporary = (nearCenter + xAxis * _nearWidth) - camera.Position;
         temporary.Normalize();
         normal = Vector3.Cross(yAxis, temporary);
-        _frustumPlanes[5].normal = normal; //right plane
+        _frustumPlanes[5].normal = normal;
         _frustumPlanes[5].distanceToOrigin = Vector3.Dot(_frustumPlanes[5].normal, nearCenter + xAxis * _nearWidth);
     }
 

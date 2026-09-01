@@ -3,7 +3,6 @@ using Minecraft.Core.Worlds.Chunks;
 
 namespace Minecraft.Core.Worlds.Decoration;
 
-/// <summary>Desert: cactus and dead bush over the sand, and nothing at all where it wears through to rock.</summary>
 public sealed class BarrenDecorator : IDecorator
 {
     public void Decorate(Chunk chunk, int worldY, int localX, int localZ, Random random)

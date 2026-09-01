@@ -5,19 +5,11 @@ using Minecraft.Core.Worlds.Structures;
 
 namespace Minecraft.Core.Worlds.Biomes;
 
-/// <summary>
-/// Wooded, rolling country. Its height comes from several octaves rather than one, so the ground beneath the
-/// trees has knolls and hollows in it instead of a single smooth swell.
-/// </summary>
 public sealed class ForestBiome : Biome
 {
     private const float TerrainDetail = 0.005F;
     private const double HeightVariation = 22;
 
-    /// <summary>
-    /// Every biome samples the one shared noise field, so each takes its own slice of the domain to keep
-    /// their height maps from being copies of one another.
-    /// </summary>
     private const float DomainOffset = 0F;
 
     protected override void DefineProperties()

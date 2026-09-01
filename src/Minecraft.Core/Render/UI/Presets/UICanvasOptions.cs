@@ -4,15 +4,6 @@ using System.Globalization;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// Where the game is set up to taste. Reached from the main menu and from the pause menu, and backs out to
-/// whichever of the two opened it.
-/// <para>
-/// Every slider is applied the moment it moves rather than on the way out, so the world behind the pause menu
-/// shows what a setting does while it is being chosen. That is the whole reason this screen dims the world
-/// rather than covering it.
-/// </para>
-/// </summary>
 public sealed class UICanvasOptions : UICanvasMenu
 {
     private const float BackdropTransparency = 0.72F;
@@ -62,7 +53,6 @@ public sealed class UICanvasOptions : UICanvasMenu
         Layout();
     }
 
-    /// <summary>Puts the sliders where the settings currently stand, in case anything else has moved them.</summary>
     public override void OnShown()
     {
         base.OnShown();
@@ -121,7 +111,6 @@ public sealed class UICanvasOptions : UICanvasMenu
             row += UISlider.Height + UISlider.Gap;
         }
 
-        // The last slider left a gap behind it that belongs between two sliders, not before the button.
         row += buttonGap - UISlider.Gap;
         _backButton.SetBounds(new Vector2(RowLeft, row), new Vector2(RowWidth, UIButton.Height));
 

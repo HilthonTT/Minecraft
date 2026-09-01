@@ -3,10 +3,6 @@ using Minecraft.Core.Network.NetHandler;
 
 namespace Minecraft.Core.Network.Packets;
 
-/// <summary>
-/// A player swinging at an entity. Carries nothing but who was hit: what a blow is worth, whether the target
-/// was close enough to reach and whether it survived are all the server's to decide.
-/// </summary>
 public sealed class PlayerAttackEntityPacket : Packet
 {
     public int EntityID { get; private set; }

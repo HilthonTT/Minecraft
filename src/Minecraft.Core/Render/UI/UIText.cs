@@ -4,10 +4,6 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI;
 
-/// <summary>
-/// A run of text on a canvas. Changing the text does not rebuild the mesh immediately; the component is
-/// queued with its canvas and rebuilt once per frame, so setting it repeatedly costs nothing extra.
-/// </summary>
 public sealed class UIText : UIComponent
 {
     private readonly TextMeshBuilder _meshBuilder = new();
@@ -39,8 +35,6 @@ public sealed class UIText : UIComponent
         Font = font;
         Scale = scale;
 
-        // Set through the backing field first, so the property setter below sees a change even when the
-        // initial text is empty and always queues the first mesh build.
         _text = string.Empty;
         Text = text;
         parentCanvas.AddComponentToClean(this);

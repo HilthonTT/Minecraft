@@ -107,8 +107,6 @@ public sealed class BlockSugarCane : Block
 
         world.QueueToRemoveBlockAt(blockPos);
 
-        // Cascade up the stack by hand: the block above is only notified once this one is actually gone,
-        // which happens too late for it to see that its support disappeared.
         BlockState blockUp = world.GetBlockAt(blockPos.Up());
         blockUp?.GetBlock().OnNotify(blockUp, blockState, world, blockPos.Up(), blockPos);
     }

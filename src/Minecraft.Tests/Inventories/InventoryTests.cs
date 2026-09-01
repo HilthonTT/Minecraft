@@ -8,7 +8,6 @@ namespace Minecraft.Tests.Inventories;
 [Collection(RegistryCollection.Name)]
 public sealed class InventoryTests
 {
-    /// <summary>An inventory in survival, which is the mode where anything is actually spent.</summary>
     private static Inventory Survival()
     {
         var inventory = new Inventory();

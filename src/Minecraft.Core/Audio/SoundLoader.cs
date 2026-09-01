@@ -3,16 +3,8 @@ using NVorbis;
 
 namespace Minecraft.Core.Audio;
 
-/// <summary>
-/// Decodes Ogg Vorbis files into <see cref="SoundClip"/>s, normalising everything onto the one format the
-/// mixer works in so that nothing has to be converted again while the game is running.
-/// </summary>
 public static class SoundLoader
 {
-    /// <summary>
-    /// Decodes one file, or null when it could not be read. A missing or broken sound is not worth taking
-    /// the game down for: it plays silently instead.
-    /// </summary>
     public static SoundClip? TryLoad(string absolutePath)
     {
         try
@@ -34,7 +26,6 @@ public static class SoundLoader
 
     private static float[] ReadAll(VorbisReader reader)
     {
-        // Sized from the length the file declares, so the common case fills it exactly and never grows.
         var samples = new List<float>((int)(reader.TotalTime.TotalSeconds * reader.SampleRate * reader.Channels) + 1024);
         var buffer = new float[reader.Channels * 4096];
 
@@ -47,7 +38,6 @@ public static class SoundLoader
         return [.. samples];
     }
 
-    /// <summary>Averages the channels together, which for these files means folding a stereo pair into one.</summary>
     private static float[] ToMono(float[] interleaved, int channels)
     {
         if (channels == 1)
@@ -70,11 +60,6 @@ public static class SoundLoader
         return mono;
     }
 
-    /// <summary>
-    /// Puts a clip onto the engine's sample rate by reading it back at a fractional step and interpolating
-    /// between neighbouring samples. Nearly every file is already at the right rate and returns untouched;
-    /// this is for the handful that are not, which would otherwise play at the wrong speed and pitch.
-    /// </summary>
     private static float[] Resample(float[] samples, int fromRate, int toRate)
     {
         if (fromRate == toRate || samples.Length == 0)

@@ -5,23 +5,10 @@ using Minecraft.Core.Network.Session;
 
 namespace Minecraft.Core.Network;
 
-/// <summary>
-/// The commands a player can type into the chat.
-/// <para>
-/// Run on the server, because everything they change is the server's: a client typing <c>/gamemode</c> is
-/// asking, the same way clicking a block is asking, and what comes back is the mode it has been put into. A
-/// reply goes to the one player who asked rather than to the room, since nobody else was told the question.
-/// </para>
-/// </summary>
 public static class ChatCommands
 {
-    /// <summary>What marks a line as a command rather than something to say.</summary>
     public const char Prefix = '/';
 
-    /// <summary>
-    /// Runs the message as a command if it is one, and reports whether it was. A message that is not a
-    /// command is left alone for the chat to broadcast.
-    /// </summary>
     public static bool TryHandle(Game game, ServerSession session, string message)
     {
         string trimmed = message.Trim();
@@ -78,9 +65,6 @@ public static class ChatCommands
         session.WritePacket(new PlayerGameModePacket(gameMode));
         session.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: false));
 
-        // Written back onto the world as well, so that a world reopens in the mode it was left in rather
-        // than in the one it happened to be created in. On a server with several players that also decides
-        // what the next person to join arrives in, which is the closest this game has to a world setting.
         game.Server.World.DefaultGameMode = gameMode;
 
         Reply(session, "Game mode set to " + Describe(gameMode) + ".");
@@ -110,10 +94,6 @@ public static class ChatCommands
 
     private static string Describe(GameMode gameMode) => gameMode.ToString().ToLowerInvariant();
 
-    /// <summary>
-    /// Answers the one player who asked. An empty sender is what marks a line as coming from the game rather
-    /// than from somebody, which is how the chat tells the two apart on the way in.
-    /// </summary>
     private static void Reply(ServerSession session, string message)
     {
         session.WritePacket(new ChatPacket(string.Empty, message));

@@ -4,9 +4,6 @@ using Minecraft.Core.Worlds.Blocks.Types;
 
 namespace Minecraft.Core.Shapes;
 
-/// <summary>
-/// Maps block ids onto the model used to draw them. Indexed directly by block id, so slot zero is unused.
-/// </summary>
 public sealed class BlockModelRegistry
 {
     public BlockModel[] Models { get; }
@@ -52,9 +49,6 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.Torch.Id] = new TorchModel(textureAtlas);
         Models[BlockRegistry.CraftingTable.Id] = new BlockModelCraftingTable(textureAtlas);
 
-        // Water is registered once per depth it can stand at, and every one of those is drawn the same way
-        // to a different waterline, so they are filled in by walking the registry rather than by naming each
-        // of the nine in turn.
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {
             if (BlockRegistry.GetBlockFromIdentifier(id) is BlockWater water)
@@ -63,8 +57,6 @@ public sealed class BlockModelRegistry
             }
         }
 
-        // Air has no geometry, but the mesh generator still indexes the table by block id when it walks a
-        // section, so the slot has to hold something that reports every side as see through.
         Models[BlockRegistry.Air.Id] = new BlockModelAir(textureAtlas);
     }
 }

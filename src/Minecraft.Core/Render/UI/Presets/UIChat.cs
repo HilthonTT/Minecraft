@@ -6,22 +6,13 @@ using System.Text;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
-/// <summary>
-/// The chat log and the input line below it, laid out along the bottom left of the canvas it is given.
-///
-/// Messages are kept as they arrived and wrapped into display lines against the current chat width, so a
-/// resize only has to redo the wrapping. Every display line owns a text component and a backdrop of its own,
-/// which is what lets a line fade out on its own once it has been on screen long enough.
-/// </summary>
 public sealed class UIChat
 {
-    /// <summary>Messages kept for scrolling back through, in the order they arrived.</summary>
     private const int MaxStoredMessages = 100;
 
     private const int VisibleLinesClosed = 10;
     private const int VisibleLinesOpen = 20;
 
-    /// <summary>How long a line stays fully visible before it fades out, while the chat is closed.</summary>
     private const float LineVisibleSeconds = 10;
     private const float LineFadeSeconds = 1;
 
@@ -60,13 +51,10 @@ public sealed class UIChat
     private readonly HeldKey _caretLeftKey = new(Keys.Left);
     private readonly HeldKey _caretRightKey = new(Keys.Right);
 
-    /// <summary>The messages as they arrived, before wrapping.</summary>
     private readonly List<ChatLine> _messages = [];
 
-    /// <summary>The messages wrapped to the chat width, oldest first. One entry is one line on screen.</summary>
     private readonly List<ChatLine> _lines = [];
 
-    /// <summary>Previously sent messages, oldest first, for recall with the arrow keys.</summary>
     private readonly List<string> _sentMessages = [];
 
     private float _lineHeightPixels;
@@ -78,16 +66,13 @@ public sealed class UIChat
     private string _input = string.Empty;
     private int _caretIndex;
 
-    /// <summary>How many lines the log is scrolled up from the newest one.</summary>
     private int _scrollOffset;
 
-    /// <summary>Which sent message is being recalled, or -1 while editing a line of its own.</summary>
     private int _recallIndex = -1;
     private string _draftBeforeRecall = string.Empty;
 
     private DateTime _lastInputEditAt = DateTime.Now;
 
-    /// <summary>Whether the input line is open, which is when typing takes priority over the controls.</summary>
     public bool IsTyping { get; private set; }
 
     public UIChat(Game game, UICanvas canvas)
@@ -96,8 +81,6 @@ public sealed class UIChat
         _canvas = canvas;
         _font = FontRegistry.GetFont(FontType.Arial);
 
-        // Added backdrop first and text second, since a canvas draws its components in the order it was
-        // given them.
         for (int slot = 0; slot < VisibleLinesOpen; slot++)
         {
             _lineBackdrops[slot] = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White)
@@ -142,13 +125,10 @@ public sealed class UIChat
         Layout();
     }
 
-    /// <summary>Adds a message somebody sent, shown as the sender's name followed by what they said.</summary>
     public void AddUserMessage(string sender, string message) => AddLine("<" + sender + "> " + message, _messageColor);
 
-    /// <summary>Adds a message from the game itself, told apart from what players say by its colour.</summary>
     public void AddSystemMessage(string message) => AddLine(message, _systemColor);
 
-    /// <summary>Forgets every message, leaving the input line and the recall history as they were.</summary>
     public void Clear()
     {
         _messages.Clear();
@@ -158,9 +138,6 @@ public sealed class UIChat
 
     public void Update()
     {
-        // A menu on top of the world has the keyboard, so nothing typed into it reaches the chat. The test
-        // is on the state rather than on the controls being free, since an open chat is itself what takes
-        // them, and it still has to be able to see the keys that close it again.
         if (_game.Window.IsFocused && _game.IsPlaying)
         {
             UpdateInput();
@@ -170,7 +147,6 @@ public sealed class UIChat
         UpdateInputLine();
     }
 
-    /// <summary>Re-lays out and re-wraps everything against the canvas size it has just been given.</summary>
     public void OnCanvasResized()
     {
         Layout();
@@ -181,8 +157,6 @@ public sealed class UIChat
     {
         if (!IsTyping)
         {
-            // Whatever was typed on the frame the chat opens is dropped, so the key that opened it does not
-            // end up in the input line.
             if (Game.Input.OnKeyPress(Keys.T) ||
                 Game.Input.OnKeyPress(Keys.Enter) ||
                 Game.Input.OnKeyPress(Keys.KeyPadEnter))
@@ -244,8 +218,6 @@ public sealed class UIChat
 
         _game.Client.WritePacket(new ChatPacket(_game.ClientPlayer.Name, message));
 
-        // Repeating the line that is already on top of the recall list would only make it longer to walk
-        // back through.
         if (_sentMessages.Count == 0 || _sentMessages[^1] != message)
         {
             _sentMessages.Add(message);
@@ -316,8 +288,6 @@ public sealed class UIChat
     {
         if (Game.Input.OnKeyPress(Keys.Up) && _sentMessages.Count > 0)
         {
-            // The line being written is put aside on the way into the history, so walking back out of it
-            // returns what was there.
             if (_recallIndex < 0)
             {
                 _draftBeforeRecall = _input;
@@ -361,7 +331,6 @@ public sealed class UIChat
             _lastInputEditAt = DateTime.Now;
         }
 
-        // A shortcut produces no typed characters of its own, so the clipboard is read directly.
         if ((Game.Input.OnKeyDown(Keys.LeftControl) || Game.Input.OnKeyDown(Keys.RightControl)) &&
             Game.Input.OnKeyPress(Keys.V))
         {
@@ -421,8 +390,6 @@ public sealed class UIChat
         int linesBefore = _lines.Count;
         RebuildLines();
 
-        // Somebody reading further up stays where they were rather than being pulled along by the new
-        // message, which is also why the offset counts from the newest line.
         if (_scrollOffset > 0)
         {
             int maxScroll = Math.Max(0, _lines.Count - VisibleLinesOpen);
@@ -442,7 +409,6 @@ public sealed class UIChat
         }
     }
 
-    /// <summary>Breaks a message into lines that fit the chat width, keeping words whole where it can.</summary>
     private List<string> WrapText(string text)
     {
         var wrappedLines = new List<string>();
@@ -461,7 +427,6 @@ public sealed class UIChat
             {
                 float characterWidth = _font.MeasureWidth(text[lineStart + fitting].ToString(), TextScale);
 
-                // At least one character per line, or a character wider than the box would never fit.
                 if (fitting > 0 && width + characterWidth > _textWidthPixels)
                 {
                     break;
@@ -485,7 +450,6 @@ public sealed class UIChat
             }
             else
             {
-                // A single word longer than the box, which has to be broken mid-word.
                 wrappedLines.Add(text[lineStart..(lineStart + fitting)]);
                 lineStart += fitting;
             }
@@ -501,7 +465,6 @@ public sealed class UIChat
 
         for (int slot = 0; slot < _lineTexts.Length; slot++)
         {
-            // Slot zero is the bottom line of the log, so the slots walk backwards through the history.
             int lineIndex = _lines.Count - 1 - _scrollOffset - slot;
             float transparency = 0;
 
@@ -550,7 +513,6 @@ public sealed class UIChat
             return;
         }
 
-        // A line longer than the box scrolls sideways, far enough that the caret is always in view.
         int firstVisible = 0;
         while (firstVisible < _caretIndex &&
                _font.MeasureWidth(_input[firstVisible.._caretIndex], TextScale) > _textWidthPixels - CaretWidthPixels)
@@ -569,8 +531,6 @@ public sealed class UIChat
         float caretOffset = _font.MeasureWidth(_input[firstVisible.._caretIndex], TextScale);
         _inputCaret.PixelPositionInCanvas = new Vector2(_textLeftPixels + caretOffset, _inputTextTopPixels);
 
-        // The caret holds still while something is being typed and only starts blinking once it stops, so
-        // it never blinks out from under the character just entered.
         double secondsSinceEdit = (DateTime.Now - _lastInputEditAt).TotalSeconds;
         _inputCaret.IsVisible = secondsSinceEdit % CaretBlinkSeconds < CaretBlinkSeconds / 2;
     }
@@ -581,7 +541,6 @@ public sealed class UIChat
         _chatWidthPixels = Math.Clamp(
             _canvas.PixelWidth * ChatWidthFraction, MinChatWidthPixels, MaxChatWidthPixels);
 
-        // A window narrower than the smallest chat would otherwise have it running off the right hand side.
         _chatWidthPixels = Math.Min(_chatWidthPixels, Math.Max(1, _canvas.PixelWidth - (2 * MarginPixels)));
         _textWidthPixels = _chatWidthPixels - (2 * HorizontalPaddingPixels);
         _textLeftPixels = MarginPixels + HorizontalPaddingPixels;
@@ -607,10 +566,6 @@ public sealed class UIChat
         }
     }
 
-    /// <summary>
-    /// Strips out anything that would break the layout. Newlines and tabs are the ones that matter, since a
-    /// message is wrapped by the chat itself and a line it did not decide on would not line up with a slot.
-    /// </summary>
     private static string Sanitise(string text)
     {
         var builder = new StringBuilder(text.Length);

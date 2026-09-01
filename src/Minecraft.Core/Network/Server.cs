@@ -13,15 +13,10 @@ using System.Net.Sockets;
 
 namespace Minecraft.Core.Network;
 
-/// <summary>
-/// The authoritative side of the game. Accepting connections blocks, so it runs on its own thread, while
-/// everything that touches the world happens on the main thread through <see cref="Update"/>.
-/// </summary>
 public sealed class Server
 {
     private const string SavesDirectoryName = "saves";
 
-    /// <summary>Worlds live under this directory, next to the executable.</summary>
     public static string SavesDirectory => Assets.Path(SavesDirectoryName);
 
     private readonly Game _game;
@@ -41,10 +36,8 @@ public sealed class Server
 
     public WorldServer World { get; private set; } = null!;
 
-    /// <summary>Whether the server accepts connections from anyone other than the host.</summary>
     public bool IsOpenToPublic { get; }
 
-    /// <summary>The port the server is listening on.</summary>
     public int Port => _port;
 
     public Server(Game game, bool isOpenToPublic)
@@ -53,17 +46,10 @@ public sealed class Server
         IsOpenToPublic = isOpenToPublic;
     }
 
-    /// <summary>
-    /// Opens the world and starts listening on every interface. Reports whether that worked, since the port
-    /// being taken is something the player has to be told about rather than a crash.
-    /// </summary>
     public bool Start(int port)
     {
         _port = port;
 
-        // Bound before the world is loaded, and on this thread rather than the listener's, so that a client
-        // connecting the moment this returns - which is what starting a singleplayer world does - cannot
-        // arrive before there is a socket to arrive at.
         try
         {
             _tcpServer = new TcpListener(IPAddress.Any, _port);
@@ -78,7 +64,6 @@ public sealed class Server
 
         _storage = new WorldStorage(SavesDirectory, _game.WorldName);
 
-        // Discarded before the world is read, so it is regenerated from a new seed rather than loaded.
         if (_game.FreshWorld)
         {
             _storage.DeleteExistingWorld();
@@ -103,7 +88,6 @@ public sealed class Server
         _tcpServer?.Stop();
         _tcpServer = null;
 
-        // Saved before the storage is torn down, so the last minute of play is not lost.
         World?.SaveAndFlush();
         _storage?.Dispose();
         _storage = null;
@@ -113,7 +97,6 @@ public sealed class Server
     {
         Logger.Info("Started listening for connections on port " + _port);
 
-        // Held onto here, since the field is let go of once the server is stopped.
         TcpListener tcpServer = _tcpServer!;
 
         while (_isRunning)
@@ -125,7 +108,6 @@ public sealed class Server
             }
             catch (SocketException)
             {
-                // Thrown when the listener is stopped from another thread, which is how shutdown works.
                 break;
             }
 

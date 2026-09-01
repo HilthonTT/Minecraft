@@ -5,7 +5,6 @@ namespace Minecraft.Core.Games;
 
 public static class ArgsParser
 {
-    /// <summary>A description of every start argument, shown when one of them is invalid.</summary>
     public const string Usage = """
         Usage: Minecraft.App [key=value ...]
 
@@ -23,7 +22,6 @@ public static class ArgsParser
           loglevel=packet|info|warn|error   Defaults to error.
         """;
 
-    /// <summary>Singleplayer, so that launching with no arguments at all lands somewhere playable.</summary>
     public const RunMode DefaultRunMode = RunMode.ClientServer;
 
     public const string DefaultIP = "127.0.0.1";
@@ -34,16 +32,11 @@ public static class ArgsParser
 
     public const string DefaultWorldName = "world";
 
-    /// <summary>What a world is created in when nothing says otherwise.</summary>
     public const GameMode DefaultGameMode = GameMode.Survival;
 
     private static readonly string[] _knownKeys =
         ["mode", "ip", "port", "world", "seed", "gamemode", "fresh", "menu", "loglevel"];
 
-    /// <summary>
-    /// Parses <c>key=value</c> start arguments. Every argument is optional; anything left out falls back to
-    /// the defaults above, which run a singleplayer game on the loopback address.
-    /// </summary>
     public static StartArgs ParseProgramArgs(string[] args)
     {
         Dictionary<string, string> parsedArgs = [];
@@ -51,8 +44,6 @@ public static class ArgsParser
         {
             string[] keyValue = arg.Split('=', 2);
 
-            // These go straight to the console rather than through the logger: the log level is itself one
-            // of the arguments being parsed here, and at its default it would swallow them.
             if (keyValue.Length != 2)
             {
                 Console.Error.WriteLine("Ignoring start argument '" + arg + "'. Arguments are of the form key=value.");
@@ -61,7 +52,6 @@ public static class ArgsParser
 
             string key = keyValue[0].Trim().ToLowerInvariant();
 
-            // A misspelled key would otherwise be silently replaced by its default, which is confusing.
             if (!_knownKeys.Contains(key))
             {
                 Console.Error.WriteLine("Ignoring unknown start argument '" + key + "'.");

@@ -14,13 +14,8 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render;
 
-/// <summary>
-/// The function key debug tools: hitbox and chunk border overlays, a detached camera, the debug readout and
-/// a few world editing shortcuts.
-/// </summary>
 public sealed class DebugHelper
 {
-    /// <summary>How far the detached debug camera is placed above the player.</summary>
     private const int DebugCameraHeightAbovePlayer = 100;
 
     private readonly WireframeRenderer _wireframeRenderer;
@@ -60,9 +55,6 @@ public sealed class DebugHelper
         Render();
     }
 
-    /// <summary>
-    /// Closes down the tools that read from the world, since the world they were pointed at is being left.
-    /// </summary>
     public void OnWorldUnloaded()
     {
         if (_debugCanvas is not null)
@@ -85,8 +77,6 @@ public sealed class DebugHelper
 
     private void HandleInput()
     {
-        // The function keys edit and look into the world, so they belong to the player rather than to
-        // whatever menu is covering it.
         if (!_game.IsGameplayInputEnabled)
         {
             return;
@@ -126,8 +116,6 @@ public sealed class DebugHelper
             BuildTestRoom();
         }
 
-        // Off the end of the run above rather than in the middle of it: F5 is the view the player is watched
-        // from, which the player owns rather than the debug tools.
         else if (Game.Input.OnKeyPress(Keys.F10))
         {
             _renderChunkBorders = !_renderChunkBorders;
@@ -162,8 +150,6 @@ public sealed class DebugHelper
 
         _debugCamera.SetPosition(_game.ClientPlayer.Position + new Vector3(0, DebugCameraHeightAbovePlayer, 0));
 
-        // Stopped just short of straight down: at exactly ninety degrees the look vector is parallel to the
-        // world up axis and the view matrix collapses.
         _debugCamera.SetPitchAndYaw(-MathF.PI / 2.0F + 0.1F, 0);
         _game.MasterRenderer.SetActiveCamera(_debugCamera);
     }
@@ -208,7 +194,6 @@ public sealed class DebugHelper
         }
     }
 
-    /// <summary>Builds a hollow grass box around the player, handy for testing block lighting.</summary>
     private void BuildTestRoom()
     {
         const int size = 8;

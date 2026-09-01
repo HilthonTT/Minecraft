@@ -7,27 +7,15 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render;
 
-/// <summary>
-/// Builds a single block as a mesh of its own, standing in no world and buried against nothing.
-/// <para>
-/// Every face is taken, hidden ones included, since a block held in a hand or drawn in a slot has no
-/// neighbours for any of them to be covered by, and the mesh is pulled back onto its own middle so that
-/// turning it spins it on the spot rather than swinging it around the corner its model is built from.
-/// </para>
-/// </summary>
 public static class BlockIconMesh
 {
-    // The same shading by orientation the chunk mesher uses, so a block off in a corner of the screen is lit
-    // like one in the world rather than reading as a flat silhouette of itself.
     private const uint TopBrightness = 60;
     private const uint BottomBrightness = 36;
     private const uint SideXBrightness = 44;
     private const uint SideZBrightness = 52;
 
-    /// <summary>Lightmap values are 0..15 while the packed channels are 0..63, so samples are scaled up.</summary>
     public const uint LightScale = 4;
 
-    /// <summary>Open daylight, which is what a block drawn on the interface is lit by wherever the player is.</summary>
     public static Light FullDaylight => new(0, 0, 0, 15 * LightScale, 0);
 
     public static VAOModel Build(BlockModelRegistry blockModelRegistry, BlockState state, Light light)
@@ -95,7 +83,6 @@ public static class BlockIconMesh
         }
     }
 
-    /// <summary>Which of the fixed face shades an outward pointing normal falls under.</summary>
     private static uint BrightnessFor(Vector3 normal)
     {
         if (normal.LengthSquared < 0.0001F)
