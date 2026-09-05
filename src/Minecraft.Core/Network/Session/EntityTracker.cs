@@ -55,25 +55,36 @@ public sealed class EntityTracker
 
             _entitiesInRange.Add(entity.ID);
 
-            if (!_trackedEntities.Add(entity.ID))
+            if (!Send(DescribeEntity(entity)))
             {
-                _session.WritePacket(new EntityDataPacket(entity.ID, entity.Position, entity.Velocity, entity.Yaw));
-                continue;
+                return;
             }
-
-            if (entity is DroppedItem item)
-            {
-                _session.WritePacket(new ItemSpawnPacket(
-                    item.ID,
-                    item.Position,
-                    item.Stack.Item!.Id,
-                    item.Stack.Count,
-                    item.Stack.Damage));
-                continue;
-            }
-
-            _session.WritePacket(new EntitySpawnPacket(entity.EntityType, entity.ID, entity.Position, entity.Yaw));
         }
+    }
+
+    private Packet DescribeEntity(Entity entity)
+    {
+        if (!_trackedEntities.Add(entity.ID))
+        {
+            return new EntityDataPacket(entity.ID, entity.Position, entity.Velocity, entity.Yaw);
+        }
+
+        if (entity is DroppedItem item)
+        {
+            return new ItemSpawnPacket(
+                item.ID,
+                item.Position,
+                item.Stack.Item!.Id,
+                item.Stack.Count,
+                item.Stack.Damage);
+        }
+
+        return new EntitySpawnPacket(entity.EntityType, entity.ID, entity.Position, entity.Yaw);
+    }
+
+    private bool Send(Packet packet)
+    {
+        return _session.State != SessionState.Closed && _session.WritePacket(packet);
     }
 
     private void StopTrackingEverythingElse()
@@ -91,7 +102,11 @@ public sealed class EntityTracker
         foreach (int entityId in _toStopTracking)
         {
             _trackedEntities.Remove(entityId);
-            _session.WritePacket(new EntityDespawnPacket(entityId));
+
+            if (!Send(new EntityDespawnPacket(entityId)))
+            {
+                return;
+            }
         }
     }
 

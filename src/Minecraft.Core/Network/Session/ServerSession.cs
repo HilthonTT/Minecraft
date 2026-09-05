@@ -20,4 +20,12 @@ public sealed class ServerSession : Session
         _chunkProvider.Update();
         _entityTracker.Update(deltaTimeSeconds);
     }
+
+    public void ReleaseWorldPresence()
+    {
+        if (Player?.World is { } world)
+        {
+            _chunkProvider.ReleaseAll(world);
+        }
+    }
 }

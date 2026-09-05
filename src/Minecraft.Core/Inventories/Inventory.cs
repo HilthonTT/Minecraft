@@ -293,16 +293,16 @@ public sealed class Inventory
         OnChangedHandler?.Invoke();
     }
 
-    public void ReturnCursorStack()
+    public ItemStack ReturnCursorStack()
     {
         if (CursorStack.IsEmpty)
         {
-            return;
+            return ItemStack.Empty;
         }
 
         ItemStack cursor = CursorStack;
         CursorStack = ItemStack.Empty;
-        TryAdd(cursor);
+        return TryAdd(cursor);
     }
 
     public void ClickCraftingSlot(CraftingGrid grid, int index, bool rightButton)
@@ -379,11 +379,19 @@ public sealed class Inventory
         OnChangedHandler?.Invoke();
     }
 
-    public void ReturnCraftingGrid(CraftingGrid grid)
+    public List<ItemStack> ReturnCraftingGrid(CraftingGrid grid)
     {
+        List<ItemStack> leftovers = [];
+
         foreach (ItemStack stack in grid.TakeAll())
         {
-            TryAdd(stack);
+            ItemStack leftover = TryAdd(stack);
+            if (!leftover.IsEmpty)
+            {
+                leftovers.Add(leftover);
+            }
         }
+
+        return leftovers;
     }
 }

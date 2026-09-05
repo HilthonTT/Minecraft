@@ -71,6 +71,7 @@ public sealed class ChunkStore : IDisposable
 
             if (chunk.GridX != gridX || chunk.GridZ != gridZ)
             {
+                world.ChunkPool.ReturnObject(chunk);
                 throw new InvalidDataException(
                     $"Chunk file for ({gridX}, {gridZ}) holds chunk ({chunk.GridX}, {chunk.GridZ}).");
             }

@@ -45,6 +45,7 @@ public sealed class BlockTnt : Block
             return;
         }
 
+        tnt.BlockPosition = blockPos;
         tnt.ElapsedSecondsSinceTrigger += deltaTime;
 
         float fuseSeconds = tnt.Trigger == ExplosionTrigger.PlayerInteraction
@@ -82,7 +83,7 @@ public sealed class BlockTnt : Block
 
                     Vector3i target = source.BlockPosition + new Vector3i(x, y, z);
                     BlockState state = world.GetBlockAt(target);
-                    if (state.GetBlock() == BlockRegistry.Air)
+                    if (state.GetBlock() == BlockRegistry.Air || !state.GetBlock().IsBreakable)
                     {
                         continue;
                     }

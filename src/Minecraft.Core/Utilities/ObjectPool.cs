@@ -33,6 +33,14 @@ public sealed class ObjectPool<T>
         }
     }
 
+    public bool IsLentOut(T item)
+    {
+        lock (_lock)
+        {
+            return _lended.Contains(item);
+        }
+    }
+
     public void ReturnObject(T item)
     {
         lock (_lock)

@@ -111,6 +111,39 @@ public sealed class ChunkProvider
         }
     }
 
+    public void ReleaseAll(World world)
+    {
+        int unloaded = 0;
+
+        foreach (Vector2 chunkPos in _currentlyLoadedChunks)
+        {
+            if (world.LoadedChunks.TryGetValue(chunkPos, out Chunk? chunk) && !world.RemovePlayerPresenceOfChunk(chunk))
+            {
+                continue;
+            }
+
+            if (!world.LoadedChunks.ContainsKey(chunkPos))
+            {
+                unloaded++;
+            }
+        }
+
+        Logger.Info(
+            "Player " + _player?.ID + " let go of " + _currentlyLoadedChunks.Count +
+            " chunks, unloading " + unloaded + " of them.");
+
+        _currentlyLoadedChunks.Clear();
+        _remainingChunkRequests.Clear();
+
+        lock (_chunkRetrievalLock)
+        {
+            while (_receivedChunkData.Count > 0)
+            {
+                _receivedChunkData.Dequeue().Discard();
+            }
+        }
+    }
+
     private Queue<(int DistanceToPlayer, Vector2 GridPosition)> GetChunkLoadQueue(World world, Vector2 playerGridPosition)
     {
         Queue<(int, Vector2)> visibleChunks = new();
@@ -165,7 +198,14 @@ public sealed class ChunkProvider
     {
         lock (_chunkRetrievalLock)
         {
-            _receivedChunkData.Enqueue(output);
+            if (_session.State == SessionState.Closed)
+            {
+                output.Discard();
+            }
+            else
+            {
+                _receivedChunkData.Enqueue(output);
+            }
 
             var request = new GenerateChunkRequestOutgoing(
                 new Vector2(output.Chunk.GridX, output.Chunk.GridZ),
@@ -225,13 +265,40 @@ public sealed class ChunkProvider
         }
 
         Chunk chunk = output.Chunk;
-        if (_session.IsChunkVisible(new Vector2(chunk.GridX, chunk.GridZ)))
+        World world = output.World;
+        Vector2 chunkPos = output.GridPosition;
+
+        if (!_session.IsChunkVisible(chunkPos))
         {
-            AddPresenceToChunkInWorld(output.World, chunk);
+            Logger.Warn("Wasted chunk generation at chunk " + chunkPos);
+            output.Discard();
+            return;
         }
-        else
+
+        if (world.LoadedChunks.TryGetValue(chunkPos, out Chunk? alreadyLoaded))
         {
-            Logger.Warn("Wasted chunk generation at chunk " + chunk.GridX + ", " + chunk.GridZ);
+            if (ReferenceEquals(alreadyLoaded, chunk))
+            {
+                output.Adopt();
+            }
+            else
+            {
+                output.Discard();
+            }
+
+            AddPresenceToChunkInWorld(world, alreadyLoaded);
+            return;
         }
+
+        if (chunk.GridX != (int)chunkPos.X || chunk.GridZ != (int)chunkPos.Y || !world.ChunkPool.IsLentOut(chunk))
+        {
+            Logger.Warn("Chunk " + chunkPos + " was unloaded again before this session could use it. Asking for it once more.");
+            output.Discard();
+            LoadChunk(world, chunkPos);
+            return;
+        }
+
+        output.Adopt();
+        AddPresenceToChunkInWorld(world, chunk);
     }
 }

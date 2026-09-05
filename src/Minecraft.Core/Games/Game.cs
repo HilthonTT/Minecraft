@@ -204,8 +204,12 @@ public sealed class Game
             return;
         }
 
-        MasterRenderer.InventoryCanvas.ReturnBenchContents();
-        ClientPlayer.Inventory.ReturnCursorStack();
+        foreach (ItemStack leftover in MasterRenderer.InventoryCanvas.ReturnBenchContents())
+        {
+            ClientPlayer.ThrowAway(leftover);
+        }
+
+        ClientPlayer.ThrowAway(ClientPlayer.Inventory.ReturnCursorStack());
         EnterState(GameState.Playing);
     }
 

@@ -183,7 +183,7 @@ public sealed class MenuController
         string trimmed = worldName.Trim();
         if (trimmed.Length == 0)
         {
-            _worldSetup.SetStatus("Give the world a name before playing it.", isError: true);
+            GetCanvas(_screen)?.SetStatus("Give the world a name before playing it.", isError: true);
             return;
         }
 

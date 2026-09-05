@@ -265,7 +265,10 @@ public sealed class WorldServer : World
             return null;
         }
 
-        AddPlayerPresenceToChunk(_worldGenerator.ProvideChunkAt(chunkX, chunkZ));
+        if (!LoadedChunks.ContainsKey(new Vector2(chunkX, chunkZ)))
+        {
+            AddPlayerPresenceToChunk(_worldGenerator.ProvideChunkAt(chunkX, chunkZ));
+        }
 
         for (int y = Constants.MAX_BUILD_HEIGHT - 4; y >= _worldGenerator.SeaLevel; y--)
         {

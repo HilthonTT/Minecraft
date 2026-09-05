@@ -210,8 +210,13 @@ public sealed class ClientNetHandler : INetHandler
 
         var picked = new ItemStack(collected, itemPickupPacket.Count, itemPickupPacket.Damage);
 
-        _game.ClientPlayer.Inventory.TryAdd(picked);
-        _game.SoundDirector.OnItemPickedUp(_game.ClientPlayer.Position);
+        ItemStack leftover = _game.ClientPlayer.Inventory.TryAdd(picked);
+        _game.ClientPlayer.ThrowAway(leftover);
+
+        if (leftover.Count < picked.Count)
+        {
+            _game.SoundDirector.OnItemPickedUp(_game.ClientPlayer.Position);
+        }
     }
 
     public void ProcessPlayerFellPacket(PlayerFellPacket playerFellPacket)
@@ -284,17 +289,17 @@ public sealed class ClientNetHandler : INetHandler
         {
             Logger.Info("You were disconnected for reason: " + playerLeavePacket.Reason + " Message: " + playerLeavePacket.Message);
             _session.State = SessionState.Closed;
+            return;
         }
-        else
-        {
-            Logger.Info("Player " + playerLeavePacket.ID + " left for reason " + playerLeavePacket.Reason + " with message " + playerLeavePacket.Message);
 
-            if (_game.World.LoadedEntities.TryGetValue(playerLeavePacket.ID, out Entity? leavingEntity) &&
-                leavingEntity is OtherClientPlayer leavingPlayer)
-            {
-                _game.MasterRenderer.IngameCanvas.AddSystemMessage(leavingPlayer.Name + " left the game");
-            }
+        Logger.Info("Player " + playerLeavePacket.ID + " left for reason " + playerLeavePacket.Reason + " with message " + playerLeavePacket.Message);
+
+        if (_game.World.LoadedEntities.TryGetValue(playerLeavePacket.ID, out Entity? leavingEntity) &&
+            leavingEntity is OtherClientPlayer leavingPlayer)
+        {
+            _game.MasterRenderer.IngameCanvas.AddSystemMessage(leavingPlayer.Name + " left the game");
         }
+
         _game.World.DespawnEntity(playerLeavePacket.ID);
     }
 

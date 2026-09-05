@@ -136,11 +136,7 @@ public sealed class WorldGenerator
             }
 
             Chunk chunk = ProvideChunkAt((int)request.GridPosition.X, (int)request.GridPosition.Y);
-            var output = new GenerateChunkOutput
-            {
-                Chunk = chunk,
-                World = request.World,
-            };
+            var output = new GenerateChunkOutput(chunk, request.World, request.GridPosition, waitingRequests.Count);
 
             foreach (GenerateChunkRequest waitingRequest in waitingRequests)
             {

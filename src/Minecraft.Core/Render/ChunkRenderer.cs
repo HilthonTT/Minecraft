@@ -198,6 +198,13 @@ public sealed class ChunkRenderer
             }
 
             ChunkRemeshLayout chunkMesh = _availableChunkMesh;
+
+            if (_game.World?.LoadedChunks.ContainsKey(chunkMesh.ChunkGridPosition) != true)
+            {
+                _chunkAvailableToRemesh = false;
+                return;
+            }
+
             if (_toRenderChunks.TryGetValue(chunkMesh.ChunkGridPosition, out RenderChunk? renderChunk))
             {
                 renderChunk.HardBlocksModel?.CleanUp();

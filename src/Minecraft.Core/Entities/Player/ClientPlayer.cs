@@ -414,6 +414,16 @@ public sealed class ClientPlayer : Player
         }
     }
 
+    public void ThrowAway(ItemStack stack)
+    {
+        if (stack.IsEmpty || IsCreative || _game.Client is null)
+        {
+            return;
+        }
+
+        _game.Client.WritePacket(new PlayerDropItemPacket(stack.Item!.Id, stack.Count, stack.Damage));
+    }
+
     private void UpdateDropInput()
     {
         if (!_game.Window.IsFocused || IsCreative || !Game.Input.OnKeyPress(Keys.Q))

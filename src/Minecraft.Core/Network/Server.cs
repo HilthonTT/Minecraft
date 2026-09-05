@@ -209,6 +209,8 @@ public sealed class Server
 
             _keepAlives.Remove(session);
 
+            session.ReleaseWorldPresence();
+
             if (session.Player is not null)
             {
                 World.DespawnEntity(session.Player.ID);

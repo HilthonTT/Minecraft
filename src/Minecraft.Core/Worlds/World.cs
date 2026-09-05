@@ -435,10 +435,10 @@ public class World
 
         ReadOnlySpan<Vector2> offsets =
         [
-            new(-1, -1),
-            new(-1, 1),
-            new(1, 1),
-            new(1, -1),
+            new(-1, 0),
+            new(1, 0),
+            new(0, -1),
+            new(0, 1),
         ];
 
         foreach (Vector2 offset in offsets)

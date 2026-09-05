@@ -146,11 +146,13 @@ public sealed class UICanvasInventory : UICanvas
         LayOut();
     }
 
-    public void ReturnBenchContents()
+    public List<ItemStack> ReturnBenchContents()
     {
         Inventory inventory = _game.ClientPlayer.Inventory;
-        inventory.ReturnCraftingGrid(_tableGrid);
-        inventory.ReturnCraftingGrid(inventory.Crafting);
+
+        List<ItemStack> leftovers = inventory.ReturnCraftingGrid(_tableGrid);
+        leftovers.AddRange(inventory.ReturnCraftingGrid(inventory.Crafting));
+        return leftovers;
     }
 
     private UIText AddLabel(string text, float scale, Vector3 color)
