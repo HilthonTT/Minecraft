@@ -1,7 +1,7 @@
 """Draws Resources/items.png, the sheet everything that is not a block is shown as.
 
 The block sheet is photographs of surfaces and had to be drawn by hand. This one is twenty tools that are
-four shapes in five colours, and six odds and ends, so it is generated: the shapes are written down once
+four shapes in five colours, and a handful of materials and meals, so it is generated: the shapes are written down once
 below and stamped out in each material's palette. Re-run it after editing a shape or a palette.
 
     python tools/make-item-atlas.py
@@ -205,6 +205,55 @@ def dust(light, mid, dark):
     return s
 
 
+BONE_LIGHT = (240, 236, 224)
+BONE_DARK = (196, 188, 170)
+
+
+def cut(light, mid, dark, fat):
+    s = Sprite()
+    s.rect(5, 4, 10, 4, fat)
+    s.rect(4, 5, 11, 5, fat)
+    s.put(3, 6, fat)
+    s.put(12, 6, fat)
+    s.rect(4, 6, 11, 10, mid)
+    s.rect(3, 7, 12, 10, mid)
+    s.rect(4, 11, 11, 11, mid)
+    s.rect(5, 12, 10, 12, dark)
+    s.rect(5, 6, 8, 8, light)
+    s.rect(9, 9, 11, 10, dark)
+    s.put(3, 10, dark)
+    s.put(12, 10, dark)
+    return s
+
+
+def drumstick(light, mid, dark):
+    s = Sprite()
+    s.rect(8, 2, 11, 2, mid)
+    s.rect(7, 3, 12, 7, mid)
+    s.rect(8, 8, 11, 8, dark)
+    s.rect(8, 3, 10, 5, light)
+    s.rect(11, 6, 12, 7, dark)
+    s.diagonal(7, 9, 4, BONE_LIGHT, dx=-1, dy=1)
+    s.diagonal(8, 9, 4, BONE_DARK, dx=-1, dy=1)
+    s.rect(2, 12, 3, 13, BONE_LIGHT)
+    s.put(4, 14, BONE_DARK)
+    s.put(1, 12, BONE_DARK)
+    return s
+
+
+def loaf(light, mid, dark):
+    s = Sprite()
+    s.rect(5, 5, 10, 5, light)
+    s.rect(4, 6, 11, 6, light)
+    s.rect(3, 7, 12, 10, mid)
+    s.rect(4, 11, 11, 11, dark)
+    s.rect(4, 7, 11, 7, light)
+    for x in (5, 8, 11):
+        s.put(x, 8, dark)
+        s.put(x - 1, 9, dark)
+    return s
+
+
 def build():
     sheet = Image.new("RGBA", (CELLS_PER_ROW * CELL, CELLS_PER_ROW * CELL), CLEAR)
 
@@ -222,6 +271,15 @@ def build():
     place(ingot(*MATERIALS[3][1:]), 3, 4)
     place(gem(*MATERIALS[4][1:]), 4, 4)
     place(dust((255, 96, 96), (208, 40, 40), (140, 16, 16)), 5, 4)
+
+    place(cut((236, 118, 118), (204, 62, 62), (150, 34, 34), (244, 234, 222)), 0, 5)
+    place(cut((178, 116, 74), (136, 80, 48), (92, 52, 30), (206, 176, 134)), 1, 5)
+    place(cut((252, 184, 184), (236, 138, 144), (190, 96, 106), (255, 238, 236)), 2, 5)
+    place(cut((222, 166, 114), (184, 124, 78), (132, 82, 50), (238, 208, 162)), 3, 5)
+    place(drumstick((228, 104, 104), (198, 60, 60), (146, 34, 34)), 4, 5)
+    place(drumstick((176, 118, 76), (138, 84, 50), (94, 54, 32)), 5, 5)
+    place(cut((150, 160, 88), (116, 126, 62), (80, 86, 44), (176, 96, 84)), 6, 5)
+    place(loaf((236, 190, 110), (204, 148, 72), (152, 102, 46)), 7, 5)
 
     here = os.path.dirname(os.path.abspath(__file__))
     out = os.path.join(here, "..", "src", "Minecraft.Core", "Resources", "items.png")

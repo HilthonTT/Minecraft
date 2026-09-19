@@ -52,6 +52,7 @@ public sealed class ServerNetHandler : INetHandler
             if (isSingleBreak && isSurvival)
             {
                 DropContentsOf(blockPos);
+                ((ServerPlayer)_session.Player!).AddExhaustion(ServerPlayer.BreakExhaustion);
             }
 
             _game.Server.World.QueueToRemoveBlockAt(blockPos);
@@ -123,6 +124,11 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
+        if (_session.Player is ServerPlayer mover)
+        {
+            mover.OnMoved(mover.Position, entityDataPacket.Position);
+        }
+
         _session.Player.Position = entityDataPacket.Position;
         _session.Player.Velocity = entityDataPacket.Velocity;
         _session.Player.Yaw = entityDataPacket.Yaw;
@@ -162,6 +168,7 @@ public sealed class ServerNetHandler : INetHandler
             _game.Server.World.Environment.CurrentTime,
             player.GameMode,
             player.Health));
+        _session.WritePacket(new PlayerHungerPacket(player.Food));
         _session.State = SessionState.Accepted;
 
         _game.Server.BroadcastPacketExceptTo(_session, new PlayerJoinPacket(serverPlayerName, playerId));
@@ -210,6 +217,8 @@ public sealed class ServerNetHandler : INetHandler
         }
 
         int damage = attacker.HeldItem.Tool?.AttackDamage ?? PunchDamage;
+
+        attacker.AddExhaustion(ServerPlayer.AttackExhaustion);
 
         _game.Server.World.HurtMob(mob, damage, attacker.Position, attacker);
     }
@@ -280,6 +289,33 @@ public sealed class ServerNetHandler : INetHandler
             : new ItemStack(held, 1, playerHeldItemPacket.Damage);
     }
 
+    public void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket)
+    {
+        if (_session.Player is not ServerPlayer player)
+        {
+            return;
+        }
+
+        if (ItemRegistry.TryGet(playerEatPacket.ItemId) is not FoodItem food)
+        {
+            Logger.Warn("Player " + player.ID + " tried to eat item id " + playerEatPacket.ItemId + ".");
+            return;
+        }
+
+        if (player.TryEat(food))
+        {
+            _session.WritePacket(new PlayerHungerPacket(player.Food));
+        }
+    }
+
+    public void ProcessPlayerSprintPacket(PlayerSprintPacket playerSprintPacket)
+    {
+        if (_session.Player is ServerPlayer player)
+        {
+            player.IsSprinting = playerSprintPacket.IsSprinting;
+        }
+    }
+
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)
     {
         _game.Server.UpdateKeepAliveFor(_session);
@@ -329,4 +365,7 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessItemPickupPacket(ItemPickupPacket itemPickupPacket) =>
         throw new InvalidOperationException("A server does not receive pickups; it is the one that grants them.");
+
+    public void ProcessPlayerHungerPacket(PlayerHungerPacket playerHungerPacket) =>
+        throw new InvalidOperationException("A server does not receive hunger; it is the one that keeps it.");
 }

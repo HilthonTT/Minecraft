@@ -19,6 +19,8 @@ public sealed class ClientPlayer : Player
 
     private const float MaxAttackReach = 3.0F;
 
+    private const float SecondsBetweenEatingSounds = 0.25F;
+
     private readonly Game _game;
 
     private float _elapsedSecondsSinceLastPositionUpdate;
@@ -32,6 +34,16 @@ public sealed class ClientPlayer : Player
     public Camera Camera => _cameraRig.Camera;
 
     public int Health { get; private set; } = Constants.PLAYER_MAX_HEALTH;
+
+    public int Food { get; private set; } = Constants.PLAYER_MAX_FOOD;
+
+    public bool CanEat => !IsCreative && Food < Constants.PLAYER_MAX_FOOD;
+
+    public bool CanSprint => IsCreative || Food >= Constants.PLAYER_SPRINT_MIN_FOOD;
+
+    private float _eatingSeconds;
+    private float _secondsUntilEatingSound;
+    private Item? _itemBeingEaten;
 
     public float BreakProgress => _blockBreaker.Progress;
 
@@ -70,6 +82,7 @@ public sealed class ClientPlayer : Player
         _blockBreaker = new BlockBreaker(game, this, () => OnSwingHandler?.Invoke());
 
         OnToggleRunningHandler += _cameraRig.OnRunningToggle;
+        OnToggleRunningHandler += ReportSprinting;
         OnToggleCrouchingHandler += _cameraRig.OnCrouchingToggle;
 
         Inventory.OnChangedHandler += OnInventoryChanged;
@@ -116,6 +129,13 @@ public sealed class ClientPlayer : Player
 
         _game.Client.WritePacket(new PlayerHeldItemPacket(itemId, selected.Damage));
     }
+
+    private void ReportSprinting(bool isRunning)
+    {
+        _game.Client?.WritePacket(new PlayerSprintPacket(isRunning));
+    }
+
+    public void SetFood(int food) => Food = Math.Clamp(food, 0, Constants.PLAYER_MAX_FOOD);
 
     public void ApplyFieldOfViewSetting()
     {
@@ -164,6 +184,9 @@ public sealed class ClientPlayer : Player
         _elapsedSecondsSinceLastPositionUpdate = 0;
 
         Health = Constants.PLAYER_MAX_HEALTH;
+        Food = Constants.PLAYER_MAX_FOOD;
+
+        StopEating();
 
         _cameraRig.Reset();
 
@@ -205,6 +228,7 @@ public sealed class ClientPlayer : Player
         MouseOverEntity = FindMobUnderCrosshair(world);
 
         UpdateMouseInput(world);
+        UpdateEating(deltaTime, world);
         _blockBreaker.Update(deltaTime, world, FindBlockBeingDug());
 
         _realForward = Camera.LookDirection;
@@ -358,6 +382,74 @@ public sealed class ClientPlayer : Player
         return state;
     }
 
+    private void UpdateEating(float deltaTime, World world)
+    {
+        ItemStack held = Inventory.Selected;
+
+        bool wantsToEat = _game.Window.IsFocused &&
+                          _game.IsGameplayInputEnabled &&
+                          Game.Input.OnMouseDown(MouseButton.Right) &&
+                          held.Item is FoodItem &&
+                          CanEat &&
+                          !IsAimingAtSomethingUsable(world);
+
+        if (!wantsToEat || (_itemBeingEaten is not null && _itemBeingEaten != held.Item))
+        {
+            StopEating();
+
+            if (!wantsToEat)
+            {
+                return;
+            }
+        }
+
+        _itemBeingEaten = held.Item;
+        _eatingSeconds += deltaTime;
+        _secondsUntilEatingSound -= deltaTime;
+
+        if (_secondsUntilEatingSound <= 0F)
+        {
+            _secondsUntilEatingSound = SecondsBetweenEatingSounds;
+            _game.SoundDirector.OnEating(Position);
+            OnSwingHandler?.Invoke();
+        }
+
+        if (_eatingSeconds < Constants.PLAYER_EAT_SECONDS)
+        {
+            return;
+        }
+
+        ItemStack eaten = Inventory.TakeFromSelected(1);
+        StopEating();
+
+        if (eaten.IsEmpty)
+        {
+            return;
+        }
+
+        _game.Client.WritePacket(new PlayerEatPacket(eaten.Item!.Id));
+        _game.SoundDirector.OnFinishedEating(Position);
+    }
+
+    private void StopEating()
+    {
+        _eatingSeconds = 0F;
+        _secondsUntilEatingSound = 0F;
+        _itemBeingEaten = null;
+    }
+
+    private bool IsAimingAtSomethingUsable(World world)
+    {
+        if (_isCrouching || MouseOverObject is null)
+        {
+            return false;
+        }
+
+        Block block = world.GetBlockAt(MouseOverObject.IntersectedBlockPos).GetBlock();
+
+        return block == BlockRegistry.CraftingTable || block.IsInteractable;
+    }
+
     private void UpdateFallTracking()
     {
         if (IsCreative || _isFlying || _isInLiquid)
@@ -474,10 +566,15 @@ public sealed class ClientPlayer : Player
         {
             TryStopCrouching();
 
-            if (inputToRun)
+            if (inputToRun && CanSprint)
             {
                 TryStartRunning();
             }
+        }
+
+        if (!CanSprint)
+        {
+            TryStopRunning();
         }
 
         if (!inputToMoveForward || inputToMoveBack)

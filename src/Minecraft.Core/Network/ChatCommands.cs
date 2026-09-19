@@ -64,6 +64,7 @@ public static class ChatCommands
         player.SetGameMode(gameMode);
         session.WritePacket(new PlayerGameModePacket(gameMode));
         session.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: false));
+        session.WritePacket(new PlayerHungerPacket(player.Food));
 
         game.Server.World.DefaultGameMode = gameMode;
 

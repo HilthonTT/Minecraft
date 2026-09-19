@@ -1,4 +1,5 @@
 using Minecraft.Core.Entities.Player;
+using Minecraft.Core.Inventories;
 using Minecraft.Core.Worlds;
 using OpenTK.Mathematics;
 
@@ -61,6 +62,8 @@ public abstract class Mob : Entity
     }
 
     public void ShowHurt() => _hurtSecondsRemaining = HurtSeconds;
+
+    public virtual IEnumerable<ItemStack> RollDrops(Random random) => [];
 
     protected virtual void OnHurtBy(Vector3 from, Entity? attacker)
     {

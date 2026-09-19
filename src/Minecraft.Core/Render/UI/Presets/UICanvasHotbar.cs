@@ -19,6 +19,8 @@ public sealed class UICanvasHotbar : UICanvas
 
     private const int Hearts = Constants.PLAYER_MAX_HEALTH / 2;
 
+    private const int Shanks = Constants.PLAYER_MAX_FOOD / 2;
+
     private const float HeartSize = 9F;
     private const float HeartGap = 3F;
 
@@ -37,12 +39,17 @@ public sealed class UICanvasHotbar : UICanvas
     private static readonly Vector3 _halfHeartColor = new(0.52F, 0.11F, 0.13F);
     private static readonly Vector3 _emptyHeartColor = new(0.14F, 0.09F, 0.10F);
 
+    private static readonly Vector3 _fullShankColor = new(0.80F, 0.55F, 0.26F);
+    private static readonly Vector3 _halfShankColor = new(0.48F, 0.32F, 0.15F);
+    private static readonly Vector3 _emptyShankColor = new(0.14F, 0.11F, 0.08F);
+
     private const float BackdropTransparency = 0.62F;
 
     private readonly Game _game;
     private readonly UIImage _backdrop;
     private readonly UIImage _selection;
     private readonly UIImage[] _hearts = new UIImage[Hearts];
+    private readonly UIImage[] _shanks = new UIImage[Shanks];
     private readonly UIText _name;
     private readonly UISlotGrid _slots;
     private readonly Font _font;
@@ -107,6 +114,17 @@ public sealed class UICanvasHotbar : UICanvas
             AddComponentToRender(_hearts[heart]);
         }
 
+        for (int shank = 0; shank < Shanks; shank++)
+        {
+            _shanks[shank] = new UIImage(this, Vector2.Zero, new Vector2(HeartSize, HeartSize), UITextures.White)
+            {
+                Color = _emptyShankColor,
+                IsVisible = false,
+            };
+
+            AddComponentToRender(_shanks[shank]);
+        }
+
         _name = new UIText(Overlay, _font, Vector2.Zero, new Vector2(NameScale, NameScale), string.Empty)
         {
             Color = _nameColor,
@@ -136,6 +154,7 @@ public sealed class UICanvasHotbar : UICanvas
             hoveredIndex: inventory.SelectedHotbarSlot);
 
         UpdateHearts();
+        UpdateShanks();
         UpdateSelectedName(inventory);
 
         Overlay.Clean();
@@ -165,6 +184,25 @@ public sealed class UICanvasHotbar : UICanvas
                 2 => _fullHeartColor,
                 1 => _halfHeartColor,
                 _ => _emptyHeartColor,
+            };
+        }
+    }
+
+    private void UpdateShanks()
+    {
+        bool visible = !_game.ClientPlayer.IsCreative;
+        int food = _game.ClientPlayer.Food;
+
+        for (int shank = 0; shank < Shanks; shank++)
+        {
+            int halvesInThisShank = Math.Clamp(food - (shank * 2), 0, 2);
+
+            _shanks[shank].IsVisible = visible;
+            _shanks[shank].Color = halvesInThisShank switch
+            {
+                2 => _fullShankColor,
+                1 => _halfShankColor,
+                _ => _emptyShankColor,
             };
         }
     }
@@ -223,6 +261,14 @@ public sealed class UICanvasHotbar : UICanvas
         {
             _hearts[heart].PixelPositionInCanvas = new Vector2(
                 left + (heart * (HeartSize + HeartGap)),
+                heartsTop);
+        }
+
+        float right = left + _slots.Width;
+        for (int shank = 0; shank < Shanks; shank++)
+        {
+            _shanks[shank].PixelPositionInCanvas = new Vector2(
+                right - HeartSize - (shank * (HeartSize + HeartGap)),
                 heartsTop);
         }
 

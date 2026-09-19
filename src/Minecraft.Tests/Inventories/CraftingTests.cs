@@ -49,6 +49,14 @@ public sealed class CraftingTests
     }
 
     [Fact]
+    public void ThreeWheatInARowAreBread()
+    {
+        CraftingGrid grid = Lay(3, "...WWW...", ('W', ItemRegistry.For(BlockRegistry.Wheat)));
+
+        Assert.Equal(ItemRegistry.Bread, grid.Result.Item);
+    }
+
+    [Fact]
     public void TwoPlanksOneAboveTheOtherAreFourSticks()
     {
         CraftingGrid grid = Lay(2, "P.P.", ('P', Planks));

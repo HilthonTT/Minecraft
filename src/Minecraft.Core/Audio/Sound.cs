@@ -30,5 +30,8 @@ public enum Sound
 
     ToolBroke,
 
+    Eat,
+    Burp,
+
     Fizz,
 }

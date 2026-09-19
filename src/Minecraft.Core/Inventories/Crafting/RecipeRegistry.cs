@@ -51,6 +51,11 @@ public static class RecipeRegistry
                 new ItemStack(ItemRegistry.For(BlockRegistry.Torch), 4),
                 ["C", "S"],
                 new Dictionary<char, Item> { ['C'] = ItemRegistry.Coal, ['S'] = stick }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.Bread, 1),
+                ["XXX"],
+                new Dictionary<char, Item> { ['X'] = ItemRegistry.For(BlockRegistry.Wheat) }),
         ];
 
         foreach ((ToolKind kind, string[] pattern) in _toolShapes)

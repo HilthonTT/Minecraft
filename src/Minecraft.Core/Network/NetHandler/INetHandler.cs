@@ -55,4 +55,10 @@ public interface INetHandler
     void ProcessPlayerDropItemPacket(PlayerDropItemPacket playerDropItemPacket);
 
     void ProcessPlayerHeldItemPacket(PlayerHeldItemPacket playerHeldItemPacket);
+
+    void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket);
+
+    void ProcessPlayerHungerPacket(PlayerHungerPacket playerHungerPacket);
+
+    void ProcessPlayerSprintPacket(PlayerSprintPacket playerSprintPacket);
 }

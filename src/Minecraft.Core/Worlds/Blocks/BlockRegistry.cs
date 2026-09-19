@@ -72,6 +72,8 @@ public static class BlockRegistry
     public static readonly Block LavaFlowing2 = new BlockLava(51, level: 2, falling: false);
     public static readonly Block LavaFlowing3 = new BlockLava(52, level: 3, falling: false);
 
+    public static readonly Block Wool = new BlockSolid(53, BlockSoundMaterial.Cloth, secondsToBreak: 0.8F);
+
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
 
@@ -143,6 +145,7 @@ public static class BlockRegistry
             LavaFlowing1,
             LavaFlowing2,
             LavaFlowing3,
+            Wool,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

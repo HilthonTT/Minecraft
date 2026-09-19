@@ -1,4 +1,7 @@
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds;
+using Minecraft.Core.Worlds.Blocks;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Entities.Mobs;
@@ -23,6 +26,12 @@ public sealed class Sheep : Animal
     protected override int TicksBetweenDecisions => 40;
 
     protected override int OneInChanceOfMoving => 3;
+
+    public override IEnumerable<ItemStack> RollDrops(Random random) =>
+    [
+        new ItemStack(BlockRegistry.Wool, 1),
+        new ItemStack(ItemRegistry.RawMutton, random.Next(1, 3)),
+    ];
 
     protected override void SetInitialDimensions()
     {

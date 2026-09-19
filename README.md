@@ -83,8 +83,29 @@ front of you. What lands cannot be picked up again for two seconds, which is lon
 walk off without it following you back into the hotbar. Creative has no use for it — there is nothing to be
 rid of when every slot is bottomless — so the key does nothing there.
 
-A blow leaves ten seconds' grace and then the bar mends itself a half heart every four seconds, because there
-is nothing to eat yet. Dying puts you back at the world spawn with everything you were carrying.
+A blow leaves six seconds' grace and then the bar mends itself a half heart every four seconds, as long as
+the hunger bar on the right is nearly full. Dying puts you back at the world spawn with everything you were
+carrying.
+
+### Food
+
+Walking, sprinting, fighting and healing all make you hungry, and the ten shanks opposite the hearts show how
+far along you are. Below nine of them you are too hungry to heal, at three or fewer you are too weak to sprint, and
+with none left the hearts drain away a half at a time until one half is all you have. To eat, hold right click
+with food in hand for a moment and a stack goes down by one.
+
+Cows, pigs and sheep leave meat when a survival player kills them, and a sheep leaves its wool too. Zombies
+sometimes leave rotten flesh, which fills you up but is nobody's first choice. Raw meat is worth eating, and
+cooked meat is worth more than twice as much. Three wheat in a row make bread.
+
+| Food | Fills |
+| --- | --- |
+| Steak, cooked porkchop | 8 |
+| Cooked mutton | 6 |
+| Bread | 5 |
+| Rotten flesh | 4 |
+| Raw beef, raw porkchop | 3 |
+| Raw mutton | 2 |
 
 ### Lava
 
@@ -138,6 +159,7 @@ name, seed and mode from the menu instead, and never deletes anything.
 | `Ctrl`          | Sprint                                     |
 | Left click      | Hit a mob, or hold to break a block        |
 | Right click     | Place block, or interact (a crafting table, TNT) |
+| Hold right click | Eat the food in hand                      |
 | Middle click    | Pick the block being looked at             |
 | `1`–`9`         | Choose a hotbar slot to build with         |
 | Scroll wheel    | Step along the same nine                   |
@@ -201,6 +223,7 @@ a first pickaxe fits in the small one, and every tool needs the large one:
 | Sticks | Two planks, one above the other | Four sticks |
 | Crafting table | Four planks in a square | One table |
 | Torches | Coal above a stick | Four torches |
+| Bread | Three wheat in a row | One loaf |
 | Sandstone | Four sand in a square | One sandstone |
 | Pickaxe | Three across the top, two sticks down the middle | One pickaxe |
 | Axe | Two across, one below on the same side, two sticks | One axe |

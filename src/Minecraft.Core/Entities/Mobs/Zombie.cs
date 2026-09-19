@@ -1,4 +1,6 @@
 using Minecraft.Core.Entities.Player;
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds;
 using OpenTK.Mathematics;
 
@@ -37,6 +39,9 @@ public sealed class Zombie : Mob
     public override bool IsHostile => true;
 
     protected override float MoveSpeed => 26F;
+
+    public override IEnumerable<ItemStack> RollDrops(Random random) =>
+        [new ItemStack(ItemRegistry.RottenFlesh, random.Next(0, 3))];
 
     protected override void SetInitialDimensions()
     {

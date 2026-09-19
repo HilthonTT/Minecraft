@@ -202,6 +202,18 @@ public sealed class PacketFactory
                 int damage = reader.ReadInt32();
                 return new PlayerHeldItemPacket(itemId, damage);
             }
+            case PacketType.PlayerEat:
+            {
+                return new PlayerEatPacket(reader.ReadUInt16());
+            }
+            case PacketType.PlayerHunger:
+            {
+                return new PlayerHungerPacket(reader.ReadInt32());
+            }
+            case PacketType.PlayerSprint:
+            {
+                return new PlayerSprintPacket(reader.ReadBoolean());
+            }
             default:
                 throw new Exception("Invalid packet type: " + packetType);
         }

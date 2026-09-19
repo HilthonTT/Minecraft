@@ -187,9 +187,24 @@ public sealed class WorldServer : World
     {
         foreach (ServerSession session in Game.Server.ConnectedClients)
         {
-            if (session.Player is ServerPlayer player && player.TryRegenerate(deltaTime))
+            if (session.Player is not ServerPlayer player)
+            {
+                continue;
+            }
+
+            if (player.TryRegenerate(deltaTime))
             {
                 session.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: false));
+            }
+
+            if (player.TryStarve(deltaTime))
+            {
+                HurtPlayer(player, 1);
+            }
+
+            if (player.TryDrainFood())
+            {
+                session.WritePacket(new PlayerHungerPacket(player.Food));
             }
         }
     }
@@ -362,10 +377,22 @@ public sealed class WorldServer : World
             }
         }
 
-        if (!mob.IsAlive)
+        if (mob.IsAlive)
         {
-            DespawnEntity(mob.ID);
+            return;
         }
+
+        if (attacker is ServerPlayer { IsCreative: false })
+        {
+            Vector3 centre = mob.Position + new Vector3(mob.Width / 2F, mob.Height / 2F, mob.Length / 2F);
+
+            foreach (ItemStack drop in mob.RollDrops(Random.Shared))
+            {
+                SpawnDroppedItem(centre, drop);
+            }
+        }
+
+        DespawnEntity(mob.ID);
     }
 
     public void DropWhenRemoved(Vector3i blockPos, ItemStack stack)
@@ -410,10 +437,17 @@ public sealed class WorldServer : World
             return;
         }
 
-        var position = new Vector3(
-            blockPos.X + 0.5F - (DroppedItem.BodySize / 2F),
-            blockPos.Y + 0.5F - (DroppedItem.BodySize / 2F),
-            blockPos.Z + 0.5F - (DroppedItem.BodySize / 2F));
+        SpawnDroppedItem(new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.5F, blockPos.Z + 0.5F), stack);
+    }
+
+    public void SpawnDroppedItem(Vector3 centre, ItemStack stack)
+    {
+        if (stack.IsEmpty)
+        {
+            return;
+        }
+
+        var position = centre - new Vector3(DroppedItem.BodySize / 2F);
 
         var item = new DroppedItem(GenerateEntityId(), this, position, stack)
         {
@@ -446,6 +480,7 @@ public sealed class WorldServer : World
 
         session?.WritePacket(new PlayerRespawnPacket(spawn));
         session?.WritePacket(new PlayerHealthPacket(player.Health, wasHurt: false));
+        session?.WritePacket(new PlayerHungerPacket(player.Food));
     }
 
     public int GenerateEntityId() => _entityIdTracker.GenerateId();

@@ -407,14 +407,32 @@ client has just simulated the body and knows exactly where it left the ground an
 client reports how far it fell and the server decides what that is worth — the same division a punch already
 uses, where the client says what it aimed at and the server says what it cost.
 
-There is nothing to eat, so the bar mends itself a half heart every four seconds once a player has been left
-alone for six. Without it every scrape a world ever deals is permanent and the only way back to full is to
-die. Dying puts the player back at the world spawn with everything they were carrying, since with no crafting
-a lost inventory is hours of digging with no way to make any of it back quickly.
+The bar mends itself a half heart every four seconds once a player has been left alone for six, as long as
+they are well fed. Dying puts the player back at the world spawn with everything they were carrying, since a
+lost inventory is hours of digging with no way to make any of it back quickly.
 
 Survival reach is five blocks against creative's forty, and that is load bearing rather than cosmetic: a block
 broken falls where it stood, and one broken from forty blocks away is one nobody can pick up. Reaching a thing
 and collecting it are the same distance, so they are the same number.
+
+### Hunger
+
+Food lives on `ServerPlayer` beside health and for the same reason. The server charges a player for what it
+sees them do: the distance between two position reports, ten times over while they sprint, a swing, a block
+broken, a blow taken, and above all a half heart healed. The charges pile up as exhaustion and every four of
+it costs half a shank. Regeneration waits for eighteen of twenty, which is what makes food the thing health
+is paid for with, and an empty bar drains health back down to a single half heart, never below it. Starving
+is a push to go and find something, not a way to die.
+
+Sprinting is reported rather than inferred. The server could work out a speed from positions a tenth of a
+second apart, but not tell a sprint from a fall or a current, so the client says when it starts and stops,
+alongside its fall and its held item. A jump of more than eight blocks between two reports is a teleport or a
+respawn and is not charged as a walk.
+
+Eating is the client's, like placing a block. It holds the button, spends one from the stack when the time is
+up, and tells the server what it ate. The server checks that it is food and that there is room for it and
+answers with the new figure. Only a survival player's kill leaves meat, by the same argument that only a
+swing earns a block's drop.
 
 ## Lighting
 
@@ -732,8 +750,34 @@ are worse shaped for it, which leaves a wooden shovel level with the fist it rep
 better than no tool, and swinging a shovel at a zombie is the case where it is not.
 
 A bare fist takes off one, which is what an empty hand does in the game these figures come from, so the mob
-healths borrowed along with it come out at the number of blows they are supposed to. There is nothing to hold
-yet that hits harder; when there is, it is one constant in the server's handler.
+healths borrowed along with it come out at the number of blows they are supposed to.
+
+A mob killed by a survival player leaves what `Mob.RollDrops` rolls for it: one to three raw beef from a cow,
+the same of porkchop from a pig, a block of wool and a raw mutton or two from a sheep, and up to two rotten
+flesh from a zombie, which sometimes leaves nothing. Lava, a fall or a creative player's blow kills without
+paying out, for the same reason creative breaking leaves no blocks.
+
+A blow leaves the mob alone for half a second, and that half second is also exactly how long it shows red for.
+One figure serves both because the flash is then telling the player when the next punch will land rather than
+merely that the last one did — and it is why a client is sent nothing but "this was hit", with the health
+behind it kept on the server, where the only thing that reads it lives.
+
+What the mob does about it is the difference between the two kinds. An animal has nothing to fight back with,
+so it bolts: for three seconds it runs at twice its grazing pace, aimed away from whoever hit it and re-aimed
+a little off that line each time, so it veers rather than running down a rail and is not simply walked after.
+A zombie does the opposite. Being hit is not a reason to back off but a reason to know exactly who did it, so
+it takes the attacker's id and keeps after that one player for ten seconds, further out than the distance it
+would have noticed anybody at in the first place. Backing out of its sight is not enough to end that.
+
+A death is broadcast as the last blow rather than as its own event, and the mob leaves by the ordinary despawn
+the entity tracker sends a moment later. The hurt packet carries the one thing a despawn cannot say — that
+the mob was killed and not merely walked out of range — which is the whole difference between a death cry and
+a mob quietly ceasing to be tracked.
+
+The sound set is Minecraft's, and it is not evenly stocked: a cow has recordings of being hurt but none of
+dying, and neither the sheep nor the pig has any of being hurt at all. That is not a gap to fill, it is how
+the game it came from sounds — a struck sheep bleats — so the ones with nothing of their own are pointed at
+their ordinary call.
 
 A blow leaves the mob alone for half a second, and that half second is also exactly how long it shows red for.
 One figure serves both because the flash is then telling the player when the next punch will land rather than

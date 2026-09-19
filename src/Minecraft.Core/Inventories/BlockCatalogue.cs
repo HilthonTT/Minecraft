@@ -19,6 +19,7 @@ public static class BlockCatalogue
         (BlockRegistry.SpruceLog, "Spruce Log"),
         (BlockRegistry.Bedrock, "Bedrock"),
         (BlockRegistry.Obsidian, "Obsidian"),
+        (BlockRegistry.Wool, "Wool"),
 
         (BlockRegistry.Grass, "Grass"),
         (BlockRegistry.SnowyGrass, "Snowy Grass"),

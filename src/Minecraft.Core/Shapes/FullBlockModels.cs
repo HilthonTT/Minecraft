@@ -189,6 +189,11 @@ public sealed class BlockModelCraftingTable(TextureAtlas textureAtlas) : FullBlo
         SetUVs(sideCell: new Vector2(11, 3), topCell: new Vector2(11, 2), bottomCell: new Vector2(4, 0));
 }
 
+public sealed class BlockModelWool(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetUniformUVs(new Vector2(0, 4));
+}
+
 public sealed class BlockModelObsidian(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(5, 2));

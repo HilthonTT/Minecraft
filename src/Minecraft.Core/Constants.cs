@@ -43,6 +43,13 @@ public static class Constants
     public const float PLAYER_REGEN_DELAY_SECONDS = 6F;
     public const float PLAYER_REGEN_SECONDS_PER_HEALTH = 4F;
 
+    public const int PLAYER_MAX_FOOD = 20;
+    public const int PLAYER_REGEN_MIN_FOOD = 18;
+    public const int PLAYER_SPRINT_MIN_FOOD = 7;
+    public const float PLAYER_STARVE_SECONDS_PER_HEALTH = 4F;
+    public const float PLAYER_EXHAUSTION_PER_FOOD = 4F;
+    public const float PLAYER_EAT_SECONDS = 1.6F;
+
     public const float PLAYER_SAFE_FALL_BLOCKS = 3F;
 
     public const float PLAYER_BASE_MOVE_SPEED = 50F;

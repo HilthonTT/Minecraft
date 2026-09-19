@@ -1,3 +1,5 @@
+using Minecraft.Core.Inventories;
+using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds;
 using OpenTK.Mathematics;
 
@@ -23,6 +25,9 @@ public sealed class Pig : Animal
     protected override int TicksBetweenDecisions => 25;
 
     protected override int OneInChanceOfMoving => 3;
+
+    public override IEnumerable<ItemStack> RollDrops(Random random) =>
+        [new ItemStack(ItemRegistry.RawPorkchop, random.Next(1, 4))];
 
     protected override void SetInitialDimensions()
     {

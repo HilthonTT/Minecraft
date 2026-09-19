@@ -20,6 +20,15 @@ public static class ItemAtlas
     public static Vector2 Diamond { get; } = new(4, 4);
     public static Vector2 Redstone { get; } = new(5, 4);
 
+    public static Vector2 RawBeef { get; } = new(0, 5);
+    public static Vector2 Steak { get; } = new(1, 5);
+    public static Vector2 RawPorkchop { get; } = new(2, 5);
+    public static Vector2 CookedPorkchop { get; } = new(3, 5);
+    public static Vector2 RawMutton { get; } = new(4, 5);
+    public static Vector2 CookedMutton { get; } = new(5, 5);
+    public static Vector2 RottenFlesh { get; } = new(6, 5);
+    public static Vector2 Bread { get; } = new(7, 5);
+
     public static Vector2 Pickaxe(int materialColumn) => new(materialColumn, PickaxeRow);
 
     public static Vector2 Axe(int materialColumn) => new(materialColumn, AxeRow);

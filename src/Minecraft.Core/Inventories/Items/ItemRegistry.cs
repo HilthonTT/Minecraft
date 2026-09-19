@@ -38,6 +38,15 @@ public static class ItemRegistry
     public static readonly ToolItem GoldenSword = new(280, ToolKind.Sword, ToolMaterial.Gold, ItemAtlas.Sword(3));
     public static readonly ToolItem DiamondSword = new(281, ToolKind.Sword, ToolMaterial.Diamond, ItemAtlas.Sword(4));
 
+    public static readonly FoodItem RawBeef = new(282, "Raw Beef", ItemAtlas.RawBeef, nourishment: 3);
+    public static readonly FoodItem Steak = new(283, "Steak", ItemAtlas.Steak, nourishment: 8);
+    public static readonly FoodItem RawPorkchop = new(284, "Raw Porkchop", ItemAtlas.RawPorkchop, nourishment: 3);
+    public static readonly FoodItem CookedPorkchop = new(285, "Cooked Porkchop", ItemAtlas.CookedPorkchop, nourishment: 8);
+    public static readonly FoodItem RawMutton = new(286, "Raw Mutton", ItemAtlas.RawMutton, nourishment: 2);
+    public static readonly FoodItem CookedMutton = new(287, "Cooked Mutton", ItemAtlas.CookedMutton, nourishment: 6);
+    public static readonly FoodItem RottenFlesh = new(288, "Rotten Flesh", ItemAtlas.RottenFlesh, nourishment: 4);
+    public static readonly FoodItem Bread = new(289, "Bread", ItemAtlas.Bread, nourishment: 5);
+
     private static Item?[] _byId = [];
 
     private static BlockItem[] _byBlockId = [];
@@ -51,6 +60,7 @@ public static class ItemRegistry
         WoodenAxe, StoneAxe, IronAxe, GoldenAxe, DiamondAxe,
         WoodenShovel, StoneShovel, IronShovel, GoldenShovel, DiamondShovel,
         WoodenSword, StoneSword, IronSword, GoldenSword, DiamondSword,
+        RawBeef, Steak, RawPorkchop, CookedPorkchop, RawMutton, CookedMutton, RottenFlesh, Bread,
     ];
 
     public static void RegisterItems()

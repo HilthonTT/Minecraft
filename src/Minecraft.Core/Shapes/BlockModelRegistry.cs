@@ -50,6 +50,7 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.Torch.Id] = new TorchModel(textureAtlas);
         Models[BlockRegistry.CraftingTable.Id] = new BlockModelCraftingTable(textureAtlas);
         Models[BlockRegistry.Obsidian.Id] = new BlockModelObsidian(textureAtlas);
+        Models[BlockRegistry.Wool.Id] = new BlockModelWool(textureAtlas);
 
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {

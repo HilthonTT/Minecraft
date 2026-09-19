@@ -219,6 +219,21 @@ public sealed class ClientNetHandler : INetHandler
         }
     }
 
+    public void ProcessPlayerHungerPacket(PlayerHungerPacket playerHungerPacket)
+    {
+        _game.ClientPlayer.SetFood(playerHungerPacket.Food);
+    }
+
+    public void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket)
+    {
+        throw new InvalidOperationException("A client does not receive meals; it is the one that eats them.");
+    }
+
+    public void ProcessPlayerSprintPacket(PlayerSprintPacket playerSprintPacket)
+    {
+        throw new InvalidOperationException("A client does not receive sprinting; it is the one that reports it.");
+    }
+
     public void ProcessPlayerFellPacket(PlayerFellPacket playerFellPacket)
     {
         throw new InvalidOperationException("A client does not receive falls; it is the one that reports them.");
