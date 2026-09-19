@@ -10,7 +10,9 @@ using Minecraft.Core.Render;
 using Minecraft.Core.Render.UI;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
@@ -186,6 +188,28 @@ public sealed class Game
         OpenInventoryWithBench(3);
     }
 
+    public void OpenContainer(Vector3i blockPos)
+    {
+        if (State != GameState.Playing || IsChatOpen)
+        {
+            return;
+        }
+
+        BlockState state = World.GetBlockAt(blockPos);
+        if (state is not IContainerState)
+        {
+            return;
+        }
+
+        MasterRenderer.InventoryCanvas.OpenWithContainer(blockPos, state);
+        EnterState(GameState.Inventory);
+
+        if (state is BlockStateChest)
+        {
+            SoundDirector.OnChestOpened(blockPos);
+        }
+    }
+
     private void OpenInventoryWithBench(int benchSize)
     {
         if (State != GameState.Playing || IsChatOpen)
@@ -210,6 +234,13 @@ public sealed class Game
         }
 
         ClientPlayer.ThrowAway(ClientPlayer.Inventory.ReturnCursorStack());
+
+        if (MasterRenderer.InventoryCanvas.OpenChestPos is Vector3i chestPos)
+        {
+            SoundDirector.OnChestClosed(chestPos);
+        }
+
+        MasterRenderer.InventoryCanvas.OpenWithBench(2);
         EnterState(GameState.Playing);
     }
 

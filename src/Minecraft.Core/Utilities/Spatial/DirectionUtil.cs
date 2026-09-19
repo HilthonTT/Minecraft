@@ -24,4 +24,17 @@ public static class DirectionUtil
             _ => throw new ArgumentOutOfRangeException(nameof(direction)),
         };
     }
+
+    public static Direction FacingBack(Vector3 lookDirection)
+    {
+        if (MathF.Abs(lookDirection.X) > MathF.Abs(lookDirection.Z))
+        {
+            return lookDirection.X > 0 ? Direction.Left : Direction.Right;
+        }
+
+        return lookDirection.Z > 0 ? Direction.Back : Direction.Front;
+    }
+
+    public static bool IsHorizontal(Direction direction) =>
+        direction is Direction.Back or Direction.Right or Direction.Front or Direction.Left;
 }

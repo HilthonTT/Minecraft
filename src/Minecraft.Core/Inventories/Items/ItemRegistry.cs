@@ -47,6 +47,8 @@ public static class ItemRegistry
     public static readonly FoodItem RottenFlesh = new(288, "Rotten Flesh", ItemAtlas.RottenFlesh, nourishment: 4);
     public static readonly FoodItem Bread = new(289, "Bread", ItemAtlas.Bread, nourishment: 5);
 
+    public static readonly SpriteItem Charcoal = new(290, "Charcoal", ItemAtlas.Charcoal);
+
     private static Item?[] _byId = [];
 
     private static BlockItem[] _byBlockId = [];
@@ -61,6 +63,7 @@ public static class ItemRegistry
         WoodenShovel, StoneShovel, IronShovel, GoldenShovel, DiamondShovel,
         WoodenSword, StoneSword, IronSword, GoldenSword, DiamondSword,
         RawBeef, Steak, RawPorkchop, CookedPorkchop, RawMutton, CookedMutton, RottenFlesh, Bread,
+        Charcoal,
     ];
 
     public static void RegisterItems()

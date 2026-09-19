@@ -61,4 +61,8 @@ public readonly struct ItemStack
         Item is not null && Count > 0 && !other.IsEmpty && Item == other.Item && Item.MaxStackSize > 1;
 
     public int RemainingSpace => IsEmpty ? MaxCount : MaxStackSize - Count;
+
+    public bool SameAs(ItemStack other) =>
+        (IsEmpty && other.IsEmpty) ||
+        (!IsEmpty && !other.IsEmpty && Item == other.Item && Count == other.Count && Damage == other.Damage);
 }

@@ -273,6 +273,11 @@ with the same seed generate byte-identical terrain.
 Renaming a world moves its directory and deleting one removes it outright, both only ever from the main menu,
 where nothing is loaded to be moved out from under.
 
+A block that holds things, a chest or a furnace, keeps its contents in its block state, written after the
+id in the same payload a torch writes its attachment into. So they are saved with the chunk, sent in chunk
+data, and carried in a placement without a second store beside the world to keep in step with it. Adding
+them did not bump the format: a chunk written before they existed contains none of their ids.
+
 The save format is at version 2. Version 1 worlds are refused rather than opened: only modified chunks are
 stored and the rest are regenerated, so a world made before the terrain was reshaped to hold water would come
 back as half its old ground and half new ground that no longer joins onto it. A save whose `version` does not
@@ -549,12 +554,39 @@ Wear is spent on the client, alongside the placement that is spent there and for
 inventory is that side's. A tool worn through simply empties its slot, and the server hears about it through
 the held item packet the change raises.
 
-Iron and gold ore drop the ingot rather than the ore block, which is a deliberate departure from the game this
-follows. Smelting wants a furnace, a furnace wants a block that holds things, and a block that holds things
-wants per block persistent data and a save format that carries it — a piece of work of its own, and the same
-piece chests are waiting on. Stopping the ladder at stone instead would have left the rungs above it with
-nothing to reach them by. So the ore yields the metal, and what a furnace would otherwise gate is folded into
-the pickaxe having to be good enough to reach the seam at all.
+Iron and gold ore drop the ore block, and a furnace turns it into the ingot.
+
+### Furnaces and chests
+
+A chest and a furnace are the blocks that hold things, and what they hold is their block state: an
+`IContainerState` with a slot count, a rule for what each slot takes, and whether a slot can only be taken
+from. That puts their contents wherever a block state already goes, as described under saved worlds, and
+the server's copy is the real one.
+
+The inventory the other half of every move comes out of still lives only on the client, so a move is the
+client's to make. It changes the slot in its own copy at once and sends the server what the slot now holds.
+The server checks what it can: the container is there and in reach, the stack is a possible one, the slot
+would take it, and a slot that can only be taken from has not grown. Then it writes the slot and sends the
+whole state to everyone in range. That is the same trust `Q` and pickups already run on, and the same
+server side inventory would close all of them together.
+
+A furnace ticks on the server and changes its own slots while somebody may be moving things in and out of
+them. A client that let a sync written before its last move overwrite that move would see a stack it had
+already taken reappear, and could take it twice. So each move carries a number, every sync carries the last
+number the server had processed from that player, and a client ignores syncs that are behind its own moves.
+Two players in one chest at once are still last write wins, which can double a stack moved by both in the
+same instant.
+
+A furnace burns fuel only while there is something it can smelt and room for the result, so nothing is wasted
+on an empty furnace or a full one. It sends its progress every half second while it burns and at once
+whenever a slot or the flame changes. Being lit changes the face it shows, which is the one thing a sync can
+alter that the mesh depends on, so a state reports an `Appearance` and the client remeshes only when that
+has moved. It does not give off light; that needs relighting a source in place, which the lighting does not
+do yet.
+
+Breaking one spills its contents, on the server, whatever broke it. The contents were never the swing's to
+earn, so unlike a block's own drop they do not wait for a survival player. A placement arrives with its state
+emptied, since a client is otherwise free to place a chest already full.
 
 ### Things in slots
 
@@ -614,6 +646,14 @@ to a few blocks of dim blue, which is what reads as having gone under.
 The second buffer is chosen by a block being translucent rather than by it being liquid. Lava is liquid in
 every way that matters to a body in it and opaque to the eye, so it goes down with the solid blocks, and being
 inside it closes the fog to a couple of blocks of orange instead of blue.
+
+### Glass
+
+Glass is a full cube cut out of the block sheet the way a flower is: its cell is marked for punching out, so
+the pane is its frame and nothing else. It is not opaque, so the blocks behind it draw the faces that touch
+it. A wall of it would then show every inner frame, so a block can say that it hides the faces it shares with
+another of itself, which glass does. Broken, it leaves nothing, as in the game it comes from. Sand is
+plentiful and a furnace makes more.
 
 ### Fog
 
@@ -756,28 +796,6 @@ A mob killed by a survival player leaves what `Mob.RollDrops` rolls for it: one 
 the same of porkchop from a pig, a block of wool and a raw mutton or two from a sheep, and up to two rotten
 flesh from a zombie, which sometimes leaves nothing. Lava, a fall or a creative player's blow kills without
 paying out, for the same reason creative breaking leaves no blocks.
-
-A blow leaves the mob alone for half a second, and that half second is also exactly how long it shows red for.
-One figure serves both because the flash is then telling the player when the next punch will land rather than
-merely that the last one did — and it is why a client is sent nothing but "this was hit", with the health
-behind it kept on the server, where the only thing that reads it lives.
-
-What the mob does about it is the difference between the two kinds. An animal has nothing to fight back with,
-so it bolts: for three seconds it runs at twice its grazing pace, aimed away from whoever hit it and re-aimed
-a little off that line each time, so it veers rather than running down a rail and is not simply walked after.
-A zombie does the opposite. Being hit is not a reason to back off but a reason to know exactly who did it, so
-it takes the attacker's id and keeps after that one player for ten seconds, further out than the distance it
-would have noticed anybody at in the first place. Backing out of its sight is not enough to end that.
-
-A death is broadcast as the last blow rather than as its own event, and the mob leaves by the ordinary despawn
-the entity tracker sends a moment later. The hurt packet carries the one thing a despawn cannot say — that
-the mob was killed and not merely walked out of range — which is the whole difference between a death cry and
-a mob quietly ceasing to be tracked.
-
-The sound set is Minecraft's, and it is not evenly stocked: a cow has recordings of being hurt but none of
-dying, and neither the sheep nor the pig has any of being hurt at all. That is not a gap to fill, it is how
-the game it came from sounds — a struck sheep bleats — so the ones with nothing of their own are pointed at
-their ordinary call.
 
 A blow leaves the mob alone for half a second, and that half second is also exactly how long it shows red for.
 One figure serves both because the flash is then telling the player when the next punch will land rather than

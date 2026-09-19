@@ -33,5 +33,8 @@ public enum Sound
     Eat,
     Burp,
 
+    ChestOpen,
+    ChestClose,
+
     Fizz,
 }

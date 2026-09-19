@@ -38,6 +38,8 @@ public sealed class SoundDirector
 
     private const float EatVolume = 0.5F;
 
+    private const float ChestVolume = 0.5F;
+
     private const float FizzVolume = 0.5F;
 
     private sealed class EntitySoundState
@@ -129,6 +131,16 @@ public sealed class SoundDirector
     public void OnFinishedEating(Vector3 position)
     {
         _engine.PlayAt(_sounds.Get(Sound.Burp).Pick(_random), position, EatVolume, RandomPitch());
+    }
+
+    public void OnChestOpened(Vector3i blockPos)
+    {
+        _engine.PlayAt(_sounds.Get(Sound.ChestOpen).Pick(_random), CentreOf(blockPos), ChestVolume);
+    }
+
+    public void OnChestClosed(Vector3i blockPos)
+    {
+        _engine.PlayAt(_sounds.Get(Sound.ChestClose).Pick(_random), CentreOf(blockPos), ChestVolume);
     }
 
     public void OnWorldUnloaded()

@@ -49,11 +49,44 @@ public sealed class CraftingTests
     }
 
     [Fact]
+    public void ARingOfCobblestoneIsAFurnace()
+    {
+        CraftingGrid grid = Lay(3, "CCCC.CCCC", ('C', ItemRegistry.For(BlockRegistry.Cobblestone)));
+
+        Assert.Equal(BlockRegistry.Furnace, grid.Result.Block);
+    }
+
+    [Fact]
+    public void ARingOfPlanksIsAChest()
+    {
+        CraftingGrid grid = Lay(3, "PPPP.PPPP", ('P', Planks));
+
+        Assert.Equal(BlockRegistry.Chest, grid.Result.Block);
+    }
+
+    [Fact]
+    public void ASolidSquareOfCobblestoneIsNotAFurnace()
+    {
+        CraftingGrid grid = Lay(3, "CCCCCCCCC", ('C', ItemRegistry.For(BlockRegistry.Cobblestone)));
+
+        Assert.True(grid.Result.IsEmpty);
+    }
+
+    [Fact]
     public void ThreeWheatInARowAreBread()
     {
         CraftingGrid grid = Lay(3, "...WWW...", ('W', ItemRegistry.For(BlockRegistry.Wheat)));
 
         Assert.Equal(ItemRegistry.Bread, grid.Result.Item);
+    }
+
+    [Fact]
+    public void CharcoalLightsATorchAsWellAsCoal()
+    {
+        CraftingGrid grid = Lay(2, "C.S.", ('C', ItemRegistry.Charcoal), ('S', ItemRegistry.Stick));
+
+        Assert.Equal(BlockRegistry.Torch, grid.Result.Block);
+        Assert.Equal(4, grid.Result.Count);
     }
 
     [Fact]

@@ -6,12 +6,12 @@ namespace Minecraft.Core.Worlds.Blocks.Types;
 
 public sealed class BlockOre : Block
 {
-    private readonly Func<Item> _drop;
+    private readonly Func<Item>? _drop;
     private readonly int _count;
 
     public BlockOre(
         ushort id,
-        Func<Item> drop,
+        Func<Item>? drop,
         int harvestLevel,
         float secondsToBreak = 2.8F,
         int count = 1) : base(id)
@@ -25,7 +25,8 @@ public sealed class BlockOre : Block
         RequiresCorrectTool = true;
     }
 
-    public override ItemStack GetDrop(BlockState blockState) => new(_drop(), _count);
+    public override ItemStack GetDrop(BlockState blockState) =>
+        _drop is null ? new ItemStack(this, _count) : new ItemStack(_drop(), _count);
 
     public override BlockState GetNewDefaultState() => new BlockStateSimple(this);
 }

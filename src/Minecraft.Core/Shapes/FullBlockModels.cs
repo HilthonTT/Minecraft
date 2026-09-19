@@ -1,6 +1,7 @@
 using Minecraft.Core.Textures;
 using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;
@@ -189,6 +190,21 @@ public sealed class BlockModelCraftingTable(TextureAtlas textureAtlas) : FullBlo
         SetUVs(sideCell: new Vector2(11, 3), topCell: new Vector2(11, 2), bottomCell: new Vector2(4, 0));
 }
 
+public sealed class BlockModelGlass : FullBlockModel
+{
+    public BlockModelGlass(TextureAtlas textureAtlas) : base(textureAtlas)
+    {
+        _back = false;
+        _right = false;
+        _front = false;
+        _left = false;
+        _top = false;
+        _bottom = false;
+    }
+
+    protected override void SetStandardUVs() => SetUniformUVs(BlockAtlas.Glass);
+}
+
 public sealed class BlockModelWool(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(0, 4));
@@ -197,4 +213,58 @@ public sealed class BlockModelWool(TextureAtlas textureAtlas) : FullBlockModel(t
 public sealed class BlockModelObsidian(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(5, 2));
+}
+
+public abstract class FacingBlockModel : FullBlockModel
+{
+    protected FacingBlockModel(TextureAtlas textureAtlas) : base(textureAtlas)
+    {
+    }
+
+    protected abstract Vector2[] FrontUVsFor(BlockState state);
+
+    public override BlockFace[] GetPartialVisibleFaces(BlockState state, Vector3i blockPos, Direction direction)
+    {
+        Direction facing = state is IFacingBlockState facingState ? facingState.Facing : Direction.Front;
+        if (direction != facing)
+        {
+            return base.GetPartialVisibleFaces(state, blockPos, direction);
+        }
+
+        BlockFace side = base.GetPartialVisibleFaces(state, blockPos, direction)[0];
+        return [new BlockFace(side.Positions, FrontUVsFor(state))];
+    }
+}
+
+public sealed class BlockModelFurnace : FacingBlockModel
+{
+    private readonly Vector2[] _uvIdleFront;
+    private readonly Vector2[] _uvLitFront;
+
+    public BlockModelFurnace(TextureAtlas textureAtlas) : base(textureAtlas)
+    {
+        _uvIdleFront = textureAtlas.GetTextureCoords(new Vector2(12, 2));
+        _uvLitFront = textureAtlas.GetTextureCoords(new Vector2(13, 3));
+    }
+
+    protected override Vector2[] FrontUVsFor(BlockState state) =>
+        state is BlockStateFurnace { IsBurning: true } ? _uvLitFront : _uvIdleFront;
+
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: new Vector2(13, 2), topCell: new Vector2(14, 3), bottomCell: new Vector2(14, 3));
+}
+
+public sealed class BlockModelChest : FacingBlockModel
+{
+    private readonly Vector2[] _uvFrontFace;
+
+    public BlockModelChest(TextureAtlas textureAtlas) : base(textureAtlas)
+    {
+        _uvFrontFace = textureAtlas.GetTextureCoords(new Vector2(11, 1));
+    }
+
+    protected override Vector2[] FrontUVsFor(BlockState state) => _uvFrontFace;
+
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: new Vector2(10, 1), topCell: new Vector2(9, 1), bottomCell: new Vector2(9, 1));
 }

@@ -87,6 +87,11 @@ public sealed class Chunk
         IsDirty = false;
     }
 
+    public void MarkDirty()
+    {
+        IsDirty = true;
+    }
+
     public override string ToString()
     {
         return "Chunk[" + GridX + "," + GridZ + "]";

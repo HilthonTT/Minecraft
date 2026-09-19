@@ -27,8 +27,8 @@ public static class BlockRegistry
     public static readonly Block Bedrock = new BlockSolid(19, secondsToBreak: float.PositiveInfinity, dropsItself: false);
 
     public static readonly Block CoalOre = new BlockOre(20, () => ItemRegistry.Coal, harvestLevel: 0);
-    public static readonly Block IronOre = new BlockOre(21, () => ItemRegistry.IronIngot, harvestLevel: 1);
-    public static readonly Block GoldOre = new BlockOre(22, () => ItemRegistry.GoldIngot, harvestLevel: 2);
+    public static readonly Block IronOre = new BlockOre(21, drop: null, harvestLevel: 1);
+    public static readonly Block GoldOre = new BlockOre(22, drop: null, harvestLevel: 2);
     public static readonly Block RedstoneOre = new BlockOre(23, () => ItemRegistry.Redstone, harvestLevel: 2, count: 4);
     public static readonly Block DiamondOre = new BlockOre(24, () => ItemRegistry.Diamond, harvestLevel: 2);
 
@@ -73,6 +73,10 @@ public static class BlockRegistry
     public static readonly Block LavaFlowing3 = new BlockLava(52, level: 3, falling: false);
 
     public static readonly Block Wool = new BlockSolid(53, BlockSoundMaterial.Cloth, secondsToBreak: 0.8F);
+
+    public static readonly Block Furnace = new BlockFurnace(54);
+    public static readonly Block Chest = new BlockChest(55);
+    public static readonly Block Glass = new BlockGlass(56);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -146,6 +150,9 @@ public static class BlockRegistry
             LavaFlowing2,
             LavaFlowing3,
             Wool,
+            Furnace,
+            Chest,
+            Glass,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

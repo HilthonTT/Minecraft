@@ -19,6 +19,7 @@ public static class ItemAtlas
     public static Vector2 GoldIngot { get; } = new(3, 4);
     public static Vector2 Diamond { get; } = new(4, 4);
     public static Vector2 Redstone { get; } = new(5, 4);
+    public static Vector2 Charcoal { get; } = new(6, 4);
 
     public static Vector2 RawBeef { get; } = new(0, 5);
     public static Vector2 Steak { get; } = new(1, 5);

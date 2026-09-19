@@ -306,6 +306,11 @@ public sealed class ChunkMeshGenerator : MeshGenerator
                    ((BlockFluid)neighbourBlock).SurfaceHeight < fluid.SurfaceHeight;
         }
 
+        if (block.HidesFacesAgainstItself && neighbourBlock == block)
+        {
+            return false;
+        }
+
         return !_blockModelRegistry.Models[neighbour.GetBlock().Id].IsOpaqueOnSide(facingBack);
     }
 

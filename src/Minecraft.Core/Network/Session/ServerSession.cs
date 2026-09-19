@@ -15,6 +15,8 @@ public sealed class ServerSession : Session
         _entityTracker = new EntityTracker(this);
     }
 
+    public int LastContainerSequence { get; set; }
+
     public void Update(float deltaTimeSeconds)
     {
         _chunkProvider.Update();

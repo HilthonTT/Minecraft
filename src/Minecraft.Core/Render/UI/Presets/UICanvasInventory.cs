@@ -2,6 +2,9 @@ using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
 using Minecraft.Core.Inventories.Crafting;
 using Minecraft.Core.Inventories.Items;
+using Minecraft.Core.Network.Packets;
+using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.States;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
@@ -9,6 +12,14 @@ namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasInventory : UICanvas
 {
+    private enum ScreenMode
+    {
+        SmallBench,
+        LargeBench,
+        Chest,
+        Furnace,
+    }
+
     private const float SlotSize = 46F;
     private const float SlotGap = 4F;
 
@@ -19,6 +30,15 @@ public sealed class UICanvasInventory : UICanvas
     private const float HotbarGap = 12F;
 
     private const float ResultGap = 34F;
+
+    private const float FlameHeight = 12F;
+    private const float FlameWidth = 14F;
+    private const float FlameGap = 6F;
+
+    private const float ArrowLength = 64F;
+    private const float ArrowThickness = 8F;
+
+    private const float FurnaceIndent = 2F * (SlotSize + SlotGap);
 
     private const float HeadingScale = 0.32F;
     private const float HeadingGap = 8F;
@@ -33,6 +53,9 @@ public sealed class UICanvasInventory : UICanvas
     private static readonly Vector3 _panelColor = new(0.09F, 0.10F, 0.12F);
     private static readonly Vector3 _headingColor = new(0.66F, 0.70F, 0.78F);
     private static readonly Vector3 _titleColor = new(0.95F, 0.95F, 0.95F);
+    private static readonly Vector3 _trackColor = new(0.15F, 0.16F, 0.19F);
+    private static readonly Vector3 _flameColor = new(0.98F, 0.55F, 0.12F);
+    private static readonly Vector3 _arrowColor = new(0.92F, 0.92F, 0.95F);
 
     private readonly Game _game;
     private readonly Font _font;
@@ -41,7 +64,7 @@ public sealed class UICanvasInventory : UICanvas
     private readonly UIImage _panel;
     private readonly UIText _title;
     private readonly UIText _blocksHeading;
-    private readonly UIText _craftingHeading;
+    private readonly UIText _sectionHeading;
     private readonly UIText _carriedHeading;
     private readonly UIText _hoveredName;
     private readonly UIText _cursorCount;
@@ -54,15 +77,30 @@ public sealed class UICanvasInventory : UICanvas
     private readonly UISlotGrid _largeBench;
     private readonly UISlotGrid _result;
 
+    private readonly UISlotGrid _chest;
+
+    private readonly UISlotGrid _furnaceInput;
+    private readonly UISlotGrid _furnaceFuel;
+    private readonly UISlotGrid _furnaceOutput;
+
+    private readonly UIImage _flameTrack;
+    private readonly UIImage _flameBar;
+    private readonly UIImage _arrowTrack;
+    private readonly UIImage _arrowBar;
+
     private readonly CraftingGrid _tableGrid = new(3);
 
     private float _hoveredNameTop;
 
     private bool _showsBlockList = true;
 
-    private int _benchSize = 2;
+    private ScreenMode _mode = ScreenMode.SmallBench;
 
-    public CraftingGrid ActiveBench => _benchSize == 3 ? _tableGrid : _game.ClientPlayer.Inventory.Crafting;
+    private Vector3i _containerPos;
+
+    public CraftingGrid ActiveBench => _mode == ScreenMode.LargeBench ? _tableGrid : _game.ClientPlayer.Inventory.Crafting;
+
+    public Vector3i? OpenChestPos => _mode == ScreenMode.Chest ? _containerPos : null;
 
     public UIOverlayCanvas Overlay { get; }
 
@@ -105,15 +143,24 @@ public sealed class UICanvasInventory : UICanvas
 
         _title = AddLabel("Inventory", TitleScale, _titleColor);
         _blocksHeading = AddLabel("Everything", HeadingScale, _headingColor);
-        _craftingHeading = AddLabel("Crafting", HeadingScale, _headingColor);
+        _sectionHeading = AddLabel("Crafting", HeadingScale, _headingColor);
         _carriedHeading = AddLabel("Carried", HeadingScale, _headingColor);
 
         _blocks = new UISlotGrid(this, Overlay, ItemCatalogue.Count, ItemCatalogue.Columns, SlotSize, SlotGap);
         _smallBench = new UISlotGrid(this, Overlay, 4, 2, SlotSize, SlotGap);
         _largeBench = new UISlotGrid(this, Overlay, 9, 3, SlotSize, SlotGap);
         _result = new UISlotGrid(this, Overlay, 1, 1, SlotSize, SlotGap);
+        _chest = new UISlotGrid(this, Overlay, BlockStateChest.Slots, Inventory.HotbarSlots, SlotSize, SlotGap);
+        _furnaceInput = new UISlotGrid(this, Overlay, 1, 1, SlotSize, SlotGap);
+        _furnaceFuel = new UISlotGrid(this, Overlay, 1, 1, SlotSize, SlotGap);
+        _furnaceOutput = new UISlotGrid(this, Overlay, 1, 1, SlotSize, SlotGap);
         _storage = new UISlotGrid(this, Overlay, Inventory.StorageSlots, Inventory.HotbarSlots, SlotSize, SlotGap);
         _hotbar = new UISlotGrid(this, Overlay, Inventory.HotbarSlots, Inventory.HotbarSlots, SlotSize, SlotGap);
+
+        _flameTrack = AddBar(_trackColor);
+        _flameBar = AddBar(_flameColor);
+        _arrowTrack = AddBar(_trackColor);
+        _arrowBar = AddBar(_arrowColor);
 
         _hoveredName = new UIText(
             Overlay,
@@ -137,12 +184,23 @@ public sealed class UICanvasInventory : UICanvas
 
     public void OpenWithBench(int benchSize)
     {
-        if (_benchSize == benchSize)
+        SetMode(benchSize == 3 ? ScreenMode.LargeBench : ScreenMode.SmallBench);
+    }
+
+    public void OpenWithContainer(Vector3i blockPos, BlockState state)
+    {
+        _containerPos = blockPos;
+        SetMode(state is BlockStateFurnace ? ScreenMode.Furnace : ScreenMode.Chest);
+    }
+
+    private void SetMode(ScreenMode mode)
+    {
+        if (_mode == mode)
         {
             return;
         }
 
-        _benchSize = benchSize;
+        _mode = mode;
         LayOut();
     }
 
@@ -166,10 +224,44 @@ public sealed class UICanvasInventory : UICanvas
         return label;
     }
 
+    private UIImage AddBar(Vector3 color)
+    {
+        var bar = new UIImage(this, Vector2.Zero, Vector2.Zero, UITextures.White)
+        {
+            Color = color,
+            IsVisible = false,
+        };
+
+        AddComponentToRender(bar);
+        return bar;
+    }
+
+    private bool IsBenchMode => _mode is ScreenMode.SmallBench or ScreenMode.LargeBench;
+
+    private IContainerState? FindOpenContainer()
+    {
+        if (IsBenchMode)
+        {
+            return null;
+        }
+
+        BlockState state = _game.World.GetBlockAt(_containerPos);
+        bool matches = _mode == ScreenMode.Furnace ? state is BlockStateFurnace : state is BlockStateChest;
+
+        return matches ? (IContainerState)state : null;
+    }
+
     public override void Update()
     {
         Inventory inventory = _game.ClientPlayer.Inventory;
         Vector2 mouse = Game.Input.MousePosition;
+
+        IContainerState? container = FindOpenContainer();
+        if (!IsBenchMode && container is null)
+        {
+            _game.CloseInventory();
+            return;
+        }
 
         if (_showsBlockList != inventory.HasEndlessSupply)
         {
@@ -177,16 +269,19 @@ public sealed class UICanvasInventory : UICanvas
             LayOut();
         }
 
-        UISlotGrid bench = ActiveBenchGrid;
+        var hovered = new Hovered
+        {
+            Block = _showsBlockList ? _blocks.IndexAt(mouse) : -1,
+            Bench = IsBenchMode ? ActiveBenchGrid.IndexAt(mouse) : -1,
+            Result = IsBenchMode ? _result.IndexAt(mouse) : -1,
+            ContainerSlot = ContainerSlotAt(mouse),
+            Storage = _storage.IndexAt(mouse),
+            Hotbar = _hotbar.IndexAt(mouse),
+        };
+
         CraftingGrid grid = ActiveBench;
 
-        int hoveredBlock = _showsBlockList ? _blocks.IndexAt(mouse) : -1;
-        int hoveredBench = bench.IndexAt(mouse);
-        int hoveredResult = _result.IndexAt(mouse);
-        int hoveredStorage = _storage.IndexAt(mouse);
-        int hoveredHotbar = _hotbar.IndexAt(mouse);
-
-        HandleClicks(inventory, grid, hoveredBlock, hoveredBench, hoveredResult, hoveredStorage, hoveredHotbar);
+        HandleClicks(inventory, grid, container, hovered);
 
         ItemIconRenderer icons = _game.MasterRenderer.ItemIcons;
 
@@ -195,35 +290,91 @@ public sealed class UICanvasInventory : UICanvas
             _blocks.Refresh(
                 icons,
                 index => new ItemStack(ItemCatalogue.ItemAt(index), 1),
-                hoveredBlock);
+                hovered.Block);
         }
 
-        bench.Refresh(icons, grid.GetSlot, hoveredBench);
-        _result.Refresh(icons, _ => grid.Result, hoveredResult);
+        if (IsBenchMode)
+        {
+            ActiveBenchGrid.Refresh(icons, grid.GetSlot, hovered.Bench);
+            _result.Refresh(icons, _ => grid.Result, hovered.Result);
+        }
+        else if (_mode == ScreenMode.Chest)
+        {
+            _chest.Refresh(icons, container!.GetSlot, hovered.ContainerSlot);
+        }
+        else
+        {
+            RefreshFurnace(icons, (BlockStateFurnace)container!, hovered.ContainerSlot);
+        }
 
         _storage.Refresh(
             icons,
             index => inventory.GetSlot(Inventory.HotbarSlots + index),
-            hoveredStorage);
+            hovered.Storage);
 
-        _hotbar.Refresh(icons, inventory.GetSlot, hoveredHotbar);
+        _hotbar.Refresh(icons, inventory.GetSlot, hovered.Hotbar);
 
-        UpdateHoveredName(inventory, grid, hoveredBlock, hoveredBench, hoveredResult, hoveredStorage, hoveredHotbar);
+        UpdateHoveredName(inventory, grid, container, hovered);
         UpdateCursorStack(inventory, mouse);
 
         Overlay.Clean();
     }
 
-    private UISlotGrid ActiveBenchGrid => _benchSize == 3 ? _largeBench : _smallBench;
+    private struct Hovered
+    {
+        public int Block;
+        public int Bench;
+        public int Result;
+        public int ContainerSlot;
+        public int Storage;
+        public int Hotbar;
+    }
 
-    private void HandleClicks(
-        Inventory inventory,
-        CraftingGrid grid,
-        int hoveredBlock,
-        int hoveredBench,
-        int hoveredResult,
-        int hoveredStorage,
-        int hoveredHotbar)
+    private int ContainerSlotAt(Vector2 mouse)
+    {
+        switch (_mode)
+        {
+            case ScreenMode.Chest:
+                return _chest.IndexAt(mouse);
+
+            case ScreenMode.Furnace:
+                if (_furnaceInput.IndexAt(mouse) >= 0)
+                {
+                    return BlockStateFurnace.InputSlot;
+                }
+
+                if (_furnaceFuel.IndexAt(mouse) >= 0)
+                {
+                    return BlockStateFurnace.FuelSlot;
+                }
+
+                return _furnaceOutput.IndexAt(mouse) >= 0 ? BlockStateFurnace.OutputSlot : -1;
+
+            default:
+                return -1;
+        }
+    }
+
+    private void RefreshFurnace(ItemIconRenderer icons, BlockStateFurnace furnace, int hoveredSlot)
+    {
+        _furnaceInput.Refresh(icons, _ => furnace.Input, hoveredSlot == BlockStateFurnace.InputSlot ? 0 : -1);
+        _furnaceFuel.Refresh(icons, _ => furnace.Fuel, hoveredSlot == BlockStateFurnace.FuelSlot ? 0 : -1);
+        _furnaceOutput.Refresh(icons, _ => furnace.Output, hoveredSlot == BlockStateFurnace.OutputSlot ? 0 : -1);
+
+        float flame = furnace.BurnFraction;
+        _flameBar.IsVisible = flame > 0F;
+        _flameBar.Dimension = new Vector2(FlameWidth, FlameHeight * flame);
+        _flameBar.PixelPositionInCanvas = _flameTrack.PixelPositionInCanvas + new Vector2(0F, FlameHeight * (1F - flame));
+
+        float cooked = furnace.CookFraction;
+        _arrowBar.IsVisible = cooked > 0F;
+        _arrowBar.Dimension = new Vector2(ArrowLength * cooked, ArrowThickness);
+        _arrowBar.PixelPositionInCanvas = _arrowTrack.PixelPositionInCanvas;
+    }
+
+    private UISlotGrid ActiveBenchGrid => _mode == ScreenMode.LargeBench ? _largeBench : _smallBench;
+
+    private void HandleClicks(Inventory inventory, CraftingGrid grid, IContainerState? container, Hovered hovered)
     {
         if (!_game.Window.IsFocused)
         {
@@ -238,7 +389,7 @@ public sealed class UICanvasInventory : UICanvas
             return;
         }
 
-        if (hoveredBlock >= 0)
+        if (hovered.Block >= 0)
         {
             if (!inventory.CursorStack.IsEmpty)
             {
@@ -246,64 +397,91 @@ public sealed class UICanvasInventory : UICanvas
                 return;
             }
 
-            inventory.TakeFromSupply(ItemCatalogue.ItemAt(hoveredBlock), right ? 1 : ItemStack.MaxCount);
+            inventory.TakeFromSupply(ItemCatalogue.ItemAt(hovered.Block), right ? 1 : ItemStack.MaxCount);
             return;
         }
 
-        if (hoveredBench >= 0)
+        if (hovered.Bench >= 0)
         {
-            inventory.ClickCraftingSlot(grid, hoveredBench, right);
+            inventory.ClickCraftingSlot(grid, hovered.Bench, right);
             return;
         }
 
-        if (hoveredResult >= 0)
+        if (hovered.Result >= 0)
         {
             inventory.ClickCraftingResult(grid);
             return;
         }
 
-        if (hoveredStorage >= 0)
+        if (hovered.ContainerSlot >= 0 && container is not null)
         {
-            inventory.ClickSlot(Inventory.HotbarSlots + hoveredStorage, right);
+            ClickContainerSlot(inventory, container, hovered.ContainerSlot, right);
             return;
         }
 
-        if (hoveredHotbar >= 0)
+        if (hovered.Storage >= 0)
         {
-            inventory.ClickSlot(hoveredHotbar, right);
+            inventory.ClickSlot(Inventory.HotbarSlots + hovered.Storage, right);
+            return;
+        }
+
+        if (hovered.Hotbar >= 0)
+        {
+            inventory.ClickSlot(hovered.Hotbar, right);
         }
     }
 
-    private void UpdateHoveredName(
-        Inventory inventory,
-        CraftingGrid grid,
-        int hoveredBlock,
-        int hoveredBench,
-        int hoveredResult,
-        int hoveredStorage,
-        int hoveredHotbar)
+    private void ClickContainerSlot(Inventory inventory, IContainerState container, int slot, bool right)
+    {
+        ItemStack current = container.GetSlot(slot);
+
+        ItemStack updated = container.IsTakeOnly(slot)
+            ? inventory.ClickTakeOnlySlot(current)
+            : inventory.ClickExternalSlot(current, right, stack => container.Accepts(slot, stack));
+
+        if (updated.SameAs(current))
+        {
+            return;
+        }
+
+        container.SetSlot(slot, updated);
+
+        _game.Client.WritePacket(new ContainerSlotPacket(
+            _containerPos,
+            slot,
+            updated.IsEmpty ? (ushort)0 : updated.Item!.Id,
+            updated.Count,
+            updated.Damage,
+            _game.ClientPlayer.NextContainerWriteSequence()));
+    }
+
+    private void UpdateHoveredName(Inventory inventory, CraftingGrid grid, IContainerState? container, Hovered hovered)
     {
         Item? item = null;
 
-        if (hoveredBlock >= 0)
+        if (hovered.Block >= 0)
         {
-            item = ItemCatalogue.ItemAt(hoveredBlock);
+            item = ItemCatalogue.ItemAt(hovered.Block);
         }
-        else if (hoveredBench >= 0)
+        else if (hovered.Bench >= 0)
         {
-            item = grid.GetSlot(hoveredBench).Item;
+            item = grid.GetSlot(hovered.Bench).Item;
         }
-        else if (hoveredResult >= 0)
+        else if (hovered.Result >= 0)
         {
             item = grid.Result.Item;
         }
-        else if (hoveredStorage >= 0)
+        else if (hovered.ContainerSlot >= 0 && container is not null)
         {
-            item = inventory.GetSlot(Inventory.HotbarSlots + hoveredStorage).Item;
+            item = container.GetSlot(hovered.ContainerSlot).Item;
         }
-        else if (hoveredHotbar >= 0)
+        else if (hovered.Storage >= 0)
         {
-            item = inventory.GetSlot(hoveredHotbar).Item;
+            item = inventory.GetSlot(Inventory.HotbarSlots + hovered.Storage).Item;
+        }
+        else if (hovered.Hotbar >= 0)
+        {
+            item = inventory.GetSlot(hovered.Hotbar).Item;
         }
 
         string name = item?.Name ?? string.Empty;
@@ -355,15 +533,45 @@ public sealed class UICanvasInventory : UICanvas
         label.PixelPositionInCanvas = new Vector2(left, top - inkTop);
     }
 
+    private string SectionHeadingText => _mode switch
+    {
+        ScreenMode.Chest => "Chest",
+        ScreenMode.Furnace => "Furnace",
+        _ => "Crafting",
+    };
+
+    private float SectionHeight => _mode switch
+    {
+        ScreenMode.Chest => _chest.Height,
+        ScreenMode.Furnace => (2F * SlotSize) + FlameHeight + (2F * FlameGap),
+        _ => ActiveBenchGrid.Height,
+    };
+
     private void LayOut()
     {
         _blocks.SetVisible(_showsBlockList);
         _blocksHeading.IsVisible = _showsBlockList;
 
-        _smallBench.SetVisible(_benchSize == 2);
-        _largeBench.SetVisible(_benchSize == 3);
+        _smallBench.SetVisible(_mode == ScreenMode.SmallBench);
+        _largeBench.SetVisible(_mode == ScreenMode.LargeBench);
+        _result.SetVisible(IsBenchMode);
+        _chest.SetVisible(_mode == ScreenMode.Chest);
 
-        (_benchSize == 3 ? _smallBench : _largeBench).ClearCounts();
+        bool furnace = _mode == ScreenMode.Furnace;
+        _furnaceInput.SetVisible(furnace);
+        _furnaceFuel.SetVisible(furnace);
+        _furnaceOutput.SetVisible(furnace);
+        _flameTrack.IsVisible = furnace;
+        _arrowTrack.IsVisible = furnace;
+        _flameBar.IsVisible = false;
+        _arrowBar.IsVisible = false;
+
+        foreach (UISlotGrid grid in new[] { _smallBench, _largeBench, _result, _chest, _furnaceInput, _furnaceFuel, _furnaceOutput })
+        {
+            grid.ClearCounts();
+        }
+
+        _sectionHeading.Text = SectionHeadingText;
 
         float headingHeight = InkHeight(_blocksHeading.Text, HeadingScale);
         float titleHeight = InkHeight(_title.Text, TitleScale);
@@ -375,12 +583,10 @@ public sealed class UICanvasInventory : UICanvas
             ? headingHeight + HeadingGap + _blocks.Height + SectionGap
             : 0F;
 
-        UISlotGrid bench = ActiveBenchGrid;
-
         float contentHeight =
             titleHeight + SectionGap
             + blockListHeight
-            + headingHeight + HeadingGap + bench.Height + SectionGap
+            + headingHeight + HeadingGap + SectionHeight + SectionGap
             + headingHeight + HeadingGap + _storage.Height + HotbarGap
             + _hotbar.Height + SectionGap + nameHeight;
 
@@ -411,16 +617,12 @@ public sealed class UICanvasInventory : UICanvas
             cursor += _blocks.Height + SectionGap;
         }
 
-        PlaceLabel(_craftingHeading, HeadingScale, left, cursor);
+        PlaceLabel(_sectionHeading, HeadingScale, left, cursor);
         cursor += headingHeight + HeadingGap;
 
-        bench.SetOrigin(new Vector2(left, cursor));
+        LayOutSection(left, cursor);
 
-        _result.SetOrigin(new Vector2(
-            left + bench.Width + ResultGap,
-            cursor + ((bench.Height - SlotSize) / 2F)));
-
-        cursor += bench.Height + SectionGap;
+        cursor += SectionHeight + SectionGap;
 
         PlaceLabel(_carriedHeading, HeadingScale, left, cursor);
         cursor += headingHeight + HeadingGap;
@@ -433,6 +635,47 @@ public sealed class UICanvasInventory : UICanvas
 
         _hoveredNameTop = cursor;
         CentreHoveredName();
+    }
+
+    private void LayOutSection(float left, float top)
+    {
+        switch (_mode)
+        {
+            case ScreenMode.Chest:
+                _chest.SetOrigin(new Vector2(left, top));
+                break;
+
+            case ScreenMode.Furnace:
+                LayOutFurnace(left + FurnaceIndent, top);
+                break;
+
+            default:
+                UISlotGrid bench = ActiveBenchGrid;
+                bench.SetOrigin(new Vector2(left, top));
+                _result.SetOrigin(new Vector2(
+                    left + bench.Width + ResultGap,
+                    top + ((bench.Height - SlotSize) / 2F)));
+                break;
+        }
+    }
+
+    private void LayOutFurnace(float left, float top)
+    {
+        _furnaceInput.SetOrigin(new Vector2(left, top));
+
+        float flameTop = top + SlotSize + FlameGap;
+        _flameTrack.PixelPositionInCanvas = new Vector2(left + ((SlotSize - FlameWidth) / 2F), flameTop);
+        _flameTrack.Dimension = new Vector2(FlameWidth, FlameHeight);
+
+        _furnaceFuel.SetOrigin(new Vector2(left, flameTop + FlameHeight + FlameGap));
+
+        float middle = top + (SectionHeight / 2F);
+        float arrowLeft = left + SlotSize + ResultGap;
+
+        _arrowTrack.PixelPositionInCanvas = new Vector2(arrowLeft, middle - (ArrowThickness / 2F));
+        _arrowTrack.Dimension = new Vector2(ArrowLength, ArrowThickness);
+
+        _furnaceOutput.SetOrigin(new Vector2(arrowLeft + ArrowLength + ResultGap, middle - (SlotSize / 2F)));
     }
 
     private void CentreHoveredName()

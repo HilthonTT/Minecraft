@@ -13,6 +13,8 @@ public abstract class BlockState
 
     public virtual int PayloadSize() => 0;
 
+    public virtual int Appearance => 0;
+
     public virtual void ExtractFromByteStream(byte[] bytes, ref int head) { }
 
     public override string ToString() => GetType().ToString();

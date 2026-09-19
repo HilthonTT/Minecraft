@@ -4,6 +4,7 @@ using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
 using Minecraft.Core.Inventories.Items;
+using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
@@ -33,6 +34,11 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessPlaceBlockPacket(PlaceBlockPacket blockPacket)
     {
+        if (blockPacket.BlockState is IContainerState container)
+        {
+            container.ClearContents();
+        }
+
         _game.Server.World.QueueToAddBlockAt(blockPacket.BlockPos, blockPacket.BlockState);
     }
 
@@ -289,6 +295,76 @@ public sealed class ServerNetHandler : INetHandler
             : new ItemStack(held, 1, playerHeldItemPacket.Damage);
     }
 
+    public void ProcessContainerSlotPacket(ContainerSlotPacket containerSlotPacket)
+    {
+        _session.LastContainerSequence = Math.Max(_session.LastContainerSequence, containerSlotPacket.Sequence);
+
+        if (_session.Player is not ServerPlayer player || !player.IsAlive)
+        {
+            return;
+        }
+
+        WorldServer world = _game.Server.World;
+        Vector3i blockPos = containerSlotPacket.BlockPos;
+
+        if (!world.IsBlockPositionLoaded(blockPos) || world.GetBlockAt(blockPos) is not IContainerState container)
+        {
+            return;
+        }
+
+        var centre = new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.5F, blockPos.Z + 0.5F);
+        if ((centre - player.Position).LengthSquared > MaxDropReach * MaxDropReach)
+        {
+            Logger.Warn("Player " + player.ID + " reached into a container out of reach at " + blockPos + ".");
+            return;
+        }
+
+        int slot = containerSlotPacket.Slot;
+        if (slot < 0 || slot >= container.SlotCount)
+        {
+            Logger.Warn("Player " + player.ID + " wrote to container slot " + slot + ".");
+            return;
+        }
+
+        if (containerSlotPacket.Count is < 0 or > ItemStack.MaxCount)
+        {
+            Logger.Warn("Player " + player.ID + " put " + containerSlotPacket.Count + " of something in a container.");
+            return;
+        }
+
+        ItemStack written = ItemStackCodec.FromParts(
+            containerSlotPacket.ItemId,
+            containerSlotPacket.Count,
+            containerSlotPacket.Damage);
+
+        if (!IsAllowedContainerWrite(container, slot, written))
+        {
+            Logger.Warn("Player " + player.ID + " made a container write the slot cannot take.");
+            world.NotifyBlockStateChanged(blockPos, (BlockState)container);
+            return;
+        }
+
+        container.SetSlot(slot, written);
+        world.NotifyBlockStateChanged(blockPos, (BlockState)container);
+    }
+
+    private static bool IsAllowedContainerWrite(IContainerState container, int slot, ItemStack written)
+    {
+        if (written.IsEmpty)
+        {
+            return true;
+        }
+
+        ItemStack current = container.GetSlot(slot);
+
+        if (container.IsTakeOnly(slot))
+        {
+            return current.Item == written.Item && written.Count <= current.Count;
+        }
+
+        return container.Accepts(slot, written);
+    }
+
     public void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket)
     {
         if (_session.Player is not ServerPlayer player)
@@ -365,6 +441,9 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessItemPickupPacket(ItemPickupPacket itemPickupPacket) =>
         throw new InvalidOperationException("A server does not receive pickups; it is the one that grants them.");
+
+    public void ProcessBlockStateSyncPacket(BlockStateSyncPacket blockStateSyncPacket) =>
+        throw new InvalidOperationException("A server does not receive block states; it is the one that keeps them.");
 
     public void ProcessPlayerHungerPacket(PlayerHungerPacket playerHungerPacket) =>
         throw new InvalidOperationException("A server does not receive hunger; it is the one that keeps it.");

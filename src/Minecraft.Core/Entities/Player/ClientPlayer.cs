@@ -5,6 +5,7 @@ using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render;
+using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
@@ -40,6 +41,11 @@ public sealed class ClientPlayer : Player
     public bool CanEat => !IsCreative && Food < Constants.PLAYER_MAX_FOOD;
 
     public bool CanSprint => IsCreative || Food >= Constants.PLAYER_SPRINT_MIN_FOOD;
+
+    public bool HasUnacknowledgedContainerWrites => _containerWritesAcknowledged < _containerWritesSent;
+
+    private int _containerWritesSent;
+    private int _containerWritesAcknowledged;
 
     private float _eatingSeconds;
     private float _secondsUntilEatingSound;
@@ -137,6 +143,13 @@ public sealed class ClientPlayer : Player
 
     public void SetFood(int food) => Food = Math.Clamp(food, 0, Constants.PLAYER_MAX_FOOD);
 
+    public int NextContainerWriteSequence() => ++_containerWritesSent;
+
+    public void AcknowledgeContainerWrites(int sequence)
+    {
+        _containerWritesAcknowledged = Math.Max(_containerWritesAcknowledged, sequence);
+    }
+
     public void ApplyFieldOfViewSetting()
     {
         _cameraRig.SetDefaultFieldOfView(_game.Settings.FieldOfViewRadians);
@@ -186,6 +199,8 @@ public sealed class ClientPlayer : Player
         Health = Constants.PLAYER_MAX_HEALTH;
         Food = Constants.PLAYER_MAX_FOOD;
 
+        _containerWritesSent = 0;
+        _containerWritesAcknowledged = 0;
         StopEating();
 
         _cameraRig.Reset();
@@ -311,7 +326,8 @@ public sealed class ClientPlayer : Player
 
         if (Game.Input.OnMousePress(MouseButton.Right))
         {
-            Block hitBlock = world.GetBlockAt(MouseOverObject.IntersectedBlockPos).GetBlock();
+            BlockState hitState = world.GetBlockAt(MouseOverObject.IntersectedBlockPos);
+            Block hitBlock = hitState.GetBlock();
             Block selected = SelectedBlock.GetBlock();
 
             OnSwingHandler?.Invoke();
@@ -319,6 +335,10 @@ public sealed class ClientPlayer : Player
             if (!_isCrouching && hitBlock == BlockRegistry.CraftingTable)
             {
                 _game.OpenCraftingTable();
+            }
+            else if (!_isCrouching && hitState is IContainerState)
+            {
+                _game.OpenContainer(MouseOverObject.IntersectedBlockPos);
             }
             else if (!_isCrouching && hitBlock.IsInteractable)
             {
@@ -377,6 +397,11 @@ public sealed class ClientPlayer : Player
         if (state is IOrientedBlockState oriented && MouseOverObject is not null)
         {
             oriented.OrientTowardsSupport(MouseOverObject.IntersectedBlockPos - blockPos);
+        }
+
+        if (state is IFacingBlockState facing)
+        {
+            facing.Facing = DirectionUtil.FacingBack(Camera.LookDirection);
         }
 
         return state;
@@ -445,9 +470,10 @@ public sealed class ClientPlayer : Player
             return false;
         }
 
-        Block block = world.GetBlockAt(MouseOverObject.IntersectedBlockPos).GetBlock();
+        BlockState state = world.GetBlockAt(MouseOverObject.IntersectedBlockPos);
+        Block block = state.GetBlock();
 
-        return block == BlockRegistry.CraftingTable || block.IsInteractable;
+        return block == BlockRegistry.CraftingTable || block.IsInteractable || state is IContainerState;
     }
 
     private void UpdateFallTracking()

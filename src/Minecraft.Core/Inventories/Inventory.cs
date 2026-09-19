@@ -308,50 +308,82 @@ public sealed class Inventory
     public void ClickCraftingSlot(CraftingGrid grid, int index, bool rightButton)
     {
         ItemStack slot = grid.GetSlot(index);
+        ItemStack updated = ClickExternalSlot(slot, rightButton);
+
+        if (!updated.SameAs(slot))
+        {
+            grid.SetSlot(index, updated);
+        }
+    }
+
+    public ItemStack ClickExternalSlot(ItemStack slot, bool rightButton, Func<ItemStack, bool>? accepts = null)
+    {
         ItemStack cursor = CursorStack;
+        ItemStack updated;
 
         if (cursor.IsEmpty)
         {
             if (slot.IsEmpty)
             {
-                return;
+                return slot;
             }
 
-            if (!rightButton)
-            {
-                CursorStack = slot;
-                grid.SetSlot(index, ItemStack.Empty);
-            }
-            else
-            {
-                int taken = (slot.Count + 1) / 2;
-                CursorStack = slot.WithCount(taken);
-                grid.SetSlot(index, slot.WithCount(slot.Count - taken));
-            }
+            int taken = rightButton ? (slot.Count + 1) / 2 : slot.Count;
+            CursorStack = slot.WithCount(taken);
+            updated = slot.WithCount(slot.Count - taken);
+        }
+        else if (accepts is not null && !accepts(cursor))
+        {
+            return slot;
         }
         else if (rightButton)
         {
             if (!slot.IsEmpty && (!slot.CanStackWith(cursor) || slot.RemainingSpace == 0))
             {
-                return;
+                return slot;
             }
 
-            grid.SetSlot(index, slot.IsEmpty ? cursor.WithCount(1) : slot.WithCount(slot.Count + 1));
+            updated = slot.IsEmpty ? cursor.WithCount(1) : slot.WithCount(slot.Count + 1);
             CursorStack = cursor.WithCount(cursor.Count - 1);
         }
         else if (slot.CanStackWith(cursor))
         {
             int moved = Math.Min(slot.RemainingSpace, cursor.Count);
-            grid.SetSlot(index, slot.WithCount(slot.Count + moved));
+            updated = slot.WithCount(slot.Count + moved);
             CursorStack = cursor.WithCount(cursor.Count - moved);
         }
         else
         {
-            grid.SetSlot(index, cursor);
+            updated = cursor;
             CursorStack = slot;
         }
 
         OnChangedHandler?.Invoke();
+        return updated;
+    }
+
+    public ItemStack ClickTakeOnlySlot(ItemStack slot)
+    {
+        if (slot.IsEmpty)
+        {
+            return slot;
+        }
+
+        if (CursorStack.IsEmpty)
+        {
+            CursorStack = slot;
+        }
+        else if (CursorStack.CanStackWith(slot) && CursorStack.RemainingSpace >= slot.Count)
+        {
+            CursorStack = CursorStack.WithCount(CursorStack.Count + slot.Count);
+        }
+        else
+        {
+            return slot;
+        }
+
+        OnChangedHandler?.Invoke();
+        return ItemStack.Empty;
     }
 
     public void ClickCraftingResult(CraftingGrid grid)

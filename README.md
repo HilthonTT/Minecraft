@@ -95,8 +95,8 @@ with none left the hearts drain away a half at a time until one half is all you 
 with food in hand for a moment and a stack goes down by one.
 
 Cows, pigs and sheep leave meat when a survival player kills them, and a sheep leaves its wool too. Zombies
-sometimes leave rotten flesh, which fills you up but is nobody's first choice. Raw meat is worth eating, and
-cooked meat is worth more than twice as much. Three wheat in a row make bread.
+sometimes leave rotten flesh, which fills you up but is nobody's first choice. Raw meat is worth eating, but
+cooked in a furnace it is worth more than twice as much. Three wheat in a row make bread.
 
 | Food | Fills |
 | --- | --- |
@@ -106,6 +106,24 @@ cooked meat is worth more than twice as much. Three wheat in a row make bread.
 | Rotten flesh | 4 |
 | Raw beef, raw porkchop | 3 |
 | Raw mutton | 2 |
+
+### Furnaces and chests
+
+A furnace is eight cobblestone laid round the edge of a table's bench, and a chest is the same ring made of
+planks. Right click either to open it. The furnace has a slot for what is to be smelted, a slot under it for
+fuel, and one on the right that it fills. The flame between the first two shows how much fuel is left burning,
+and the bar shows how far the current item has got. A lump of coal or charcoal cooks eight things, and wood is
+worth one and a half.
+
+| Put in | Comes out |
+| --- | --- |
+| Iron ore, gold ore | Iron ingot, gold ingot |
+| Sand | Glass |
+| Cobblestone | Stone |
+| Any log | Charcoal |
+| Raw beef, porkchop, mutton | Steak, cooked porkchop, cooked mutton |
+
+A chest holds twenty seven stacks. Breaking either one spills whatever was inside onto the ground.
 
 ### Lava
 
@@ -158,7 +176,7 @@ name, seed and mode from the menu instead, and never deletes anything.
 | `Shift`         | Crouch, or descend while flying            |
 | `Ctrl`          | Sprint                                     |
 | Left click      | Hit a mob, or hold to break a block        |
-| Right click     | Place block, or interact (a crafting table, TNT) |
+| Right click     | Place block, or interact (a crafting table, furnace, chest, TNT) |
 | Hold right click | Eat the food in hand                      |
 | Middle click    | Pick the block being looked at             |
 | `1`–`9`         | Choose a hotbar slot to build with         |
@@ -222,7 +240,9 @@ a first pickaxe fits in the small one, and every tool needs the large one:
 | Planks | One log, anywhere | Four planks |
 | Sticks | Two planks, one above the other | Four sticks |
 | Crafting table | Four planks in a square | One table |
-| Torches | Coal above a stick | Four torches |
+| Torches | Coal or charcoal above a stick | Four torches |
+| Furnace | Eight cobblestone round an empty middle | One furnace |
+| Chest | Eight planks round an empty middle | One chest |
 | Bread | Three wheat in a row | One loaf |
 | Sandstone | Four sand in a square | One sandstone |
 | Pickaxe | Three across the top, two sticks down the middle | One pickaxe |
@@ -259,10 +279,7 @@ A sword is the one tool that is not for digging — no block is broken faster by
 mobs. It hits for four half hearts in wood up to seven in diamond, against the one a bare fist is worth; the
 digging tools are worth one less each, in the order they are worse shaped for it.
 
-Iron and gold ore drop the ingot rather than the ore block. There is no furnace to smelt anything in — that
-wants a block which holds things, which is the same piece of work chests are waiting on — and a ladder that
-stopped at stone for want of it would be a ladder with nothing at the top. So the pickaxe having to be good
-enough to reach the seam is what stands in for the smelting.
+Iron and gold ore come out of the ground as ore, and a furnace turns them into ingots.
 
 ![A pig standing in long grass on a terraced hillside, an oak log held in the corner of the view and the outline of the block being pointed at in the middle of the screen](Screenshots/sample-7.png)
 

@@ -51,6 +51,9 @@ public class World
     public delegate void OnBlockRemoved(World world, Chunk chunk, Vector3i blockPos, BlockState oldState);
     public event OnBlockRemoved? OnBlockRemovedHandler;
 
+    public delegate void OnBlockStateChanged(World world, Chunk chunk, Vector3i blockPos, BlockState state);
+    public event OnBlockStateChanged? OnBlockStateChangedHandler;
+
     public delegate void OnChunkLoaded(World world, Chunk chunk);
     public event OnChunkLoaded? OnChunkLoadedHandler;
 
@@ -300,6 +303,17 @@ public class World
     public void QueueToAddBlockAt(Vector3i blockPos, BlockState block)
     {
         _toAddBlocks.Enqueue((blockPos, block));
+    }
+
+    public void NotifyBlockStateChanged(Vector3i blockPos, BlockState state)
+    {
+        if (!_loadedChunks.TryGetValue(GetChunkPosition(blockPos.X, blockPos.Z), out Chunk? chunk))
+        {
+            return;
+        }
+
+        chunk.MarkDirty();
+        OnBlockStateChangedHandler?.Invoke(this, chunk, blockPos, state);
     }
 
     private bool RemoveBlockAt(Vector3i blockPos)

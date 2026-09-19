@@ -30,5 +30,7 @@ public enum PacketType
     PlayerHeldItem,
     PlayerEat,
     PlayerHunger,
-    PlayerSprint
+    PlayerSprint,
+    ContainerSlot,
+    BlockStateSync
 }

@@ -49,8 +49,11 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.BrownMushroom.Id] = new BlockModelBrownMushroom(textureAtlas);
         Models[BlockRegistry.Torch.Id] = new TorchModel(textureAtlas);
         Models[BlockRegistry.CraftingTable.Id] = new BlockModelCraftingTable(textureAtlas);
-        Models[BlockRegistry.Obsidian.Id] = new BlockModelObsidian(textureAtlas);
+        Models[BlockRegistry.Furnace.Id] = new BlockModelFurnace(textureAtlas);
+        Models[BlockRegistry.Chest.Id] = new BlockModelChest(textureAtlas);
+        Models[BlockRegistry.Glass.Id] = new BlockModelGlass(textureAtlas);
         Models[BlockRegistry.Wool.Id] = new BlockModelWool(textureAtlas);
+        Models[BlockRegistry.Obsidian.Id] = new BlockModelObsidian(textureAtlas);
 
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {

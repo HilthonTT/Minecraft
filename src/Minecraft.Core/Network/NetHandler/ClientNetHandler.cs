@@ -219,9 +219,42 @@ public sealed class ClientNetHandler : INetHandler
         }
     }
 
+    public void ProcessBlockStateSyncPacket(BlockStateSyncPacket blockStateSyncPacket)
+    {
+        ClientPlayer player = _game.ClientPlayer;
+        player.AcknowledgeContainerWrites(blockStateSyncPacket.AcknowledgedSequence);
+
+        if (player.HasUnacknowledgedContainerWrites)
+        {
+            return;
+        }
+
+        Vector3i blockPos = blockStateSyncPacket.BlockPos;
+        BlockState existing = _game.World.GetBlockAt(blockPos);
+
+        if (existing.GetBlock() != blockStateSyncPacket.BlockState.GetBlock() ||
+            existing is not IContainerState container)
+        {
+            return;
+        }
+
+        int appearance = existing.Appearance;
+        container.CopyContentsFrom(blockStateSyncPacket.BlockState);
+
+        if (existing.Appearance != appearance)
+        {
+            _game.World.NotifyBlockStateChanged(blockPos, existing);
+        }
+    }
+
     public void ProcessPlayerHungerPacket(PlayerHungerPacket playerHungerPacket)
     {
         _game.ClientPlayer.SetFood(playerHungerPacket.Food);
+    }
+
+    public void ProcessContainerSlotPacket(ContainerSlotPacket containerSlotPacket)
+    {
+        throw new InvalidOperationException("A client does not receive container writes; it is the one that makes them.");
     }
 
     public void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket)

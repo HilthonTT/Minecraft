@@ -57,6 +57,7 @@ public sealed class WorldServer : World
     {
         OnBlockPlacedHandler += OnBlockPlacedServer;
         OnBlockRemovedHandler += OnBlockRemovedServer;
+        OnBlockStateChangedHandler += OnBlockStateChangedServer;
         OnEntityDespawnedHandler += OnEntityDespawnedServer;
 
         _storage = storage;
@@ -513,6 +514,17 @@ public sealed class WorldServer : World
             if (session.IsBlockPositionInViewRange(blockPos))
             {
                 session.WritePacket(new PlaceBlockPacket(newState, blockPos));
+            }
+        }
+    }
+
+    private void OnBlockStateChangedServer(World world, Chunk chunk, Vector3i blockPos, BlockState state)
+    {
+        foreach (ServerSession session in Game.Server.ConnectedClients)
+        {
+            if (session.IsBlockPositionInViewRange(blockPos))
+            {
+                session.WritePacket(new BlockStateSyncPacket(blockPos, session.LastContainerSequence, state));
             }
         }
     }

@@ -202,6 +202,28 @@ public sealed class PacketFactory
                 int damage = reader.ReadInt32();
                 return new PlayerHeldItemPacket(itemId, damage);
             }
+            case PacketType.ContainerSlot:
+            {
+                Vector3i blockPos = ReadVector3i(reader);
+                int slot = reader.ReadInt32();
+                ushort itemId = reader.ReadUInt16();
+                int count = reader.ReadInt32();
+                int damage = reader.ReadInt32();
+                int sequence = reader.ReadInt32();
+                return new ContainerSlotPacket(blockPos, slot, itemId, count, damage, sequence);
+            }
+            case PacketType.BlockStateSync:
+            {
+                Vector3i blockPos = ReadVector3i(reader);
+                int acknowledged = reader.ReadInt32();
+                int byteSize = ReadLength(reader, MaxBlockStateBytes, "A block state");
+                ushort blockId = reader.ReadUInt16();
+                byte[] bytes = reader.ReadBytes(byteSize);
+                BlockState blockState = BlockRegistry.GetState(BlockRegistry.GetBlockFromIdentifier(blockId));
+                int head = 0;
+                blockState.ExtractFromByteStream(bytes, ref head);
+                return new BlockStateSyncPacket(blockPos, acknowledged, blockState);
+            }
             case PacketType.PlayerEat:
             {
                 return new PlayerEatPacket(reader.ReadUInt16());

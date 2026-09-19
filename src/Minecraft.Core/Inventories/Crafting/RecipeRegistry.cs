@@ -53,6 +53,21 @@ public static class RecipeRegistry
                 new Dictionary<char, Item> { ['C'] = ItemRegistry.Coal, ['S'] = stick }),
 
             Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(BlockRegistry.Torch), 4),
+                ["C", "S"],
+                new Dictionary<char, Item> { ['C'] = ItemRegistry.Charcoal, ['S'] = stick }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(BlockRegistry.Furnace), 1),
+                ["XXX", "X X", "XXX"],
+                new Dictionary<char, Item> { ['X'] = ItemRegistry.For(BlockRegistry.Cobblestone) }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(BlockRegistry.Chest), 1),
+                ["XXX", "X X", "XXX"],
+                new Dictionary<char, Item> { ['X'] = planks }),
+
+            Recipe.Shaped(
                 new ItemStack(ItemRegistry.Bread, 1),
                 ["XXX"],
                 new Dictionary<char, Item> { ['X'] = ItemRegistry.For(BlockRegistry.Wheat) }),

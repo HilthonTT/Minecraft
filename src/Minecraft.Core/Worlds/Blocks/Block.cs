@@ -23,6 +23,8 @@ public abstract class Block
 
     public bool IsTranslucent { get; protected set; }
 
+    public bool HidesFacesAgainstItself { get; protected set; }
+
     public BlockSoundMaterial SoundMaterial { get; protected set; } = BlockSoundMaterial.Stone;
     public bool HasCustomState { get; protected set; } = false;
 

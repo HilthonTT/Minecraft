@@ -300,6 +300,11 @@ public sealed class ChunkRenderer
         }
     }
 
+    public void OnBlockStateChanged(World world, Chunk chunk, Vector3i blockPos, BlockState state)
+    {
+        MeshChunk(chunk, immediate: true);
+    }
+
     public void OnBlockRemoved(World world, Chunk chunk, Vector3i blockPos, BlockState oldState)
     {
         foreach (Chunk editedLightMapChunk in BlockLightPropagation.RepairOnBlockRemoved(world, chunk, blockPos))
