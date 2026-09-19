@@ -3,10 +3,12 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;
 
-public sealed class BlockModelWater : FullBlockModel
+public sealed class BlockModelFluid : FullBlockModel
 {
-    public BlockModelWater(TextureAtlas textureAtlas, float surfaceHeight) : base(textureAtlas)
+    public BlockModelFluid(TextureAtlas textureAtlas, float surfaceHeight, Vector2 cell) : base(textureAtlas)
     {
+        SetUniformUVs(cell);
+
         _back = false;
         _right = false;
         _front = false;
@@ -28,7 +30,7 @@ public sealed class BlockModelWater : FullBlockModel
         _leftFace = [new(0, 0, 0), new(0, 0, 1), new(0, top, 1), new(0, top, 0)];
 
         Vector2[] sideUVs = textureAtlas.GetTextureCoords(
-            BlockAtlas.Water,
+            cell,
             new Vector2(0, Constants.CUBE_DIM - top),
             new Vector2(1, 1));
 
@@ -38,5 +40,7 @@ public sealed class BlockModelWater : FullBlockModel
         _uvLeft = sideUVs;
     }
 
-    protected override void SetStandardUVs() => SetUniformUVs(BlockAtlas.Water);
+    protected override void SetStandardUVs()
+    {
+    }
 }

@@ -91,7 +91,7 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         Block block = state.GetBlock();
         BlockModel blockModel = _blockModelRegistry.Models[block.Id];
 
-        TargetLiquidBuffers(block.IsLiquid);
+        TargetLiquidBuffers(block.IsTranslucent);
 
         int worldY = sectionLocalY + sectionHeight * 16;
         var chunkLocalPos = new Vector3i(localX, worldY, localZ);
@@ -298,10 +298,12 @@ public sealed class ChunkMeshGenerator : MeshGenerator
 
     private bool ShouldAddFaceTowards(Block block, BlockState neighbour, Direction facingBack)
     {
-        if (block is BlockWater water && neighbour.GetBlock() is BlockWater neighbourWater)
+        Block neighbourBlock = neighbour.GetBlock();
+
+        if (block is BlockFluid fluid && fluid.IsSameFluidAs(neighbourBlock))
         {
             return facingBack is not (Direction.Top or Direction.Bottom) &&
-                   neighbourWater.SurfaceHeight < water.SurfaceHeight;
+                   ((BlockFluid)neighbourBlock).SurfaceHeight < fluid.SurfaceHeight;
         }
 
         return !_blockModelRegistry.Models[neighbour.GetBlock().Id].IsOpaqueOnSide(facingBack);

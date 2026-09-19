@@ -21,6 +21,8 @@ public abstract class Block
 
     public bool IsLiquid { get; protected set; }
 
+    public bool IsTranslucent { get; protected set; }
+
     public BlockSoundMaterial SoundMaterial { get; protected set; } = BlockSoundMaterial.Stone;
     public bool HasCustomState { get; protected set; } = false;
 

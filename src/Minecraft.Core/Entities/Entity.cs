@@ -236,7 +236,7 @@ public abstract class Entity
 
     private static Vector3 GetLiquidFlowAt(World world, Vector3i blockPos)
     {
-        if (world.GetBlockAt(blockPos).GetBlock() is not BlockWater water)
+        if (world.GetBlockAt(blockPos).GetBlock() is not BlockFluid fluid)
         {
             return Vector3.Zero;
         }
@@ -250,9 +250,9 @@ public abstract class Entity
             Block side = sideState.GetBlock();
 
             float sideHeight;
-            if (side is BlockWater sideWater)
+            if (fluid.IsSameFluidAs(side))
             {
-                sideHeight = sideWater.SurfaceHeight;
+                sideHeight = ((BlockFluid)side).SurfaceHeight;
             }
             else if (side.GetCollisionBox(sideState, sidePos).Length == 0)
             {
@@ -260,10 +260,10 @@ public abstract class Entity
             }
             else
             {
-                sideHeight = water.SurfaceHeight;
+                sideHeight = fluid.SurfaceHeight;
             }
 
-            flow += new Vector3(sideOffset.X, 0, sideOffset.Z) * (water.SurfaceHeight - sideHeight);
+            flow += new Vector3(sideOffset.X, 0, sideOffset.Z) * (fluid.SurfaceHeight - sideHeight);
         }
 
         return flow.LengthSquared > 0.0001F ? Vector3.Normalize(flow) : Vector3.Zero;

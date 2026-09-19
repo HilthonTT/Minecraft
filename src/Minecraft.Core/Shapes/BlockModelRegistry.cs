@@ -51,9 +51,9 @@ public sealed class BlockModelRegistry
 
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {
-            if (BlockRegistry.GetBlockFromIdentifier(id) is BlockWater water)
+            if (BlockRegistry.GetBlockFromIdentifier(id) is BlockFluid fluid)
             {
-                Models[id] = new BlockModelWater(textureAtlas, water.SurfaceHeight);
+                Models[id] = new BlockModelFluid(textureAtlas, fluid.SurfaceHeight, BlockAtlas.Water);
             }
         }
 
