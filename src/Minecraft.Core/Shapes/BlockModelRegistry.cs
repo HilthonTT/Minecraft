@@ -1,6 +1,7 @@
 using Minecraft.Core.Textures;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Blocks.Types;
+using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Shapes;
 
@@ -48,12 +49,14 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.BrownMushroom.Id] = new BlockModelBrownMushroom(textureAtlas);
         Models[BlockRegistry.Torch.Id] = new TorchModel(textureAtlas);
         Models[BlockRegistry.CraftingTable.Id] = new BlockModelCraftingTable(textureAtlas);
+        Models[BlockRegistry.Obsidian.Id] = new BlockModelObsidian(textureAtlas);
 
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {
             if (BlockRegistry.GetBlockFromIdentifier(id) is BlockFluid fluid)
             {
-                Models[id] = new BlockModelFluid(textureAtlas, fluid.SurfaceHeight, BlockAtlas.Water);
+                Vector2 cell = fluid is BlockLava ? BlockAtlas.Lava : BlockAtlas.Water;
+                Models[id] = new BlockModelFluid(textureAtlas, fluid.SurfaceHeight, cell);
             }
         }
 

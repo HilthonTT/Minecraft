@@ -5,7 +5,9 @@ using Minecraft.Core.Games;
 using Minecraft.Core.Inventories;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
+using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using Minecraft.Core.Worlds.Chunks;
 using Minecraft.Core.Worlds.Generation;
 using Minecraft.Core.Worlds.Storage;
@@ -38,6 +40,8 @@ public sealed class WorldServer : World
     private const float ThrowHeightFraction = 0.7F;
 
     private readonly List<DroppedItem> _itemsToClear = [];
+
+    private readonly List<Entity> _entitiesInLava = [];
 
     private readonly Dictionary<Vector3i, ItemStack> _dropsAwaitingRemoval = [];
 
@@ -84,7 +88,61 @@ public sealed class WorldServer : World
     {
         _mobSpawner.Tick(this);
         TickDroppedItems();
+        TickLavaContact();
         TickPlayerRecovery(deltaTime);
+    }
+
+    private void TickLavaContact()
+    {
+        _entitiesInLava.Clear();
+
+        foreach (Entity entity in LoadedEntities.Values)
+        {
+            if (IsTouchingLava(entity))
+            {
+                _entitiesInLava.Add(entity);
+            }
+        }
+
+        foreach (Entity entity in _entitiesInLava)
+        {
+            switch (entity)
+            {
+                case ServerPlayer player:
+                    HurtPlayer(player, BlockLava.ContactDamage);
+                    break;
+
+                case Mob mob:
+                    HurtMob(mob, BlockLava.ContactDamage, mob.Position, knockbackMultiplier: 0F);
+                    break;
+
+                case DroppedItem item:
+                    DespawnEntity(item.ID);
+                    break;
+            }
+        }
+    }
+
+    private bool IsTouchingLava(Entity entity)
+    {
+        Vector3i min = entity.Hitbox.Min.ToBlockPos();
+        Vector3i max = (entity.Hitbox.Max - new Vector3(0.001F)).ToBlockPos();
+
+        for (int x = min.X; x <= max.X; x++)
+        {
+            for (int y = min.Y; y <= max.Y; y++)
+            {
+                for (int z = min.Z; z <= max.Z; z++)
+                {
+                    if (!IsOutsideBuildHeight(y) && GetBlockAt(new Vector3i(x, y, z)).GetBlock() is BlockLava)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private void TickDroppedItems()

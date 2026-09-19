@@ -1,5 +1,7 @@
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
+using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render;
@@ -7,6 +9,11 @@ namespace Minecraft.Core.Render;
 public readonly struct FogState
 {
     private static readonly Vector3 UnderwaterTint = new(0.02F, 0.16F, 0.32F);
+
+    private static readonly Vector3 LavaTint = new(0.62F, 0.18F, 0.02F);
+
+    private const float LavaFogStart = 0.1F;
+    private const float LavaFogEnd = 2.5F;
 
     private const float UnderwaterFogStart = 0.5F;
     private const float UnderwaterFogEnd = 22F;
@@ -27,7 +34,20 @@ public readonly struct FogState
     {
         Vector3 skyColor = world.Environment.GetCurrentFogColor();
 
-        if (!IsPositionInLiquid(world, cameraPosition))
+        Block? liquid = LiquidAt(world, cameraPosition);
+
+        if (liquid is BlockLava)
+        {
+            return new FogState
+            {
+                Color = LavaTint,
+                Start = LavaFogStart,
+                End = LavaFogEnd,
+                CameraSubmerged = true,
+            };
+        }
+
+        if (liquid is null)
         {
             return new FogState
             {
@@ -52,14 +72,15 @@ public readonly struct FogState
         };
     }
 
-    private static bool IsPositionInLiquid(World world, Vector3 position)
+    private static Block? LiquidAt(World world, Vector3 position)
     {
         var blockPos = position.ToBlockPos();
         if (world.IsOutsideBuildHeight(blockPos.Y))
         {
-            return false;
+            return null;
         }
 
-        return world.GetBlockAt(blockPos).GetBlock().IsLiquid;
+        Block block = world.GetBlockAt(blockPos).GetBlock();
+        return block.IsLiquid ? block : null;
     }
 }

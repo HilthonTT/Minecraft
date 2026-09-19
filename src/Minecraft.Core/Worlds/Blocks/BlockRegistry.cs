@@ -63,6 +63,15 @@ public static class BlockRegistry
 
     public static readonly Block CraftingTable = new BlockCraftingTable(46);
 
+    public static readonly Block Obsidian = new BlockSolid(47, secondsToBreak: 75F,
+        harvestTool: ToolKind.Pickaxe, requiresCorrectTool: true, harvestLevel: 3);
+
+    public static readonly Block Lava = new BlockLava(48, level: 0, falling: false);
+    public static readonly Block LavaFalling = new BlockLava(49, level: 0, falling: true);
+    public static readonly Block LavaFlowing1 = new BlockLava(50, level: 1, falling: false);
+    public static readonly Block LavaFlowing2 = new BlockLava(51, level: 2, falling: false);
+    public static readonly Block LavaFlowing3 = new BlockLava(52, level: 3, falling: false);
+
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
 
@@ -128,6 +137,12 @@ public static class BlockRegistry
             WaterFlowing6,
             WaterFlowing7,
             CraftingTable,
+            Obsidian,
+            Lava,
+            LavaFalling,
+            LavaFlowing1,
+            LavaFlowing2,
+            LavaFlowing3,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

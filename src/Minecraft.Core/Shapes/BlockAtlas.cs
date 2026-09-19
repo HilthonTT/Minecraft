@@ -10,6 +10,8 @@ public static class BlockAtlas
 
     public static Vector2 Water { get; } = new(13, 12);
 
+    public static Vector2 Lava { get; } = new(13, 14);
+
     public static Vector2 Rose { get; } = new(12, 0);
     public static Vector2 Dandelion { get; } = new(13, 0);
     public static Vector2 RedMushroom { get; } = new(12, 1);

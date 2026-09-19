@@ -29,4 +29,6 @@ public enum Sound
     ItemPickup,
 
     ToolBroke,
+
+    Fizz,
 }

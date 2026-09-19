@@ -86,6 +86,13 @@ rid of when every slot is bottomless — so the key does nothing there.
 A blow leaves ten seconds' grace and then the bar mends itself a half heart every four seconds, because there
 is nothing to eat yet. Dying puts you back at the world spawn with everything you were carrying.
 
+### Lava
+
+Pools of lava fill the bottom of the deepest caves and light them orange. It burns anything that falls in,
+destroys dropped items, and flows more slowly and for less distance than water. Where water reaches a lava
+source, the source hardens into obsidian, which only a diamond pickaxe can dig. Running lava hardens into
+cobblestone instead.
+
 ### Playing together
 
 A hosted world listens on every network interface, so the singleplayer world and the one friends join are the

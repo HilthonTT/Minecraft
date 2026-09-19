@@ -217,6 +217,30 @@ holds a body up holds water back. An entity in the water is carried along by it,
 stands against the cells around it: still water cancels out to nothing from every side, and a run of it pushes
 towards its shallow end, which is the way it is going.
 
+### Lava
+
+Lava is water's machinery run at a different speed. Both are a `BlockFluid`, which holds everything about
+reading a level off the id, feeding from neighbours and running down before sideways; what a fluid is left to
+say is how far it spreads, how long it waits between steps, and whether two springs make a third. Lava has
+four levels against water's eight, waits thirty ticks against five, and never pools into a new source, so a
+lake of it stays the size it was and a spill of it stays short.
+
+The two only ever meet at the lava. A lava cell touching water hardens as its next update comes round,
+obsidian from a source and cobblestone from anything running, and lava that runs down or across into water
+turns that cell to stone. Water needs no rule of its own for it: water arriving beside lava is a change
+beside the lava, which is already what schedules the lava to look again.
+
+A source is a light source, through the same `ILightSource` a torch uses, and it is drawn with the solid
+blocks rather than the translucent pass water takes. What it does to things in it is the server's to decide:
+every tick it looks for entities overlapping lava, burns a player or a mob four half hearts through the same
+gates any other blow goes through, and destroys a dropped item outright.
+
+The deepest caves are filled with it, anything the carver hollows out at or below `CaveCarver.LavaLevel`.
+That is a pure function of the carve like the rest of it, so it regenerates identically. A world saved
+before lava existed keeps air in the caves of the chunks it had stored, beside neighbours that now generate
+with lava in them; the border is ten blocks off bedrock and settles the first time something disturbs it,
+which was not worth refusing old worlds over.
+
 ### Sand and gravel
 
 A block with nothing holding it together drops a cell at a time rather than turning into a falling body of its
@@ -568,6 +592,10 @@ where it meets the air. The one exception is water lying against shallower water
 standing above the shallower one's waterline is open to the air and has to be drawn, or a flow running downhill
 would be see through along every step of its way. Under water the sky is left out entirely and the fog closes
 to a few blocks of dim blue, which is what reads as having gone under.
+
+The second buffer is chosen by a block being translucent rather than by it being liquid. Lava is liquid in
+every way that matters to a body in it and opaque to the eye, so it goes down with the solid blocks, and being
+inside it closes the fog to a couple of blocks of orange instead of blue.
 
 ### Fog
 

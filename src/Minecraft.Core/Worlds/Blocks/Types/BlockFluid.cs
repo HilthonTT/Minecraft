@@ -56,6 +56,12 @@ public abstract class BlockFluid : Block
 
     public bool IsSameFluidAs(Block other) => other is BlockFluid && other.GetType() == GetType();
 
+    protected virtual bool TryReactWithNeighbours(World world, Vector3i blockPos) => false;
+
+    protected virtual void FlowIntoOtherFluid(World world, Vector3i blockPos)
+    {
+    }
+
     public override ItemStack GetDrop(BlockState blockState) => ItemStack.Empty;
 
     public override BlockState GetNewDefaultState()
@@ -92,6 +98,11 @@ public abstract class BlockFluid : Block
     public override void OnScheduledUpdate(BlockState blockState, World world, Vector3i blockPos)
     {
         if (world is not WorldServer)
+        {
+            return;
+        }
+
+        if (TryReactWithNeighbours(world, blockPos))
         {
             return;
         }
@@ -180,6 +191,12 @@ public abstract class BlockFluid : Block
             return;
         }
 
+        if (IsOtherFluidAt(world, belowPos))
+        {
+            FlowIntoOtherFluid(world, belowPos);
+            return;
+        }
+
         if (GetForLevel(FeedLevel + 1) is not BlockFluid thinner)
         {
             return;
@@ -195,6 +212,12 @@ public abstract class BlockFluid : Block
                 continue;
             }
 
+            if (IsOtherFluidAt(world, sidePos))
+            {
+                FlowIntoOtherFluid(world, sidePos);
+                continue;
+            }
+
             Block side = world.GetBlockAt(sidePos).GetBlock();
             if (IsSameFluidAs(side) &&
                 side is BlockFluid beside &&
@@ -205,6 +228,17 @@ public abstract class BlockFluid : Block
                 FlowInto(world, sidePos, thinner);
             }
         }
+    }
+
+    private bool IsOtherFluidAt(World world, Vector3i blockPos)
+    {
+        if (!world.IsBlockPositionLoaded(blockPos))
+        {
+            return false;
+        }
+
+        Block block = world.GetBlockAt(blockPos).GetBlock();
+        return block is BlockFluid && !IsSameFluidAs(block);
     }
 
     private static bool CanFlowInto(World world, Vector3i blockPos)

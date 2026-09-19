@@ -3,6 +3,7 @@ using Minecraft.Core.Games;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
 
@@ -35,6 +36,8 @@ public sealed class SoundDirector
 
     private const float PickupVolume = 0.35F;
 
+    private const float FizzVolume = 0.5F;
+
     private sealed class EntitySoundState
     {
         public Vector3 LastPosition;
@@ -65,6 +68,12 @@ public sealed class SoundDirector
 
     public void OnBlockPlaced(World world, Chunk chunk, Vector3i blockPos, BlockState oldState, BlockState newState)
     {
+        if (oldState.GetBlock() is BlockLava && newState.GetBlock() is not BlockFluid)
+        {
+            _engine.PlayAt(_sounds.Get(Sound.Fizz).Pick(_random), CentreOf(blockPos), FizzVolume, RandomPitch());
+            return;
+        }
+
         PlayBlockSound(newState.GetBlock(), blockPos);
     }
 

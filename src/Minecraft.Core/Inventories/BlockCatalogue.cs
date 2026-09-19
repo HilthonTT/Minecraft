@@ -18,6 +18,7 @@ public static class BlockCatalogue
         (BlockRegistry.BirchLog, "Birch Log"),
         (BlockRegistry.SpruceLog, "Spruce Log"),
         (BlockRegistry.Bedrock, "Bedrock"),
+        (BlockRegistry.Obsidian, "Obsidian"),
 
         (BlockRegistry.Grass, "Grass"),
         (BlockRegistry.SnowyGrass, "Snowy Grass"),
@@ -28,6 +29,7 @@ public static class BlockCatalogue
         (BlockRegistry.Snow, "Snow"),
         (BlockRegistry.Ice, "Ice"),
         (BlockRegistry.Water, "Water"),
+        (BlockRegistry.Lava, "Lava"),
         (BlockRegistry.OakLeaves, "Leaves"),
 
         (BlockRegistry.CoalOre, "Coal Ore"),

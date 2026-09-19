@@ -8,6 +8,8 @@ public sealed class CaveCarver
 {
     private const int LowestCaveY = 3;
 
+    public const int LavaLevel = 10;
+
     private const float SurfaceFadeDepth = 6F;
 
     private const float CeilingFadeDepth = 16F;
@@ -66,6 +68,12 @@ public sealed class CaveCarver
 
                     if (chunk.GetBlockAt(localX, y, localZ).GetBlock() == BlockRegistry.Air)
                     {
+                        continue;
+                    }
+
+                    if (y <= LavaLevel)
+                    {
+                        chunk.AddBlockAt(localX, y, localZ, BlockRegistry.GetState(BlockRegistry.Lava));
                         continue;
                     }
 

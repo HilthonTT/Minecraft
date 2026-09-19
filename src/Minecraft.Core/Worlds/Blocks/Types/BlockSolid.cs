@@ -15,12 +15,14 @@ public sealed class BlockSolid : Block
         float secondsToBreak = 1.0F,
         bool dropsItself = true,
         ToolKind? harvestTool = null,
-        bool requiresCorrectTool = false) : base(id)
+        bool requiresCorrectTool = false,
+        int harvestLevel = 0) : base(id)
     {
         SoundMaterial = soundMaterial;
         SecondsToBreak = secondsToBreak;
         HarvestTool = harvestTool;
         RequiresCorrectTool = requiresCorrectTool;
+        HarvestLevel = harvestLevel;
         _dropsItself = dropsItself;
     }
 
