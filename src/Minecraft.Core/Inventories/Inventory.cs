@@ -155,6 +155,22 @@ public sealed class Inventory
         return selected.WithCount(taken);
     }
 
+    public bool TakeOne(Item item)
+    {
+        int index = _slots[_selectedHotbarSlot].Item == item
+            ? _selectedHotbarSlot
+            : Array.FindIndex(_slots, stack => stack.Item == item);
+
+        if (index < 0)
+        {
+            return false;
+        }
+
+        _slots[index] = _slots[index].WithCount(_slots[index].Count - 1);
+        OnChangedHandler?.Invoke();
+        return true;
+    }
+
     public bool TryConsumeSelected()
     {
         if (HasEndlessSupply)
@@ -319,8 +335,63 @@ public sealed class Inventory
     public ItemStack ClickExternalSlot(ItemStack slot, bool rightButton, Func<ItemStack, bool>? accepts = null)
     {
         ItemStack cursor = CursorStack;
-        ItemStack updated;
+        ItemStack updated = ApplyExternalClick(slot, ref cursor, rightButton, accepts);
+        return Commit(slot, updated, cursor);
+    }
 
+    public ItemStack ClickTakeOnlySlot(ItemStack slot)
+    {
+        ItemStack cursor = CursorStack;
+        ItemStack updated = ApplyTakeOnlyClick(slot, ref cursor);
+        return Commit(slot, updated, cursor);
+    }
+
+    public ItemStack ClickContainerSlot(IContainerState container, int slot, bool rightButton)
+    {
+        ItemStack current = container.GetSlot(slot);
+        ItemStack cursor = CursorStack;
+        ItemStack updated = ApplyContainerClick(container, slot, ref cursor, rightButton);
+        return Commit(current, updated, cursor);
+    }
+
+    public void ReplaceCursorStack(ItemStack cursor)
+    {
+        if (cursor.SameAs(CursorStack))
+        {
+            return;
+        }
+
+        CursorStack = cursor;
+        OnChangedHandler?.Invoke();
+    }
+
+    private ItemStack Commit(ItemStack slot, ItemStack updated, ItemStack cursor)
+    {
+        if (updated.SameAs(slot) && cursor.SameAs(CursorStack))
+        {
+            return slot;
+        }
+
+        CursorStack = cursor;
+        OnChangedHandler?.Invoke();
+        return updated;
+    }
+
+    public static ItemStack ApplyContainerClick(IContainerState container, int slot, ref ItemStack cursor, bool rightButton)
+    {
+        ItemStack current = container.GetSlot(slot);
+
+        return container.IsTakeOnly(slot)
+            ? ApplyTakeOnlyClick(current, ref cursor)
+            : ApplyExternalClick(current, ref cursor, rightButton, stack => container.Accepts(slot, stack));
+    }
+
+    public static ItemStack ApplyExternalClick(
+        ItemStack slot,
+        ref ItemStack cursor,
+        bool rightButton,
+        Func<ItemStack, bool>? accepts = null)
+    {
         if (cursor.IsEmpty)
         {
             if (slot.IsEmpty)
@@ -329,60 +400,61 @@ public sealed class Inventory
             }
 
             int taken = rightButton ? (slot.Count + 1) / 2 : slot.Count;
-            CursorStack = slot.WithCount(taken);
-            updated = slot.WithCount(slot.Count - taken);
+            ItemStack remaining = slot.WithCount(slot.Count - taken);
+            cursor = slot.WithCount(taken);
+            return remaining;
         }
-        else if (accepts is not null && !accepts(cursor))
+
+        if (accepts is not null && !accepts(cursor))
         {
             return slot;
         }
-        else if (rightButton)
+
+        if (rightButton)
         {
             if (!slot.IsEmpty && (!slot.CanStackWith(cursor) || slot.RemainingSpace == 0))
             {
                 return slot;
             }
 
-            updated = slot.IsEmpty ? cursor.WithCount(1) : slot.WithCount(slot.Count + 1);
-            CursorStack = cursor.WithCount(cursor.Count - 1);
+            ItemStack placed = slot.IsEmpty ? cursor.WithCount(1) : slot.WithCount(slot.Count + 1);
+            cursor = cursor.WithCount(cursor.Count - 1);
+            return placed;
         }
-        else if (slot.CanStackWith(cursor))
+
+        if (slot.CanStackWith(cursor))
         {
             int moved = Math.Min(slot.RemainingSpace, cursor.Count);
-            updated = slot.WithCount(slot.Count + moved);
-            CursorStack = cursor.WithCount(cursor.Count - moved);
-        }
-        else
-        {
-            updated = cursor;
-            CursorStack = slot;
+            ItemStack filled = slot.WithCount(slot.Count + moved);
+            cursor = cursor.WithCount(cursor.Count - moved);
+            return filled;
         }
 
-        OnChangedHandler?.Invoke();
-        return updated;
+        ItemStack swapped = cursor;
+        cursor = slot;
+        return swapped;
     }
 
-    public ItemStack ClickTakeOnlySlot(ItemStack slot)
+    public static ItemStack ApplyTakeOnlyClick(ItemStack slot, ref ItemStack cursor)
     {
         if (slot.IsEmpty)
         {
             return slot;
         }
 
-        if (CursorStack.IsEmpty)
+        if (cursor.IsEmpty)
         {
-            CursorStack = slot;
+            cursor = slot;
         }
-        else if (CursorStack.CanStackWith(slot) && CursorStack.RemainingSpace >= slot.Count)
+        else if (cursor.CanStackWith(slot) && cursor.RemainingSpace >= slot.Count)
         {
-            CursorStack = CursorStack.WithCount(CursorStack.Count + slot.Count);
+            cursor = cursor.WithCount(cursor.Count + slot.Count);
         }
         else
         {
             return slot;
         }
 
-        OnChangedHandler?.Invoke();
         return ItemStack.Empty;
     }
 

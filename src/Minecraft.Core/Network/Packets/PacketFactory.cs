@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Inventories;
 using Minecraft.Core.IO;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
@@ -202,15 +203,19 @@ public sealed class PacketFactory
                 int damage = reader.ReadInt32();
                 return new PlayerHeldItemPacket(itemId, damage);
             }
-            case PacketType.ContainerSlot:
+            case PacketType.ContainerClick:
             {
                 Vector3i blockPos = ReadVector3i(reader);
                 int slot = reader.ReadInt32();
-                ushort itemId = reader.ReadUInt16();
-                int count = reader.ReadInt32();
-                int damage = reader.ReadInt32();
+                bool rightButton = reader.ReadBoolean();
+                ItemStack cursor = ReadItemStack(reader);
                 int sequence = reader.ReadInt32();
-                return new ContainerSlotPacket(blockPos, slot, itemId, count, damage, sequence);
+                return new ContainerClickPacket(blockPos, slot, rightButton, cursor, sequence);
+            }
+            case PacketType.ContainerCursor:
+            {
+                int sequence = reader.ReadInt32();
+                return new ContainerCursorPacket(sequence, ReadItemStack(reader));
             }
             case PacketType.BlockStateSync:
             {
@@ -251,6 +256,14 @@ public sealed class PacketFactory
 
     private static Vector3 ReadVector3(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
     private static Vector3i ReadVector3i(BinaryReader reader) => new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
+
+    private static ItemStack ReadItemStack(BinaryReader reader)
+    {
+        ushort itemId = reader.ReadUInt16();
+        int count = reader.ReadInt32();
+        int damage = reader.ReadInt32();
+        return ItemStackCodec.FromParts(itemId, count, damage);
+    }
 
     private static int ReadLength(BinaryReader reader, int maximum, string what)
     {

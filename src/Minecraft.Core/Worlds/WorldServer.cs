@@ -240,6 +240,12 @@ public sealed class WorldServer : World
         _storage.Flush();
     }
 
+    public void Shutdown()
+    {
+        _worldGenerator.Dispose();
+        SaveAndFlush();
+    }
+
     protected override void OnChunkUnloadedPostProcess(Chunk chunk)
     {
         _storage.QueueChunkSave(chunk);

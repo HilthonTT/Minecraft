@@ -7,6 +7,7 @@ using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 
 namespace Minecraft.Core.Worlds;
@@ -22,7 +23,7 @@ public class World
     private readonly Dictionary<Vector2, int> _chunkPlayerPopulation = [];
 
     private readonly Dictionary<int, Entity> _loadedEntities = [];
-    private readonly Dictionary<Vector2, Chunk> _loadedChunks = [];
+    private readonly ConcurrentDictionary<Vector2, Chunk> _loadedChunks = [];
 
     private readonly Dictionary<Vector3i, long> _scheduledBlockUpdates = [];
 
@@ -135,20 +136,19 @@ public class World
     protected void LoadChunk(Chunk chunk)
     {
         var chunkPos = new Vector2(chunk.GridX, chunk.GridZ);
-        if (_loadedChunks.ContainsKey(chunkPos))
+        if (!_loadedChunks.TryAdd(chunkPos, chunk))
         {
             Logger.Warn("World " + GetType() + " already had chunk data for " + chunkPos);
             return;
         }
 
-        _loadedChunks.Add(chunkPos, chunk);
         OnChunkLoadedHandler?.Invoke(this, chunk);
     }
 
     protected bool UnloadChunk(Chunk chunk)
     {
         var chunkPos = new Vector2(chunk.GridX, chunk.GridZ);
-        if (!_loadedChunks.Remove(chunkPos))
+        if (!_loadedChunks.TryRemove(chunkPos, out _))
         {
             return false;
         }
@@ -275,6 +275,11 @@ public class World
 
         foreach (Vector3i blockPos in _dueBlockUpdates)
         {
+            if (!IsBlockPositionLoaded(blockPos))
+            {
+                continue;
+            }
+
             BlockState state = GetBlockAt(blockPos);
             state.GetBlock().OnScheduledUpdate(state, this, blockPos);
         }

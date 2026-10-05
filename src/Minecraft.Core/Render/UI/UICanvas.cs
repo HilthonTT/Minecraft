@@ -77,6 +77,15 @@ public class UICanvas
         _toCleanComponents.Clear();
     }
 
+    public void CleanUp()
+    {
+        foreach (UIComponent component in _components)
+        {
+            component.CleanUp();
+            AddComponentToClean(component);
+        }
+    }
+
     public void AddComponentToClean(UIComponent component)
     {
         if (!_toCleanComponents.Contains(component))

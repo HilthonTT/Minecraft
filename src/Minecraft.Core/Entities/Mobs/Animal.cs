@@ -54,7 +54,7 @@ public abstract class Animal : Mob
             return;
         }
 
-        TickWandering(WanderRadius, TicksBetweenDecisions, OneInChanceOfMoving);
+        TickWandering(world, WanderRadius, TicksBetweenDecisions, OneInChanceOfMoving);
     }
 
     private void RunFromWhatHitIt()

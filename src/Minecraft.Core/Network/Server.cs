@@ -88,7 +88,20 @@ public sealed class Server
         _tcpServer?.Stop();
         _tcpServer = null;
 
-        World?.SaveAndFlush();
+        Logger.Warn("Server is closing down. Closing connections to all clients.");
+        foreach (ServerSession client in ConnectedClients)
+        {
+            try
+            {
+                client.Close();
+            }
+            catch (Exception e)
+            {
+                Logger.Error("Closing client connection failed: " + e.Message);
+            }
+        }
+
+        World?.Shutdown();
         _storage?.Dispose();
         _storage = null;
     }
@@ -119,8 +132,6 @@ public sealed class Server
             Logger.Info("Server accepted new client.");
         }
 
-        Logger.Warn("Server is closing down. Closing connections to all clients.");
-        ConnectedClients.ForEach(client => client.Close());
         tcpServer.Stop();
         Logger.Info("Server closed.");
     }
@@ -138,24 +149,39 @@ public sealed class Server
                 continue;
             }
 
-            client.Update(deltaTimeSeconds);
-
             try
             {
-                while (client.NetDataAvailable())
+                client.Update(deltaTimeSeconds);
+
+                while (client.State != SessionState.Closed && client.TryTakeReceivedPacket(out Packet packet))
                 {
-                    Packet packet = client.ReadPacket();
                     Logger.Packet("Server received packet " + packet);
+
+                    if (client.State != SessionState.Accepted && !IsAllowedBeforeJoining(packet))
+                    {
+                        Logger.Warn("Client sent " + packet.GetType().Name + " before joining.");
+                        client.State = SessionState.Closed;
+                        break;
+                    }
+
                     packet.Process(client.NetHandler);
                 }
             }
             catch (Exception e)
             {
-                Logger.Error("Failed handling packet from client: " + e.Message);
+                Logger.Error("Failed handling packet from client: " + e);
+                client.State = SessionState.Closed;
+            }
+
+            if (client.HasConnectionFailed)
+            {
                 client.State = SessionState.Closed;
             }
         }
     }
+
+    private static bool IsAllowedBeforeJoining(Packet packet) =>
+        packet is PlayerJoinRequestPacket or PlayerKeepAlivePacket or PlayerSettingsPacket or PlayerLeavePacket;
 
     private void HandleClientJoin()
     {
@@ -185,6 +211,7 @@ public sealed class Server
         session.OnStateChangedHandler += OnSessionStateChanged;
 
         ConnectedClients.Add(session);
+        session.StartTransfer();
 
         var timeoutWatch = new Stopwatch();
         timeoutWatch.Start();
@@ -255,7 +282,13 @@ public sealed class Server
     public void BroadcastPacket(Packet packet)
     {
         Logger.Packet("Server broadcasting packet [" + packet.GetType() + "]");
-        ConnectedClients.ForEach(client => client.WritePacket(packet));
+        foreach (ServerSession client in ConnectedClients)
+        {
+            if (client.State == SessionState.Accepted)
+            {
+                client.WritePacket(packet);
+            }
+        }
     }
 
     public void BroadcastPacketExceptTo(Session.Session session, Packet packet)
@@ -263,7 +296,7 @@ public sealed class Server
         Logger.Packet("Server broadcasting packet [" + packet.GetType() + "]");
         foreach (Session.Session client in ConnectedClients)
         {
-            if (client != session)
+            if (client != session && client.State == SessionState.Accepted)
             {
                 client.WritePacket(packet);
             }

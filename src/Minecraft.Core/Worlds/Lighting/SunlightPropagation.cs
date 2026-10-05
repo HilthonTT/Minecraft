@@ -55,6 +55,9 @@ public static class SunlightPropagation
 
         var updatedChunks = new HashSet<Chunk>(PropagateLight(world, chunk, lightPropagationQueue));
 
+        SeedFromNeighbourBorders(world, chunk, lightPropagationQueue);
+        updatedChunks.UnionWith(PropagateLight(world, chunk, lightPropagationQueue));
+
         updatedChunks.Remove(chunk);
         return updatedChunks.ToArray();
     }
@@ -82,6 +85,35 @@ public static class SunlightPropagation
         }
     }
 
+    private static void SeedFromNeighbourBorders(World world, Chunk chunk, Queue<LightAddNode> lightPropagationQueue)
+    {
+        foreach (Chunk neighbour in world.GetCardinalChunks(chunk))
+        {
+            int offsetX = neighbour.GridX - chunk.GridX;
+            int offsetZ = neighbour.GridZ - chunk.GridZ;
+
+            for (int i = 0; i < 16; i++)
+            {
+                int neighbourX = offsetX < 0 ? 15 : offsetX > 0 ? 0 : i;
+                int neighbourZ = offsetZ < 0 ? 15 : offsetZ > 0 ? 0 : i;
+                int ownX = offsetX < 0 ? 0 : offsetX > 0 ? 15 : i;
+                int ownZ = offsetZ < 0 ? 0 : offsetZ > 0 ? 15 : i;
+
+                for (int y = 0; y < Constants.MAX_BUILD_HEIGHT; y++)
+                {
+                    var neighbourPos = new Vector3i(neighbourX, y, neighbourZ);
+                    uint neighbourLight = neighbour.LightMap.GetSunLightIntensityAt(neighbourPos);
+                    uint ownLight = chunk.LightMap.GetSunLightIntensityAt((uint)ownX, (uint)y, (uint)ownZ);
+
+                    if (neighbourLight > ownLight + 1)
+                    {
+                        lightPropagationQueue.Enqueue(new LightAddNode(neighbour, neighbourPos));
+                    }
+                }
+            }
+        }
+    }
+
     public static Chunk[] RepairOnBlockAdded(World world, Chunk chunk, Vector3i blockPos)
     {
         var updatedChunks = new HashSet<Chunk>();
@@ -96,6 +128,12 @@ public static class SunlightPropagation
 
         updatedChunks.UnionWith(
             PropagateDarkness(world, chunk, darknessPropagationQueue, lightPropagationQueue));
+
+        if (chunkLocalPos.Y == Constants.MAX_BUILD_HEIGHT - 1 && !chunk.GetBlockAt(chunkLocalPos).GetBlock().IsOpaque)
+        {
+            chunk.LightMap.SetSunLightIntensityAt(chunkLocalPos, FullIntensity);
+            lightPropagationQueue.Enqueue(new LightAddNode(chunk, chunkLocalPos));
+        }
 
         updatedChunks.UnionWith(PropagateLight(world, chunk, lightPropagationQueue));
 

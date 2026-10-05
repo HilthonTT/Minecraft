@@ -47,7 +47,15 @@ public sealed class BlockStateFurnace : BlockState, IContainerState, IFacingBloc
 
     public ItemStack GetSlot(int slot) => _slots[slot];
 
-    public void SetSlot(int slot, ItemStack stack) => _slots[slot] = stack;
+    public void SetSlot(int slot, ItemStack stack)
+    {
+        if (slot == InputSlot && stack.Item != _slots[InputSlot].Item)
+        {
+            CookTicks = 0;
+        }
+
+        _slots[slot] = stack;
+    }
 
     public bool Accepts(int slot, ItemStack stack) => slot switch
     {

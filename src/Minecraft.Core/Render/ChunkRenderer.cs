@@ -1,5 +1,6 @@
 ﻿using Minecraft.Core.Entities;
 using Minecraft.Core.Games;
+using Minecraft.Core.Logging;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render.MeshGenerator;
 using Minecraft.Core.Shaders.BasicShader;
@@ -43,6 +44,9 @@ public sealed class ChunkRenderer
     private bool _chunkAvailableToRemesh;
 
     private int _worldGeneration;
+
+    private Chunk? _meshingChunk;
+    private bool _meshingChunkUnloaded;
 
     private readonly Lock _meshLock = new();
     private readonly Thread _meshGenerationThread;
@@ -155,6 +159,7 @@ public sealed class ChunkRenderer
             Chunk chunk;
             int generation;
             World world;
+            Vector2 chunkGridPosition;
             lock (_meshLock)
             {
                 if (_toRemeshChunksQueue.First is null || _chunkAvailableToRemesh || _game.World is null)
@@ -167,20 +172,44 @@ public sealed class ChunkRenderer
                 _toRemeshChunksSet.Remove(chunk);
                 generation = _worldGeneration;
                 world = _game.World;
+                chunkGridPosition = new Vector2(chunk.GridX, chunk.GridZ);
+                _meshingChunk = chunk;
+                _meshingChunkUnloaded = false;
             }
 
-            ChunkMesh mesh = _meshGenerator.GenerateMeshFor(world, chunk);
+            ChunkMesh mesh;
+            try
+            {
+                mesh = _meshGenerator.GenerateMeshFor(world, chunk);
+            }
+            catch (Exception e)
+            {
+                Logger.Error("Failed to mesh chunk " + chunkGridPosition + ": " + e);
+
+                lock (_meshLock)
+                {
+                    _meshingChunk = null;
+                }
+
+                continue;
+            }
 
             lock (_meshLock)
             {
-                if (generation != _worldGeneration)
+                bool unloaded = _meshingChunkUnloaded;
+                _meshingChunk = null;
+
+                if (generation != _worldGeneration ||
+                    unloaded ||
+                    chunk.GridX != (int)chunkGridPosition.X ||
+                    chunk.GridZ != (int)chunkGridPosition.Y)
                 {
                     continue;
                 }
 
                 _availableChunkMesh = new ChunkRemeshLayout
                 {
-                    ChunkGridPosition = new Vector2(chunk.GridX, chunk.GridZ),
+                    ChunkGridPosition = chunkGridPosition,
                     Mesh = mesh,
                 };
                 _chunkAvailableToRemesh = true;
@@ -274,6 +303,11 @@ public sealed class ChunkRenderer
             if (_chunkAvailableToRemesh && _availableChunkMesh.ChunkGridPosition == chunkPos)
             {
                 _chunkAvailableToRemesh = false;
+            }
+
+            if (_meshingChunk == chunk)
+            {
+                _meshingChunkUnloaded = true;
             }
         }
 

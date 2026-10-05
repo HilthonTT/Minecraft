@@ -1,6 +1,8 @@
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Inventories;
 using Minecraft.Core.Worlds;
+using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Entities.Mobs;
@@ -17,7 +19,22 @@ public abstract class Mob : Entity
 
     private const float KnockbackLift = JumpForce * 0.45F;
 
+    private const int TicksWithoutProgressBeforeGivingUp = 40;
+
+    private const int MaxTicksTowardsTarget = 400;
+
+    private const float MinProgressPerCheck = 0.25F;
+
+    private const int MaxSafeDrop = 3;
+
+    private const float StepLookAhead = 0.8F;
+
+    private const float GroundProbeEpsilon = 0.01F;
+
     private Vector3 _target;
+    private float _closestDistanceToTarget;
+    private int _ticksWithoutProgress;
+    private int _ticksTowardsTarget;
     private bool _shouldJump;
     private int _ticksUntilNextWanderDecision;
     private float _hurtSecondsRemaining;
@@ -100,7 +117,7 @@ public abstract class Mob : Entity
 
         if (HasTarget)
         {
-            WalkTowardsTarget();
+            WalkTowardsTarget(world);
         }
 
         TryJumpIfAsked();
@@ -115,19 +132,62 @@ public abstract class Mob : Entity
 
         if (world is WorldServer serverWorld)
         {
+            TrackProgressTowardsTarget();
             DecideWhatToDo(serverWorld);
         }
+    }
+
+    private void TrackProgressTowardsTarget()
+    {
+        if (!HasTarget)
+        {
+            return;
+        }
+
+        _ticksTowardsTarget++;
+
+        float distance = HorizontalDistanceToTarget();
+        if (distance < _closestDistanceToTarget - MinProgressPerCheck)
+        {
+            _closestDistanceToTarget = distance;
+            _ticksWithoutProgress = 0;
+        }
+        else
+        {
+            _ticksWithoutProgress++;
+        }
+
+        if (_ticksWithoutProgress >= TicksWithoutProgressBeforeGivingUp || _ticksTowardsTarget >= MaxTicksTowardsTarget)
+        {
+            HasTarget = false;
+        }
+    }
+
+    private float HorizontalDistanceToTarget()
+    {
+        Vector3 toTarget = _target - Position;
+        toTarget.Y = 0;
+        return toTarget.Length;
     }
 
     protected abstract void DecideWhatToDo(WorldServer world);
 
     protected void SetTarget(Vector3 target)
     {
+        bool isNewTarget = !HasTarget || (target - _target).LengthSquared > 1F;
+
         _target = target;
         HasTarget = true;
+
+        if (isNewTarget)
+        {
+            _closestDistanceToTarget = HorizontalDistanceToTarget();
+            _ticksWithoutProgress = 0;
+            _ticksTowardsTarget = 0;
+        }
     }
 
-    private void WalkTowardsTarget()
+    private void WalkTowardsTarget(World world)
     {
         Vector3 toTarget = _target - Position;
         toTarget.Y = 0;
@@ -138,9 +198,43 @@ public abstract class Mob : Entity
             return;
         }
 
+        Vector3 direction = toTarget.Normalized();
+        Vector3 center = Position + new Vector3(_width / 2F, 0F, _length / 2F);
+        if (!IsSafeToStandAt(world, center + (direction * StepLookAhead), avoidWater: false))
+        {
+            HasTarget = false;
+            return;
+        }
+
         Yaw = MathF.Atan2(toTarget.X, toTarget.Z);
         UpdateMovementBasisFromYaw();
         MoveHorizontally(0, CurrentMoveSpeed);
+    }
+
+    private static bool IsSafeToStandAt(World world, Vector3 position, bool avoidWater)
+    {
+        int x = (int)MathF.Floor(position.X);
+        int z = (int)MathF.Floor(position.Z);
+        int feetY = (int)MathF.Floor(position.Y + GroundProbeEpsilon);
+
+        for (int y = feetY; y >= feetY - 1 - MaxSafeDrop; y--)
+        {
+            var blockPos = new Vector3i(x, y, z);
+            BlockState state = world.GetBlockAt(blockPos);
+            Block block = state.GetBlock();
+
+            if (block is BlockLava || (avoidWater && block is BlockFluid))
+            {
+                return false;
+            }
+
+            if (block is not BlockFluid && block.GetCollisionBox(state, blockPos).Length > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected override void OnHorizontalCollision()
@@ -166,7 +260,7 @@ public abstract class Mob : Entity
         _isInAir = true;
     }
 
-    protected void TickWandering(int radius, int ticksBetweenDecisions, int oneInChanceOfMoving)
+    protected void TickWandering(World world, int radius, int ticksBetweenDecisions, int oneInChanceOfMoving)
     {
         if (HasTarget)
         {
@@ -186,10 +280,18 @@ public abstract class Mob : Entity
             return;
         }
 
-        SetTarget(Position + new Vector3(
+        Vector3 wanderTarget = Position + new Vector3(
             Random.Shared.Next(-radius, radius + 1),
             0,
-            Random.Shared.Next(-radius, radius + 1)));
+            Random.Shared.Next(-radius, radius + 1));
+
+        Vector3 wanderCenter = wanderTarget + new Vector3(_width / 2F, 0F, _length / 2F);
+        if (!IsSafeToStandAt(world, wanderCenter, avoidWater: true))
+        {
+            return;
+        }
+
+        SetTarget(wanderTarget);
     }
 
     protected static ServerPlayer? FindNearestPlayer(World world, Vector3 from, float maxDistance)

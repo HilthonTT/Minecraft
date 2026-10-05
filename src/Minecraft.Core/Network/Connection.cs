@@ -1,4 +1,5 @@
 using Minecraft.Core.IO;
+using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
 using System.Net.Sockets;
 
@@ -24,7 +25,16 @@ public sealed class Connection
 
     public bool WritePacket(Packet packet)
     {
-        packet.WriteToStream(Writer);
+        try
+        {
+            packet.WriteToStream(Writer);
+        }
+        catch (Exception e)
+        {
+            Logger.Error("Writing packet " + packet.GetType() + " failed: " + e.Message);
+            return false;
+        }
+
         return Writer.Flush();
     }
 

@@ -26,7 +26,7 @@ public sealed class ViewFrustum
         CalculateNearWidthHeight(projectionInfo);
     }
 
-    private void CalculateNearWidthHeight(ProjectionMatrixInfo pInfo)
+    public void CalculateNearWidthHeight(ProjectionMatrixInfo pInfo)
     {
         float aspectRatio = pInfo.WindowPixelWidth / (float)pInfo.WindowPixelHeight;
         const float extesion = 2;
@@ -79,7 +79,8 @@ public sealed class ViewFrustum
 
     public bool IsAABBInFrustum(AxisAlignedBox aabb)
     {
-        Vector3[] corners = aabb.GetAllCorners();
+        Span<Vector3> corners = stackalloc Vector3[8];
+        aabb.GetAllCorners(corners);
         for (int i = 0; i < 6; i++)
         {
             int inside = 0;

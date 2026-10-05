@@ -10,6 +10,8 @@ using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.States;
+using Minecraft.Core.Worlds.Blocks.Types;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Network.NetHandler;
@@ -20,7 +22,13 @@ public sealed class ServerNetHandler : INetHandler
 
     private const float MaxAttackReach = 6F;
 
-    private const float MaxDropReach = 64F;
+    private const float MaxSurvivalBlockReach = 8F;
+
+    private const float MaxCreativeBlockReach = 48F;
+
+    private const float MaxMoveBlocksPerPacket = 64F;
+
+    private const int MaxChatMessageLength = 256;
 
     private readonly Game _game;
     private ServerSession _session = null!;
@@ -34,35 +42,112 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessPlaceBlockPacket(PlaceBlockPacket blockPacket)
     {
-        if (blockPacket.BlockState is IContainerState container)
+        if (_session.Player is not ServerPlayer player || !player.IsAlive)
         {
-            container.ClearContents();
+            return;
         }
 
-        _game.Server.World.QueueToAddBlockAt(blockPacket.BlockPos, blockPacket.BlockState);
+        Vector3i blockPos = blockPacket.BlockPos;
+        BlockState placed = FreshStateLike(blockPacket.BlockState);
+
+        if (!IsWithinBlockReach(player, blockPos))
+        {
+            Logger.Warn("Player " + player.ID + " placed a block out of reach at " + blockPos + ".");
+            return;
+        }
+
+        if (!player.IsCreative && !MayPlace(blockPos, placed))
+        {
+            Logger.Warn("Player " + player.ID + " placed a block where it cannot go at " + blockPos + ".");
+            return;
+        }
+
+        _game.Server.World.QueueToAddBlockAt(blockPos, placed);
+    }
+
+    private static BlockState FreshStateLike(BlockState received)
+    {
+        BlockState fresh = BlockRegistry.GetState(received.GetBlock());
+
+        if (fresh is IFacingBlockState facing && received is IFacingBlockState receivedFacing)
+        {
+            facing.Facing = receivedFacing.Facing;
+        }
+
+        if (fresh is BlockStateTorch torch && received is BlockStateTorch receivedTorch)
+        {
+            torch.Attachment = receivedTorch.Attachment;
+        }
+
+        return fresh;
+    }
+
+    private bool MayPlace(Vector3i blockPos, BlockState placed)
+    {
+        WorldServer world = _game.Server.World;
+        Block block = placed.GetBlock();
+
+        if (block == BlockRegistry.Air || !block.IsBreakable || block is BlockFluid)
+        {
+            return false;
+        }
+
+        return world.IsBlockPositionLoaded(blockPos) &&
+               world.GetBlockAt(blockPos).GetBlock().IsOverridable &&
+               block.CanAddBlockAt(world, blockPos);
+    }
+
+    private static bool IsWithinBlockReach(ServerPlayer player, Vector3i blockPos)
+    {
+        float reach = player.IsCreative ? MaxCreativeBlockReach : MaxSurvivalBlockReach;
+        return IsWithin(player, blockPos, reach);
+    }
+
+    private static bool IsWithin(ServerPlayer player, Vector3i blockPos, float reach)
+    {
+        var centre = new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.5F, blockPos.Z + 0.5F);
+        return (centre - player.Position).LengthSquared <= reach * reach;
     }
 
     public void ProcessRemoveBlockPacket(RemoveBlockPacket removeBlockPacket)
     {
-        bool isSingleBreak = removeBlockPacket.BlockPositions.Length == 1;
-
-        bool isSurvival = _session.Player is ServerPlayer { IsCreative: false };
-
-        foreach (Vector3i blockPos in removeBlockPacket.BlockPositions)
+        if (_session.Player is not ServerPlayer player || !player.IsAlive)
         {
-            if (isSurvival && !MayBreak(blockPos))
-            {
-                continue;
-            }
-
-            if (isSingleBreak && isSurvival)
-            {
-                DropContentsOf(blockPos);
-                ((ServerPlayer)_session.Player!).AddExhaustion(ServerPlayer.BreakExhaustion);
-            }
-
-            _game.Server.World.QueueToRemoveBlockAt(blockPos);
+            return;
         }
+
+        if (player.IsCreative)
+        {
+            foreach (Vector3i blockPos in removeBlockPacket.BlockPositions)
+            {
+                _game.Server.World.QueueToRemoveBlockAt(blockPos);
+            }
+
+            return;
+        }
+
+        if (removeBlockPacket.BlockPositions.Length != 1)
+        {
+            Logger.Warn("Player " + player.ID + " asked to break " + removeBlockPacket.BlockPositions.Length + " blocks at once in survival.");
+            return;
+        }
+
+        Vector3i target = removeBlockPacket.BlockPositions[0];
+
+        if (!IsWithinBlockReach(player, target))
+        {
+            Logger.Warn("Player " + player.ID + " broke a block out of reach at " + target + ".");
+            return;
+        }
+
+        if (!MayBreak(target))
+        {
+            return;
+        }
+
+        DropContentsOf(target);
+        player.AddExhaustion(ServerPlayer.BreakExhaustion);
+        _game.Server.World.QueueToRemoveBlockAt(target);
     }
 
     private bool MayBreak(Vector3i blockPos)
@@ -93,13 +178,6 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        var centre = new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.5F, blockPos.Z + 0.5F);
-        if ((centre - breaker.Position).LengthSquared > MaxDropReach * MaxDropReach)
-        {
-            Logger.Warn("Player " + breaker.ID + " broke a block out of reach at " + blockPos + ".");
-            return;
-        }
-
         if (!Harvesting.CanHarvest(block, breaker.HeldItem))
         {
             return;
@@ -119,14 +197,44 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        Logger.Info("Server received message " + chatPacket.Message);
-        _game.Server.BroadcastPacket(chatPacket);
+        if (_session.Player is null)
+        {
+            return;
+        }
+
+        string message = chatPacket.Message.Trim();
+        if (message.Length == 0)
+        {
+            return;
+        }
+
+        if (message.Length > MaxChatMessageLength)
+        {
+            message = message[..MaxChatMessageLength];
+        }
+
+        Logger.Info("Server received message " + message);
+        _game.Server.BroadcastPacket(new ChatPacket(_session.Player.Name, message));
     }
 
     public void ProcessEntityDataPacket(EntityDataPacket entityDataPacket)
     {
         if (_session.Player is null || entityDataPacket.EntityID != _session.Player.ID)
         {
+            return;
+        }
+
+        if (!IsFinite(entityDataPacket.Position) || !IsFinite(entityDataPacket.Velocity) ||
+            !float.IsFinite(entityDataPacket.Yaw))
+        {
+            Logger.Warn("Player " + _session.Player.ID + " reported a position that is not a number.");
+            return;
+        }
+
+        if ((entityDataPacket.Position - _session.Player.Position).LengthSquared >
+            MaxMoveBlocksPerPacket * MaxMoveBlocksPerPacket)
+        {
+            Logger.Warn("Player " + _session.Player.ID + " moved further than a step allows.");
             return;
         }
 
@@ -141,6 +249,9 @@ public sealed class ServerNetHandler : INetHandler
         _game.Server.BroadcastPacketExceptTo(_session, entityDataPacket);
     }
 
+    private static bool IsFinite(Vector3 vector) =>
+        float.IsFinite(vector.X) && float.IsFinite(vector.Y) && float.IsFinite(vector.Z);
+
     public void ProcessPlayerSettingsPacket(PlayerSettingsPacket playerSettingsPacket)
     {
         _session.SetViewDistance(playerSettingsPacket.ViewDistance);
@@ -148,6 +259,12 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessJoinRequestPacket(PlayerJoinRequestPacket playerJoinRequestPacket)
     {
+        if (_session.Player is not null || _session.State != SessionState.AwaitingAcceptance)
+        {
+            Logger.Warn("Player " + _session.Player?.ID + " asked to join twice.");
+            return;
+        }
+
         string playerName = playerJoinRequestPacket.Name.Trim();
         if (playerName.Length == 0 || playerName == "Player")
         {
@@ -181,7 +298,7 @@ public sealed class ServerNetHandler : INetHandler
 
         foreach (Session.Session client in _game.Server.ConnectedClients)
         {
-            if (client.Player is not null && client.Player != player)
+            if (client.State == SessionState.Accepted && client.Player is not null && client.Player != player)
             {
                 _session.WritePacket(new PlayerJoinPacket(client.Player.Name, client.Player.ID));
             }
@@ -190,8 +307,25 @@ public sealed class ServerNetHandler : INetHandler
 
     public void ProcessPlayerBlockInteractionpacket(PlayerBlockInteractionPacket playerInteractionPacket)
     {
+        if (_session.Player is not ServerPlayer player || !player.IsAlive)
+        {
+            return;
+        }
+
         Vector3i blockPos = playerInteractionPacket.BlockPos;
+
+        if (!_game.Server.World.IsBlockPositionLoaded(blockPos) || !IsWithinBlockReach(player, blockPos))
+        {
+            Logger.Warn("Player " + player.ID + " interacted with a block out of reach at " + blockPos + ".");
+            return;
+        }
+
         BlockState state = _game.Server.World.GetBlockAt(blockPos);
+        if (!state.GetBlock().IsInteractable)
+        {
+            return;
+        }
+
         state.GetBlock().OnInteract(state, blockPos, _game.Server.World);
 
         foreach (ServerSession clientSession in _game.Server.ConnectedClients)
@@ -295,75 +429,59 @@ public sealed class ServerNetHandler : INetHandler
             : new ItemStack(held, 1, playerHeldItemPacket.Damage);
     }
 
-    public void ProcessContainerSlotPacket(ContainerSlotPacket containerSlotPacket)
+    public void ProcessContainerClickPacket(ContainerClickPacket containerClickPacket)
     {
-        _session.LastContainerSequence = Math.Max(_session.LastContainerSequence, containerSlotPacket.Sequence);
+        _session.LastContainerSequence = Math.Max(_session.LastContainerSequence, containerClickPacket.Sequence);
 
+        ItemStack cursor = containerClickPacket.Cursor;
+        ApplyContainerClick(containerClickPacket, ref cursor);
+
+        _session.WritePacket(new ContainerCursorPacket(containerClickPacket.Sequence, cursor));
+    }
+
+    private void ApplyContainerClick(ContainerClickPacket click, ref ItemStack cursor)
+    {
         if (_session.Player is not ServerPlayer player || !player.IsAlive)
         {
             return;
         }
 
         WorldServer world = _game.Server.World;
-        Vector3i blockPos = containerSlotPacket.BlockPos;
+        Vector3i blockPos = click.BlockPos;
 
         if (!world.IsBlockPositionLoaded(blockPos) || world.GetBlockAt(blockPos) is not IContainerState container)
         {
             return;
         }
 
-        var centre = new Vector3(blockPos.X + 0.5F, blockPos.Y + 0.5F, blockPos.Z + 0.5F);
-        if ((centre - player.Position).LengthSquared > MaxDropReach * MaxDropReach)
+        if (!IsWithin(player, blockPos, MaxSurvivalBlockReach))
         {
             Logger.Warn("Player " + player.ID + " reached into a container out of reach at " + blockPos + ".");
-            return;
-        }
-
-        int slot = containerSlotPacket.Slot;
-        if (slot < 0 || slot >= container.SlotCount)
-        {
-            Logger.Warn("Player " + player.ID + " wrote to container slot " + slot + ".");
-            return;
-        }
-
-        if (containerSlotPacket.Count is < 0 or > ItemStack.MaxCount)
-        {
-            Logger.Warn("Player " + player.ID + " put " + containerSlotPacket.Count + " of something in a container.");
-            return;
-        }
-
-        ItemStack written = ItemStackCodec.FromParts(
-            containerSlotPacket.ItemId,
-            containerSlotPacket.Count,
-            containerSlotPacket.Damage);
-
-        if (!IsAllowedContainerWrite(container, slot, written))
-        {
-            Logger.Warn("Player " + player.ID + " made a container write the slot cannot take.");
             world.NotifyBlockStateChanged(blockPos, (BlockState)container);
             return;
         }
 
-        container.SetSlot(slot, written);
-        world.NotifyBlockStateChanged(blockPos, (BlockState)container);
-    }
-
-    private static bool IsAllowedContainerWrite(IContainerState container, int slot, ItemStack written)
-    {
-        if (written.IsEmpty)
+        int slot = click.Slot;
+        if (slot < 0 || slot >= container.SlotCount)
         {
-            return true;
+            Logger.Warn("Player " + player.ID + " clicked container slot " + slot + ".");
+            world.NotifyBlockStateChanged(blockPos, (BlockState)container);
+            return;
         }
 
         ItemStack current = container.GetSlot(slot);
+        ItemStack updated = Inventory.ApplyContainerClick(container, slot, ref cursor, click.RightButton);
 
-        if (container.IsTakeOnly(slot))
+        if (!updated.SameAs(current))
         {
-            return current.Item == written.Item && written.Count <= current.Count;
+            container.SetSlot(slot, updated);
         }
 
-        return container.Accepts(slot, written);
+        world.NotifyBlockStateChanged(blockPos, (BlockState)container);
     }
+
+    public void ProcessContainerCursorPacket(ContainerCursorPacket containerCursorPacket) =>
+        throw new InvalidOperationException("A server does not receive cursors; it is the one that settles them.");
 
     public void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket)
     {
@@ -381,6 +499,7 @@ public sealed class ServerNetHandler : INetHandler
         if (player.TryEat(food))
         {
             _session.WritePacket(new PlayerHungerPacket(player.Food));
+            _session.WritePacket(new PlayerEatPacket(food.Id));
         }
     }
 

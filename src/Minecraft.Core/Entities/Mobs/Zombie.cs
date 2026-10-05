@@ -77,7 +77,7 @@ public sealed class Zombie : Mob
             return;
         }
 
-        TickWandering(WanderRadius, TicksBetweenDecisions, OneInChanceOfMoving);
+        TickWandering(world, WanderRadius, TicksBetweenDecisions, OneInChanceOfMoving);
     }
 
     private void TryAttackSomebodyWithinReach(WorldServer world)

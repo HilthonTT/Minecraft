@@ -2,10 +2,10 @@ namespace Minecraft.Core.Render.MeshGenerator;
 
 public sealed class MeshBuffers
 {
-    public readonly float[] Positions;
-    public readonly float[] UVs;
-    public readonly uint[] Lights;
-    public readonly float[] Normals;
+    public float[] Positions;
+    public float[] UVs;
+    public uint[] Lights;
+    public float[] Normals;
 
     public int PositionsPointer;
     public int UVsPointer;
@@ -19,6 +19,30 @@ public sealed class MeshBuffers
         UVs = new float[capacity];
         Lights = new uint[capacity];
         Normals = new float[capacity];
+    }
+
+    public void EnsureRoomForVertices(int vertexCount)
+    {
+        EnsureCapacity(ref Positions, PositionsPointer + (vertexCount * 3));
+        EnsureCapacity(ref UVs, UVsPointer + (vertexCount * 2));
+        EnsureCapacity(ref Lights, LightsPointer + vertexCount);
+        EnsureCapacity(ref Normals, NormalsPointer + (vertexCount * 3));
+    }
+
+    private static void EnsureCapacity<T>(ref T[] buffer, int required)
+    {
+        if (required <= buffer.Length)
+        {
+            return;
+        }
+
+        int capacity = Math.Max(buffer.Length, 1);
+        while (capacity < required)
+        {
+            capacity *= 2;
+        }
+
+        Array.Resize(ref buffer, capacity);
     }
 
     public void Clear()

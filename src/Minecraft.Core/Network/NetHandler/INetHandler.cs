@@ -56,7 +56,9 @@ public interface INetHandler
 
     void ProcessPlayerHeldItemPacket(PlayerHeldItemPacket playerHeldItemPacket);
 
-    void ProcessContainerSlotPacket(ContainerSlotPacket containerSlotPacket);
+    void ProcessContainerClickPacket(ContainerClickPacket containerClickPacket);
+
+    void ProcessContainerCursorPacket(ContainerCursorPacket containerCursorPacket);
 
     void ProcessBlockStateSyncPacket(BlockStateSyncPacket blockStateSyncPacket);
 

@@ -376,7 +376,7 @@ public sealed class UICanvasInventory : UICanvas
 
     private void HandleClicks(Inventory inventory, CraftingGrid grid, IContainerState? container, Hovered hovered)
     {
-        if (!_game.Window.IsFocused)
+        if (!_game.Window.IsFocused || _game.ClientPlayer.HasPendingContainerClick)
         {
             return;
         }
@@ -434,25 +434,23 @@ public sealed class UICanvasInventory : UICanvas
     private void ClickContainerSlot(Inventory inventory, IContainerState container, int slot, bool right)
     {
         ItemStack current = container.GetSlot(slot);
+        ItemStack cursor = inventory.CursorStack;
 
-        ItemStack updated = container.IsTakeOnly(slot)
-            ? inventory.ClickTakeOnlySlot(current)
-            : inventory.ClickExternalSlot(current, right, stack => container.Accepts(slot, stack));
+        ItemStack updated = inventory.ClickContainerSlot(container, slot, right);
 
-        if (updated.SameAs(current))
+        if (updated.SameAs(current) && cursor.SameAs(inventory.CursorStack))
         {
             return;
         }
 
         container.SetSlot(slot, updated);
 
-        _game.Client.WritePacket(new ContainerSlotPacket(
+        _game.Client.WritePacket(new ContainerClickPacket(
             _containerPos,
             slot,
-            updated.IsEmpty ? (ushort)0 : updated.Item!.Id,
-            updated.Count,
-            updated.Damage,
-            _game.ClientPlayer.NextContainerWriteSequence()));
+            right,
+            cursor,
+            _game.ClientPlayer.BeginContainerClick(_containerPos)));
     }
 
     private void UpdateHoveredName(Inventory inventory, CraftingGrid grid, IContainerState? container, Hovered hovered)

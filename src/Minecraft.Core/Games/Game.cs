@@ -223,7 +223,7 @@ public sealed class Game
 
     public void CloseInventory()
     {
-        if (State != GameState.Inventory)
+        if (State != GameState.Inventory || ClientPlayer.HasPendingContainerClick)
         {
             return;
         }

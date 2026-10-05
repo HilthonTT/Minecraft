@@ -57,21 +57,25 @@ public sealed class AxisAlignedBox
 
     public Vector3[] GetAllCorners()
     {
+        var corners = new Vector3[8];
+        GetAllCorners(corners);
+        return corners;
+    }
+
+    public void GetAllCorners(Span<Vector3> corners)
+    {
         var deltaX = new Vector3(Max.X - Min.X, 0, 0);
         var deltaZ = new Vector3(0, 0, Max.Z - Min.Z);
 
-        return
-        [
-            Min,
-            Min + deltaX,
-            Min + deltaZ,
-            Min + deltaX + deltaZ,
+        corners[0] = Min;
+        corners[1] = Min + deltaX;
+        corners[2] = Min + deltaZ;
+        corners[3] = Min + deltaX + deltaZ;
 
-            Max,
-            Max - deltaX,
-            Max - deltaZ,
-            Max - deltaX - deltaZ,
-        ];
+        corners[4] = Max;
+        corners[5] = Max - deltaX;
+        corners[6] = Max - deltaZ;
+        corners[7] = Max - deltaX - deltaZ;
     }
 
     public Vector3 GetNormalAtIntersectionPoint(Vector3 point)

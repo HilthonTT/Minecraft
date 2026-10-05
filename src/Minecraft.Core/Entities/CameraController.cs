@@ -30,8 +30,12 @@ public sealed class CameraController
 
     public void Update()
     {
+        ApplyMouseLook();
         Camera.Update();
+    }
 
+    private void ApplyMouseLook()
+    {
         if (!_game.Window.IsFocused || !_game.IsGameplayInputEnabled)
         {
             return;

@@ -43,6 +43,12 @@ public static class ChatCommands
             return;
         }
 
+        if (parts.Length >= 2 && !session.IsLocal)
+        {
+            Reply(session, "Only the host can change game modes.");
+            return;
+        }
+
         if (parts.Length < 2)
         {
             Reply(session, "You are in " + Describe(player.GameMode) + " mode. Use /gamemode survival or /gamemode creative.");

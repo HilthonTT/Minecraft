@@ -8,7 +8,7 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Worlds.Generation;
 
-public sealed class WorldGenerator
+public sealed class WorldGenerator : IDisposable
 {
     private const int GradientDepth = 3;
 
@@ -48,7 +48,13 @@ public sealed class WorldGenerator
     private readonly Lock _generationLock = new();
     private readonly Dictionary<(World World, Vector2 GridPosition), List<GenerateChunkRequest>> _pendingRequests = [];
     private readonly Queue<GenerateChunkRequest> _generationOrder = new();
+    private readonly SemaphoreSlim _requestsWaiting = new(0);
+    private readonly CancellationTokenSource _stopping = new();
     private readonly Thread _terrainGeneratorThread;
+
+    private const int GeneratorShutdownSeconds = 5;
+
+    private bool _isDisposed;
 
     public int SeaLevel { get; } = 62;
 
@@ -91,6 +97,11 @@ public sealed class WorldGenerator
 
     public void AddChunkGenerationRequest(GenerateChunkRequest request)
     {
+        if (_isDisposed)
+        {
+            return;
+        }
+
         (World World, Vector2 GridPosition) key = (request.World, request.GridPosition);
 
         lock (_generationLock)
@@ -106,13 +117,22 @@ public sealed class WorldGenerator
 
             _generationOrder.Enqueue(request);
         }
+
+        _requestsWaiting.Release();
     }
 
     private void RunChunkGeneration()
     {
         while (true)
         {
-            Thread.Sleep(5);
+            try
+            {
+                _requestsWaiting.Wait(_stopping.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
 
             GenerateChunkRequest request;
             List<GenerateChunkRequest> waitingRequests;
@@ -148,6 +168,26 @@ public sealed class WorldGenerator
     public Chunk ProvideChunkAt(int chunkX, int chunkZ)
     {
         return _storage.TryLoadChunk(_world, chunkX, chunkZ) ?? GenerateBlocksForChunkAt(chunkX, chunkZ);
+    }
+
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+
+        _stopping.Cancel();
+
+        if (!_terrainGeneratorThread.Join(TimeSpan.FromSeconds(GeneratorShutdownSeconds)))
+        {
+            return;
+        }
+
+        _requestsWaiting.Dispose();
+        _stopping.Dispose();
     }
 
     private static int GetChunkSeed(int seed, int chunkX, int chunkZ)

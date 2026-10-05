@@ -57,6 +57,7 @@ public sealed class Camera
             CurrentProjection = newProjectionInfo;
 
             CurrentProjectionMatrix = CreateProjectionMatrix();
+            _viewFrustum.CalculateNearWidthHeight(CurrentProjection);
             OnProjectionChangedHandler?.Invoke(CurrentProjection);
         }
     }
@@ -87,6 +88,7 @@ public sealed class Camera
         CurrentProjection = newProjectionInfo;
 
         CurrentProjectionMatrix = CreateProjectionMatrix();
+        _viewFrustum.CalculateNearWidthHeight(CurrentProjection);
         OnProjectionChangedHandler?.Invoke(CurrentProjection);
     }
 

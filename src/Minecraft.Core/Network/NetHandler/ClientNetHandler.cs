@@ -221,15 +221,13 @@ public sealed class ClientNetHandler : INetHandler
 
     public void ProcessBlockStateSyncPacket(BlockStateSyncPacket blockStateSyncPacket)
     {
-        ClientPlayer player = _game.ClientPlayer;
-        player.AcknowledgeContainerWrites(blockStateSyncPacket.AcknowledgedSequence);
+        Vector3i blockPos = blockStateSyncPacket.BlockPos;
 
-        if (player.HasUnacknowledgedContainerWrites)
+        if (_game.ClientPlayer.IsAwaitingContainerClickAt(blockPos, blockStateSyncPacket.AcknowledgedSequence))
         {
             return;
         }
 
-        Vector3i blockPos = blockStateSyncPacket.BlockPos;
         BlockState existing = _game.World.GetBlockAt(blockPos);
 
         if (existing.GetBlock() != blockStateSyncPacket.BlockState.GetBlock() ||
@@ -252,14 +250,22 @@ public sealed class ClientNetHandler : INetHandler
         _game.ClientPlayer.SetFood(playerHungerPacket.Food);
     }
 
-    public void ProcessContainerSlotPacket(ContainerSlotPacket containerSlotPacket)
+    public void ProcessContainerClickPacket(ContainerClickPacket containerClickPacket)
     {
-        throw new InvalidOperationException("A client does not receive container writes; it is the one that makes them.");
+        throw new InvalidOperationException("A client does not receive container clicks; it is the one that makes them.");
+    }
+
+    public void ProcessContainerCursorPacket(ContainerCursorPacket containerCursorPacket)
+    {
+        _game.ClientPlayer.SettleContainerClick(containerCursorPacket.Sequence, containerCursorPacket.Cursor);
     }
 
     public void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket)
     {
-        throw new InvalidOperationException("A client does not receive meals; it is the one that eats them.");
+        if (ItemRegistry.TryGet(playerEatPacket.ItemId) is { } eaten)
+        {
+            _game.ClientPlayer.OnMealAccepted(eaten);
+        }
     }
 
     public void ProcessPlayerSprintPacket(PlayerSprintPacket playerSprintPacket)

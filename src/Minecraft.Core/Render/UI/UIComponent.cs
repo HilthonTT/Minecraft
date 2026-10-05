@@ -38,6 +38,12 @@ public abstract class UIComponent
 
     public abstract void Clean();
 
+    public void CleanUp()
+    {
+        _vaoModel?.CleanUp();
+        _vaoModel = null;
+    }
+
     public virtual void Render(UIShader uiShader)
     {
         uiShader.LoadFloat(uiShader.LocationTransparency, Transparency);

@@ -147,8 +147,9 @@ public abstract class Entity
 
     protected void InterpolateTowardsServerState(float deltaTime)
     {
-        Position = MathUtils.Lerp(Position, ServerPosition, deltaTime * ServerStateLerpSmoothFactor);
-        Yaw = MathUtils.LerpAngle(Yaw, ServerYaw, deltaTime * ServerStateLerpSmoothFactor);
+        float blend = 1 - MathF.Exp(-ServerStateLerpSmoothFactor * deltaTime);
+        Position = MathUtils.Lerp(Position, ServerPosition, blend);
+        Yaw = MathUtils.LerpAngle(Yaw, ServerYaw, blend);
     }
 
     protected void UpdateMovementBasisFromYaw()

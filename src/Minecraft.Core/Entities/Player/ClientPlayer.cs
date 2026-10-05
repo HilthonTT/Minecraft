@@ -42,10 +42,11 @@ public sealed class ClientPlayer : Player
 
     public bool CanSprint => IsCreative || Food >= Constants.PLAYER_SPRINT_MIN_FOOD;
 
-    public bool HasUnacknowledgedContainerWrites => _containerWritesAcknowledged < _containerWritesSent;
+    public bool HasPendingContainerClick => _pendingContainerClick != 0;
 
-    private int _containerWritesSent;
-    private int _containerWritesAcknowledged;
+    private int _containerClicksSent;
+    private int _pendingContainerClick;
+    private Vector3i _pendingContainerPos;
 
     private float _eatingSeconds;
     private float _secondsUntilEatingSound;
@@ -143,11 +144,30 @@ public sealed class ClientPlayer : Player
 
     public void SetFood(int food) => Food = Math.Clamp(food, 0, Constants.PLAYER_MAX_FOOD);
 
-    public int NextContainerWriteSequence() => ++_containerWritesSent;
-
-    public void AcknowledgeContainerWrites(int sequence)
+    public int BeginContainerClick(Vector3i blockPos)
     {
-        _containerWritesAcknowledged = Math.Max(_containerWritesAcknowledged, sequence);
+        _pendingContainerPos = blockPos;
+        _pendingContainerClick = ++_containerClicksSent;
+        return _pendingContainerClick;
+    }
+
+    public bool IsAwaitingContainerClickAt(Vector3i blockPos, int acknowledgedSequence) =>
+        _pendingContainerClick != 0 && blockPos == _pendingContainerPos && acknowledgedSequence < _pendingContainerClick;
+
+    public void SettleContainerClick(int sequence, ItemStack cursor)
+    {
+        if (sequence != _pendingContainerClick)
+        {
+            return;
+        }
+
+        _pendingContainerClick = 0;
+        Inventory.ReplaceCursorStack(cursor);
+    }
+
+    public void OnMealAccepted(Item item)
+    {
+        Inventory.TakeOne(item);
     }
 
     public void ApplyFieldOfViewSetting()
@@ -199,8 +219,8 @@ public sealed class ClientPlayer : Player
         Health = Constants.PLAYER_MAX_HEALTH;
         Food = Constants.PLAYER_MAX_FOOD;
 
-        _containerWritesSent = 0;
-        _containerWritesAcknowledged = 0;
+        _containerClicksSent = 0;
+        _pendingContainerClick = 0;
         StopEating();
 
         _cameraRig.Reset();
@@ -444,15 +464,10 @@ public sealed class ClientPlayer : Player
             return;
         }
 
-        ItemStack eaten = Inventory.TakeFromSelected(1);
+        Item eaten = held.Item!;
         StopEating();
 
-        if (eaten.IsEmpty)
-        {
-            return;
-        }
-
-        _game.Client.WritePacket(new PlayerEatPacket(eaten.Item!.Id));
+        _game.Client.WritePacket(new PlayerEatPacket(eaten.Id));
         _game.SoundDirector.OnFinishedEating(Position);
     }
 

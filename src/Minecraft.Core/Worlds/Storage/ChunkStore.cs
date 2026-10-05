@@ -15,12 +15,19 @@ public sealed class ChunkStore : IDisposable
 
     private const int WriterShutdownSeconds = 5;
 
+    private const int MaxWriteAttempts = 5;
+
+    private const int WriteRetryDelayMilliseconds = 50;
+
     private readonly record struct PendingChunkSave(int GridX, int GridZ, byte[] Payload);
 
     private readonly string _chunkDirectory;
 
     private readonly BlockingCollection<PendingChunkSave> _pendingSaves = [];
     private readonly Thread _writerThread;
+
+    private readonly Lock _unwrittenLock = new();
+    private readonly Dictionary<(int GridX, int GridZ), byte[]> _unwrittenPayloads = [];
 
     private int _outstandingSaves;
     private readonly ManualResetEventSlim _drained = new(true);
@@ -41,22 +48,21 @@ public sealed class ChunkStore : IDisposable
 
     public Chunk? TryLoad(World world, int gridX, int gridZ)
     {
+        byte[]? unwritten;
+        lock (_unwrittenLock)
+        {
+            _unwrittenPayloads.TryGetValue((gridX, gridZ), out unwritten);
+        }
+
         string path = GetChunkPath(gridX, gridZ);
-        if (!File.Exists(path))
+        if (unwritten is null && !File.Exists(path))
         {
             return null;
         }
 
         try
         {
-            byte[] payload;
-            using (FileStream file = File.OpenRead(path))
-            using (var gzip = new GZipStream(file, CompressionMode.Decompress))
-            using (var buffer = new MemoryStream())
-            {
-                gzip.CopyTo(buffer);
-                payload = buffer.ToArray();
-            }
+            byte[] payload = unwritten ?? ReadPayload(path);
 
             int head = 0;
 
@@ -77,7 +83,7 @@ public sealed class ChunkStore : IDisposable
             }
 
             chunk.MarkClean();
-            Logger.Info("Loaded chunk (" + gridX + ", " + gridZ + ") from disk.");
+            Logger.Info("Loaded chunk (" + gridX + ", " + gridZ + ") from " + (unwritten is null ? "disk." : "its unwritten save."));
             return chunk;
         }
         catch (Exception e) when (e is IOException or InvalidDataException or ArgumentOutOfRangeException or IndexOutOfRangeException)
@@ -85,6 +91,16 @@ public sealed class ChunkStore : IDisposable
             Logger.Error("Failed to load chunk (" + gridX + ", " + gridZ + "): " + e.Message + ". Regenerating it.");
             return null;
         }
+    }
+
+    private static byte[] ReadPayload(string path)
+    {
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var gzip = new GZipStream(file, CompressionMode.Decompress);
+        using var buffer = new MemoryStream();
+
+        gzip.CopyTo(buffer);
+        return buffer.ToArray();
     }
 
     public void QueueSave(Chunk chunk)
@@ -109,6 +125,11 @@ public sealed class ChunkStore : IDisposable
 
         chunk.MarkClean();
 
+        lock (_unwrittenLock)
+        {
+            _unwrittenPayloads[(chunk.GridX, chunk.GridZ)] = payload;
+        }
+
         Interlocked.Increment(ref _outstandingSaves);
         _drained.Reset();
 
@@ -130,22 +151,80 @@ public sealed class ChunkStore : IDisposable
         {
             try
             {
-                Directory.CreateDirectory(_chunkDirectory);
-
-                AtomicFile.Write(GetChunkPath(save.GridX, save.GridZ), stream =>
-                {
-                    using var gzip = new GZipStream(stream, CompressionLevel.Optimal);
-                    gzip.Write(save.Payload, 0, save.Payload.Length);
-                });
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                Logger.Error("Failed to save chunk (" + save.GridX + ", " + save.GridZ + "): " + e.Message);
+                WriteUntilSaved(save);
             }
             finally
             {
                 MarkSaveFinished();
             }
+        }
+    }
+
+    private void WriteUntilSaved(PendingChunkSave save)
+    {
+        for (int attempt = 1; IsLatestSaveOf(save); attempt++)
+        {
+            try
+            {
+                Write(save);
+                return;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= MaxWriteAttempts)
+                {
+                    Logger.Error(
+                        "Failed to save chunk (" + save.GridX + ", " + save.GridZ + "): " + e.Message +
+                        " Keeping it in memory to try again on shutdown.");
+                    return;
+                }
+
+                Thread.Sleep(WriteRetryDelayMilliseconds * attempt);
+            }
+        }
+    }
+
+    private void Write(PendingChunkSave save)
+    {
+        Directory.CreateDirectory(_chunkDirectory);
+
+        AtomicFile.Write(GetChunkPath(save.GridX, save.GridZ), stream =>
+        {
+            using var gzip = new GZipStream(stream, CompressionLevel.Optimal);
+            gzip.Write(save.Payload, 0, save.Payload.Length);
+        });
+
+        lock (_unwrittenLock)
+        {
+            if (IsLatestSaveOf(save))
+            {
+                _unwrittenPayloads.Remove((save.GridX, save.GridZ));
+            }
+        }
+    }
+
+    private bool IsLatestSaveOf(PendingChunkSave save)
+    {
+        lock (_unwrittenLock)
+        {
+            return _unwrittenPayloads.TryGetValue((save.GridX, save.GridZ), out byte[]? latest) &&
+                   ReferenceEquals(latest, save.Payload);
+        }
+    }
+
+    private void WriteLeftovers()
+    {
+        List<PendingChunkSave> leftovers;
+        lock (_unwrittenLock)
+        {
+            leftovers = _unwrittenPayloads
+                .Select(unwritten => new PendingChunkSave(unwritten.Key.GridX, unwritten.Key.GridZ, unwritten.Value))
+                .ToList();
+        }
+
+        foreach (PendingChunkSave save in leftovers)
+        {
+            WriteUntilSaved(save);
         }
     }
 
@@ -178,6 +257,8 @@ public sealed class ChunkStore : IDisposable
         Flush();
 
         _writerThread.Join(TimeSpan.FromSeconds(WriterShutdownSeconds));
+
+        WriteLeftovers();
 
         _pendingSaves.Dispose();
         _drained.Dispose();

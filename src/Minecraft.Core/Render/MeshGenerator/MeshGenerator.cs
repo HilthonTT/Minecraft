@@ -28,9 +28,14 @@ public abstract class MeshGenerator
 
     public ChunkMesh GenerateMeshFor(World world, Chunk chunk)
     {
-        ChunkMesh mesh = GenerateMesh(world, chunk);
-        ClearData();
-        return mesh;
+        try
+        {
+            return GenerateMesh(world, chunk);
+        }
+        finally
+        {
+            ClearData();
+        }
     }
 
     protected abstract ChunkMesh GenerateMesh(World world, Chunk chunk);
@@ -106,6 +111,8 @@ public abstract class MeshGenerator
         }
 
         Span<int> order = flip ? [v1, v2, v6, v2, v3, v6] : [v1, v2, v3, v4, v5, v6];
+
+        _target.EnsureRoomForVertices(order.Length);
 
         foreach (int index in order)
         {

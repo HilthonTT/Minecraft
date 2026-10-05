@@ -50,13 +50,21 @@ public sealed class UIRenderer
             return;
         }
 
-        spaceCanvasses.Remove(canvas);
+        if (spaceCanvasses.Remove(canvas))
+        {
+            canvas.CleanUp();
+        }
     }
 
     public void RemoveCanvassesIn(RenderSpace renderSpace)
     {
         if (_canvasses.TryGetValue(renderSpace, out List<UICanvas>? spaceCanvasses))
         {
+            foreach (UICanvas canvas in spaceCanvasses)
+            {
+                canvas.CleanUp();
+            }
+
             spaceCanvasses.Clear();
         }
     }
@@ -114,6 +122,14 @@ public sealed class UIRenderer
 
     public void CleanUp()
     {
+        foreach (List<UICanvas> spaceCanvasses in _canvasses.Values)
+        {
+            foreach (UICanvas canvas in spaceCanvasses)
+            {
+                canvas.CleanUp();
+            }
+        }
+
         _uiShader.CleanUp();
     }
 }

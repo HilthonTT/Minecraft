@@ -94,11 +94,10 @@ public abstract class Session
     {
         if (State == SessionState.Closed)
         {
-            Logger.Error("Trying to send packet " + packet.GetType() + " while the connection is closed.");
             return false;
         }
 
-        if (!Connection.WritePacket(packet))
+        if (!SendPacket(packet))
         {
             State = SessionState.Closed;
             return false;
@@ -107,12 +106,14 @@ public abstract class Session
         return true;
     }
 
+    protected virtual bool SendPacket(Packet packet) => Connection.WritePacket(packet);
+
     public Packet ReadPacket()
     {
         return Connection.ReadPacket(this);
     }
 
-    public void Close()
+    public virtual void Close()
     {
         Connection.Close();
     }

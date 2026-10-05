@@ -13,6 +13,8 @@ public sealed class BlockBreaker
 
     private const float SecondsBetweenBreaks = 0.25F;
 
+    private const float SecondsToWaitForBreakConfirmation = 0.75F;
+
     private readonly Game _game;
     private readonly ClientPlayer _player;
     private readonly Action _onSwing;
@@ -25,6 +27,7 @@ public sealed class BlockBreaker
     private float _secondsUntilNextBreak;
 
     private bool _hasAskedToBreakTarget;
+    private float _secondsSinceAskedToBreak;
 
     public float Progress { get; private set; }
 
@@ -64,7 +67,15 @@ public sealed class BlockBreaker
 
         if (_hasAskedToBreakTarget)
         {
-            return;
+            _secondsSinceAskedToBreak += deltaTime;
+            if (_secondsSinceAskedToBreak < SecondsToWaitForBreakConfirmation)
+            {
+                return;
+            }
+
+            _hasAskedToBreakTarget = false;
+            _secondsSpentBreaking = 0F;
+            _secondsUntilNextMiningSwing = 0F;
         }
 
         float required = _player.IsCreative ? 0F : Harvesting.SecondsToBreak(block, _player.Inventory.Selected);
@@ -98,6 +109,7 @@ public sealed class BlockBreaker
 
         _secondsUntilNextBreak = SecondsBetweenBreaks;
         _hasAskedToBreakTarget = true;
+        _secondsSinceAskedToBreak = 0F;
         Progress = 0F;
     }
 

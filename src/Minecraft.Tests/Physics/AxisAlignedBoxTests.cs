@@ -99,4 +99,15 @@ public sealed class AxisAlignedBoxTests
         Assert.Equal(new Vector3(4, 5, 6), box.Min);
         Assert.Equal(new Vector3(5, 7, 7), box.Max);
     }
+
+    [Fact]
+    public void CornersWrittenIntoASpanMatchTheAllocatedOnes()
+    {
+        var box = new AxisAlignedBox(new Vector3(1, 2, 3), new Vector3(4, 6, 8));
+        Span<Vector3> corners = stackalloc Vector3[8];
+
+        box.GetAllCorners(corners);
+
+        Assert.Equal(box.GetAllCorners(), corners.ToArray());
+    }
 }

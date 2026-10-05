@@ -31,6 +31,7 @@ public enum PacketType
     PlayerEat,
     PlayerHunger,
     PlayerSprint,
-    ContainerSlot,
-    BlockStateSync
+    ContainerClick,
+    BlockStateSync,
+    ContainerCursor
 }

@@ -113,7 +113,7 @@ public sealed class GameSettings
         }
     }
 
-    private void Apply(string key, string value)
+    public void Apply(string key, string value)
     {
         switch (key)
         {
@@ -153,7 +153,7 @@ public sealed class GameSettings
 
     private static bool TryParseFloat(string value, out float parsed)
     {
-        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
+        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed) && float.IsFinite(parsed);
     }
 
     private void Set<T>(ref T field, T value)
