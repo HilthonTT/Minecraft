@@ -1,4 +1,6 @@
 ﻿using System.Net.Sockets;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
@@ -12,18 +14,22 @@ public sealed class Client
 {
     public const float KeepAliveTimeoutSeconds = 35;
 
-    private const float KeepAliveIntervalSeconds = 30;
+    // Well inside the timeout, so that a keep-alive delayed by a busy link still lands in time.
+    private const float KeepAliveIntervalSeconds = 10;
 
     private readonly Game _game;
 
     private readonly Lock _writePacketLock = new();
-    private readonly Lock _readPacketLock = new();
     private readonly Queue<Packet> _toSendPackets = new();
-    private readonly Queue<Packet> _toProcessPackets = new();
+    // Filled by the network thread and drained by the main one. A queue that needs no lock means a large packet
+    // still arriving never holds up a frame that is waiting to process the ones already here.
+    private readonly ConcurrentQueue<Packet> _toProcessPackets = new();
     private readonly Thread _packetTransferThread;
 
     private ClientSession? _session;
-    private float _elapsedSecondsSinceKeepAlive;
+    // Timed on the network thread with a real clock. Frame time is capped per frame, so a game that freezes for
+    // a while would count only a fraction of it and the server would drop a player who had done nothing wrong.
+    private readonly Stopwatch _sinceKeepAlive = new();
     private volatile bool _isRunning = true;
 
     public Client(Game game)
@@ -90,27 +96,31 @@ public sealed class Client
         {
             Thread.Sleep(5);
 
-            lock (_readPacketLock)
+            try
             {
-                try
+                while (_session.NetDataAvailable())
                 {
-                    while (_session.NetDataAvailable())
-                    {
-                        Packet packet = _session.ReadPacket();
-                        Logger.Packet("Client received packet " + packet);
-                        _toProcessPackets.Enqueue(packet);
-                    }
+                    Packet packet = _session.ReadPacket();
+                    Logger.Packet("Client received packet " + packet);
+                    _toProcessPackets.Enqueue(packet);
                 }
-                catch (Exception e)
+            }
+            catch (Exception e)
+            {
+                if (_session.State != SessionState.Closed)
                 {
-                    if (_session.State != SessionState.Closed)
-                    {
-                        Logger.Error("Failed reading packet: " + e.Message);
-                    }
+                    Logger.Error("Failed reading packet: " + e.Message);
+                }
 
-                    Stop();
-                    break;
-                }
+                Stop();
+                break;
+            }
+
+            if (!_sinceKeepAlive.IsRunning || _sinceKeepAlive.Elapsed.TotalSeconds >= KeepAliveIntervalSeconds)
+            {
+                _sinceKeepAlive.Restart();
+                Logger.Packet("Keep alive sent.");
+                WritePacket(new PlayerKeepAlivePacket());
             }
 
             lock (_writePacketLock)
@@ -134,28 +144,10 @@ public sealed class Client
             return;
         }
 
-        CheckForKeepAlive(deltaTime);
-
-        lock (_readPacketLock)
+        while (_toProcessPackets.TryDequeue(out Packet? packet))
         {
-            while (_toProcessPackets.Count > 0)
-            {
-                _toProcessPackets.Dequeue().Process(_session.NetHandler);
-            }
+            packet.Process(_session.NetHandler);
         }
-    }
-
-    private void CheckForKeepAlive(float deltaTime)
-    {
-        _elapsedSecondsSinceKeepAlive += deltaTime;
-        if (_elapsedSecondsSinceKeepAlive <= KeepAliveIntervalSeconds)
-        {
-            return;
-        }
-
-        _elapsedSecondsSinceKeepAlive = 0;
-        Logger.Packet("Keep alive sent.");
-        WritePacket(new PlayerKeepAlivePacket());
     }
 
     public void WritePacket(Packet packet)
