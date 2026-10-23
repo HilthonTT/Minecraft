@@ -73,7 +73,8 @@ public sealed class DroppedItem : Entity
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            if (entity is not ServerPlayer player || !player.IsAlive)
+            // A creative inventory has nowhere to put what does not fit, and nothing to throw it back down with.
+            if (entity is not ServerPlayer player || !player.IsAlive || player.IsCreative)
             {
                 continue;
             }
