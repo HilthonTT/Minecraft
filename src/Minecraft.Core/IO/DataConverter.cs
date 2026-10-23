@@ -91,7 +91,10 @@ public static class DataConverter
                             for (int z = 0; z < 16; z++)
                             {
                                 ushort blockId = BytesToUInt16(bytes, ref head);
-                                if (blockId != 0)
+
+                                // Air is written as 0, but its own id means the same thing and is not something
+                                // a chunk will store.
+                                if (blockId != 0 && blockId != BlockRegistry.Air.Id)
                                 {
                                     BlockState blockState = BlockRegistry.GetState(BlockRegistry.GetBlockFromIdentifier(blockId));
                                     blockState.ExtractFromByteStream(bytes, ref head);

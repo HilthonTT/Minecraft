@@ -86,7 +86,9 @@ public sealed class ChunkStore : IDisposable
             Logger.Info("Loaded chunk (" + gridX + ", " + gridZ + ") from " + (unwritten is null ? "disk." : "its unwritten save."));
             return chunk;
         }
-        catch (Exception e) when (e is IOException or InvalidDataException or ArgumentOutOfRangeException or IndexOutOfRangeException)
+        // ArgumentException covers a block id out of range and a block a chunk refuses to hold. An exception that
+        // escapes here is on the generation thread, where it would take the whole server down over one bad file.
+        catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or IndexOutOfRangeException)
         {
             Logger.Error("Failed to load chunk (" + gridX + ", " + gridZ + "): " + e.Message + ". Regenerating it.");
             return null;
