@@ -153,7 +153,8 @@ public sealed class PacketFactory
             {
                 int entityId = reader.ReadInt32();
                 bool died = reader.ReadBoolean();
-                return new EntityHurtPacket(entityId, died);
+                int attackerId = reader.ReadInt32();
+                return new EntityHurtPacket(entityId, died, attackerId);
             }
             case PacketType.PlayerGameMode:
             {

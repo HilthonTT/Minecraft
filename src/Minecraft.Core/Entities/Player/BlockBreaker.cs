@@ -102,7 +102,9 @@ public sealed class BlockBreaker
 
         _game.Client.WritePacket(new RemoveBlockPacket(blockPos));
 
-        if (Harvesting.IsCorrectToolFor(block, _player.Inventory.Selected) && _player.Inventory.WearSelected())
+        // Whatever tool is in hand wears for each block it gets through, the right one or not. Things that come
+        // away at a touch, like flowers, are not worth any of it.
+        if (block.SecondsToBreak > 0F && _player.Inventory.WearSelected())
         {
             _game.SoundDirector.OnToolBroke(_player.Position);
         }

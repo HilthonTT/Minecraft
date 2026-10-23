@@ -330,12 +330,8 @@ public sealed class ClientPlayer : Player
 
             if (MouseOverEntity is not null)
             {
+                // The weapon wears when the server reports the blow landed, not here.
                 _game.Client.WritePacket(new PlayerAttackEntityPacket(MouseOverEntity.ID));
-
-                if (Inventory.WearSelected())
-                {
-                    _game.SoundDirector.OnToolBroke(Position);
-                }
             }
         }
 

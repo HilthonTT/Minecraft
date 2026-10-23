@@ -9,10 +9,19 @@ public sealed class EntityHurtPacket : Packet
 
     public bool Died { get; private set; }
 
-    public EntityHurtPacket(int entityId, bool died) : base(PacketType.EntityHurt)
+    /// <summary>
+    /// Who landed the blow, or <see cref="NoAttacker"/>. A swing only wears the weapon once the server has said
+    /// it landed: a swing at a mob out of reach, or one still flinching from the last hit, does nothing.
+    /// </summary>
+    public int AttackerID { get; private set; }
+
+    public const int NoAttacker = -1;
+
+    public EntityHurtPacket(int entityId, bool died, int attackerId = NoAttacker) : base(PacketType.EntityHurt)
     {
         EntityID = entityId;
         Died = died;
+        AttackerID = attackerId;
     }
 
     public override void Process(INetHandler netHandler)
@@ -24,5 +33,6 @@ public sealed class EntityHurtPacket : Packet
     {
         bufferedStream.WriteInt32(EntityID);
         bufferedStream.WriteBool(Died);
+        bufferedStream.WriteInt32(AttackerID);
     }
 }

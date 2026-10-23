@@ -374,7 +374,7 @@ public sealed class WorldServer : World
             return;
         }
 
-        var packet = new EntityHurtPacket(mob.ID, died: !mob.IsAlive);
+        var packet = new EntityHurtPacket(mob.ID, died: !mob.IsAlive, attacker?.ID ?? EntityHurtPacket.NoAttacker);
 
         foreach (ServerSession session in Game.Server.ConnectedClients)
         {

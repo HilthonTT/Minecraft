@@ -126,6 +126,11 @@ public sealed class ClientNetHandler : INetHandler
 
     public void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket)
     {
+        if (entityHurtPacket.AttackerID == _game.ClientPlayer.ID && _game.ClientPlayer.Inventory.WearSelected())
+        {
+            _game.SoundDirector.OnToolBroke(_game.ClientPlayer.Position);
+        }
+
         if (!_game.World.LoadedEntities.TryGetValue(entityHurtPacket.EntityID, out Entity? entity))
         {
             return;
