@@ -38,6 +38,12 @@ public abstract class Block
 
     public bool RequiresCorrectTool { get; protected set; }
 
+    /// <summary>
+    /// Whether the block's own item puts it down. Wheat and doors are planted and hung by something else — seeds
+    /// and a door — so the item named after the block is only what they leave behind.
+    /// </summary>
+    public bool IsPlacedByItsOwnItem { get; protected set; } = true;
+
     protected Block(ushort id)
     {
         Id = id;
@@ -47,6 +53,19 @@ public abstract class Block
     public abstract BlockState GetNewDefaultState();
 
     public virtual ItemStack GetDrop(BlockState blockState) => new(this, 1);
+
+    /// <summary>
+    /// Everything a player's break leaves. Most blocks leave the one stack <see cref="GetDrop"/> names; the ones
+    /// that leave a chance of something extra, or something that depends on what is around them, say so here.
+    /// </summary>
+    public virtual void AddDrops(BlockState blockState, World world, Vector3i blockPos, Random random, List<ItemStack> drops)
+    {
+        ItemStack drop = GetDrop(blockState);
+        if (!drop.IsEmpty)
+        {
+            drops.Add(drop);
+        }
+    }
 
     public virtual void OnInteract(BlockState blockstate, Vector3i blockPos, World world)
     {

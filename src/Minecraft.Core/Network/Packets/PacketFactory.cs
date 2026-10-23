@@ -230,6 +230,12 @@ public sealed class PacketFactory
                 blockState.ExtractFromByteStream(bytes, ref head);
                 return new BlockStateSyncPacket(blockPos, acknowledged, blockState);
             }
+            case PacketType.PlayerUseItem:
+            {
+                ushort itemId = reader.ReadUInt16();
+                Vector3i target = ReadVector3i(reader);
+                return new PlayerUseItemPacket(itemId, target);
+            }
             case PacketType.PlayerEat:
             {
                 return new PlayerEatPacket(reader.ReadUInt16());

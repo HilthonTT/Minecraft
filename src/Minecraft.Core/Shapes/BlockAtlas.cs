@@ -31,6 +31,13 @@ public static class BlockAtlas
     public static Vector2 CactusSide { get; } = new(6, 4);
     public static Vector2 CactusBottom { get; } = new(7, 4);
 
+    public static Vector2 OakSapling { get; } = new(15, 0);
+    public static Vector2 SpruceSapling { get; } = new(15, 3);
+    public static Vector2 BirchSapling { get; } = new(15, 4);
+
+    public static Vector2 FarmlandTop { get; } = new(7, 5);
+    public static Vector2 Dirt { get; } = new(2, 0);
+
     public static Vector2[] CutOutCells { get; } =
     [
         Rose,
@@ -48,5 +55,8 @@ public static class BlockAtlas
         CactusSide,
         CactusBottom,
         Glass,
+        OakSapling,
+        SpruceSapling,
+        BirchSapling,
     ];
 }

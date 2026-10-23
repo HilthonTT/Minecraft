@@ -33,5 +33,6 @@ public enum PacketType
     PlayerSprint,
     ContainerClick,
     BlockStateSync,
-    ContainerCursor
+    ContainerCursor,
+    PlayerUseItem
 }

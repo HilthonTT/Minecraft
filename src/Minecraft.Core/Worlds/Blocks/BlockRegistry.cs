@@ -1,6 +1,7 @@
 ﻿using Minecraft.Core.Audio;
 using Minecraft.Core.Inventories.Items;
 using Minecraft.Core.Worlds.Blocks.Types;
+using Minecraft.Core.Worlds.Decoration.Trees;
 
 namespace Minecraft.Core.Worlds.Blocks;
 
@@ -78,6 +79,11 @@ public static class BlockRegistry
     public static readonly Block Chest = new BlockChest(55);
     public static readonly Block Glass = new BlockGlass(56);
 
+    public static readonly Block OakSapling = new BlockSapling(57, TreeKind.Oak);
+    public static readonly Block BirchSapling = new BlockSapling(58, TreeKind.Birch);
+    public static readonly Block SpruceSapling = new BlockSapling(59, TreeKind.Spruce);
+    public static readonly Block Farmland = new BlockFarmland(60);
+
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
 
@@ -153,6 +159,10 @@ public static class BlockRegistry
             Furnace,
             Chest,
             Glass,
+            OakSapling,
+            BirchSapling,
+            SpruceSapling,
+            Farmland,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

@@ -102,9 +102,12 @@ public sealed class Inventory
 
     public void PickBlock(Block block)
     {
+        // What puts the block down, which for wheat and doors is not the item named after them.
+        Item item = ItemRegistry.ItemPlacing(block);
+
         for (int slot = 0; slot < HotbarSlots; slot++)
         {
-            if (_slots[slot].Block == block)
+            if (_slots[slot].Item == item)
             {
                 SelectHotbarSlot(slot);
                 return;
@@ -116,7 +119,7 @@ public sealed class Inventory
             return;
         }
 
-        _slots[_selectedHotbarSlot] = new ItemStack(block, ItemStack.MaxCount);
+        _slots[_selectedHotbarSlot] = new ItemStack(item, ItemStack.MaxCount);
         OnChangedHandler?.Invoke();
     }
 
@@ -169,6 +172,29 @@ public sealed class Inventory
         _slots[index] = _slots[index].WithCount(_slots[index].Count - 1);
         OnChangedHandler?.Invoke();
         return true;
+    }
+
+    /// <summary>
+    /// Swaps one of the selected stack for <paramref name="result"/> — a bucket for a full one, a hoe for the same
+    /// hoe a little more worn. When the hand held more than one, the result goes wherever it fits.
+    /// </summary>
+    /// <returns>Whatever did not fit anywhere.</returns>
+    public ItemStack ExchangeSelected(ItemStack result)
+    {
+        if (HasEndlessSupply)
+        {
+            return ItemStack.Empty;
+        }
+
+        ItemStack selected = _slots[_selectedHotbarSlot];
+        if (selected.Count <= 1)
+        {
+            SetSlot(_selectedHotbarSlot, result);
+            return ItemStack.Empty;
+        }
+
+        _slots[_selectedHotbarSlot] = selected.WithCount(selected.Count - 1);
+        return TryAdd(result);
     }
 
     public bool TryConsumeSelected()

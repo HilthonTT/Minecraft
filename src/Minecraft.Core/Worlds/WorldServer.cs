@@ -43,7 +43,7 @@ public sealed class WorldServer : World
 
     private readonly List<Entity> _entitiesInLava = [];
 
-    private readonly Dictionary<Vector3i, ItemStack> _dropsAwaitingRemoval = [];
+    private readonly Dictionary<Vector3i, List<ItemStack>> _dropsAwaitingRemoval = [];
 
     public int Seed => _metadata.Seed;
 
@@ -404,10 +404,18 @@ public sealed class WorldServer : World
 
     public void DropWhenRemoved(Vector3i blockPos, ItemStack stack)
     {
-        if (!stack.IsEmpty)
+        if (stack.IsEmpty)
         {
-            _dropsAwaitingRemoval[blockPos] = stack;
+            return;
         }
+
+        if (!_dropsAwaitingRemoval.TryGetValue(blockPos, out List<ItemStack>? stacks))
+        {
+            stacks = [];
+            _dropsAwaitingRemoval[blockPos] = stacks;
+        }
+
+        stacks.Add(stack);
     }
 
     public void ThrowDroppedItem(ServerPlayer thrower, ItemStack stack)
@@ -537,9 +545,12 @@ public sealed class WorldServer : World
 
     private void OnBlockRemovedServer(World world, Chunk chunk, Vector3i blockPos, BlockState oldState)
     {
-        if (_dropsAwaitingRemoval.Remove(blockPos, out ItemStack dropped))
+        if (_dropsAwaitingRemoval.Remove(blockPos, out List<ItemStack>? dropped))
         {
-            SpawnDroppedItem(blockPos, dropped);
+            foreach (ItemStack stack in dropped)
+            {
+                SpawnDroppedItem(blockPos, stack);
+            }
         }
 
         RemoveBlockPacket packet = new(new Vector3i[] { blockPos });

@@ -49,6 +49,18 @@ public static class ItemRegistry
 
     public static readonly SpriteItem Charcoal = new(290, "Charcoal", ItemAtlas.Charcoal);
 
+    public static readonly ToolItem WoodenHoe = new(291, ToolKind.Hoe, ToolMaterial.Wood, ItemAtlas.Hoe(0));
+    public static readonly ToolItem StoneHoe = new(292, ToolKind.Hoe, ToolMaterial.Stone, ItemAtlas.Hoe(1));
+    public static readonly ToolItem IronHoe = new(293, ToolKind.Hoe, ToolMaterial.Iron, ItemAtlas.Hoe(2));
+    public static readonly ToolItem GoldenHoe = new(294, ToolKind.Hoe, ToolMaterial.Gold, ItemAtlas.Hoe(3));
+    public static readonly ToolItem DiamondHoe = new(295, ToolKind.Hoe, ToolMaterial.Diamond, ItemAtlas.Hoe(4));
+
+    public static readonly PlacingItem Seeds = new(296, "Seeds", ItemAtlas.Seeds, () => BlockRegistry.Wheat);
+
+    public static readonly BucketItem Bucket = new(297, "Bucket", ItemAtlas.Bucket, () => null);
+    public static readonly BucketItem WaterBucket = new(298, "Water Bucket", ItemAtlas.WaterBucket, () => BlockRegistry.Water);
+    public static readonly BucketItem LavaBucket = new(299, "Lava Bucket", ItemAtlas.LavaBucket, () => BlockRegistry.Lava);
+
     private static Item?[] _byId = [];
 
     private static BlockItem[] _byBlockId = [];
@@ -64,6 +76,8 @@ public static class ItemRegistry
         WoodenSword, StoneSword, IronSword, GoldenSword, DiamondSword,
         RawBeef, Steak, RawPorkchop, CookedPorkchop, RawMutton, CookedMutton, RottenFlesh, Bread,
         Charcoal,
+        WoodenHoe, StoneHoe, IronHoe, GoldenHoe, DiamondHoe,
+        Seeds, Bucket, WaterBucket, LavaBucket,
     ];
 
     public static void RegisterItems()
@@ -121,6 +135,24 @@ public static class ItemRegistry
         }
 
         return _byBlockId[block.Id];
+    }
+
+    public static Item ItemPlacing(Block block)
+    {
+        if (block.IsPlacedByItsOwnItem)
+        {
+            return For(block);
+        }
+
+        foreach (SpriteItem item in _looseItems)
+        {
+            if (item.PlacedBlock == block)
+            {
+                return item;
+            }
+        }
+
+        return For(block);
     }
 
     public static Item? TryGet(int id) =>

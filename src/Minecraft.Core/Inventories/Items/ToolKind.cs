@@ -6,4 +6,5 @@ public enum ToolKind
     Axe,
     Shovel,
     Sword,
+    Hoe,
 }

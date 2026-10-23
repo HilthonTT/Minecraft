@@ -188,11 +188,42 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        ItemStack dropped = block.GetDrop(state);
-        if (!dropped.IsEmpty)
+        _drops.Clear();
+        block.AddDrops(state, world, blockPos, Random.Shared, _drops);
+
+        foreach (ItemStack dropped in _drops)
         {
             world.DropWhenRemoved(blockPos, dropped);
         }
+    }
+
+    private readonly List<ItemStack> _drops = [];
+
+    public void ProcessPlayerUseItemPacket(PlayerUseItemPacket playerUseItemPacket)
+    {
+        if (_session.Player is not ServerPlayer player || !player.IsAlive)
+        {
+            return;
+        }
+
+        Vector3i target = playerUseItemPacket.Target;
+        WorldServer world = _game.Server.World;
+
+        if (!world.IsBlockPositionLoaded(target) || !IsWithinBlockReach(player, target))
+        {
+            Logger.Warn("Player " + player.ID + " used an item out of reach at " + target + ".");
+            return;
+        }
+
+        // The hand is what the client last said it holds, and that is said before the use changes it.
+        ItemStack held = player.HeldItem;
+        if (held.IsEmpty || held.Item!.Id != playerUseItemPacket.ItemId || !ItemUse.IsUsable(held.Item))
+        {
+            Logger.Warn("Player " + player.ID + " used item id " + playerUseItemPacket.ItemId + " it is not holding.");
+            return;
+        }
+
+        ItemUse.Use(world, held, target, apply: true);
     }
 
     public void ProcessChatPacket(ChatPacket chatPacket)

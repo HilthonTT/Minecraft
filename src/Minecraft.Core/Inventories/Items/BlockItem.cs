@@ -10,4 +10,6 @@ public sealed class BlockItem : Item
     }
 
     public Block Block { get; }
+
+    public override Block? PlacedBlock => Block.IsPlacedByItsOwnItem ? Block : null;
 }

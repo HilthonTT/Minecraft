@@ -16,6 +16,9 @@ public sealed class ItemRegistryTests
     [InlineData(36, "Water")]
     [InlineData(37, "Torch")]
     [InlineData(46, "CraftingTable")]
+    [InlineData(56, "Glass")]
+    [InlineData(57, "OakSapling")]
+    [InlineData(60, "Farmland")]
     public void BlockIdsStayWhereTheyWere(int id, string name)
     {
         Block block = BlockRegistry.GetBlockFromIdentifier(id);
@@ -34,6 +37,32 @@ public sealed class ItemRegistryTests
         Assert.Equal(261, ItemRegistry.Redstone.Id);
         Assert.Equal(262, ItemRegistry.WoodenPickaxe.Id);
         Assert.Equal(281, ItemRegistry.DiamondSword.Id);
+        Assert.Equal(290, ItemRegistry.Charcoal.Id);
+        Assert.Equal(291, ItemRegistry.WoodenHoe.Id);
+        Assert.Equal(296, ItemRegistry.Seeds.Id);
+        Assert.Equal(297, ItemRegistry.Bucket.Id);
+        Assert.Equal(299, ItemRegistry.LavaBucket.Id);
+    }
+
+    [Fact]
+    public void SeedsPlantWheat()
+    {
+        Assert.Same(BlockRegistry.Wheat, new ItemStack(ItemRegistry.Seeds, 1).PlacedBlock);
+
+        // The item named after wheat is only what it leaves behind.
+        Assert.Null(ItemRegistry.For(BlockRegistry.Wheat).PlacedBlock);
+        Assert.Same(ItemRegistry.Seeds, ItemRegistry.ItemPlacing(BlockRegistry.Wheat));
+        Assert.Same(BlockRegistry.Stone, ItemRegistry.For(BlockRegistry.Stone).PlacedBlock);
+    }
+
+    [Fact]
+    public void AnEmptyBucketStacksAndAFullOneDoesNot()
+    {
+        Assert.Equal(16, ItemRegistry.Bucket.MaxStackSize);
+        Assert.Equal(1, ItemRegistry.WaterBucket.MaxStackSize);
+        Assert.Same(BlockRegistry.Lava, ItemRegistry.LavaBucket.Holds);
+        Assert.True(ItemUse.AimsAtFluid(ItemRegistry.Bucket));
+        Assert.False(ItemUse.AimsAtFluid(ItemRegistry.WaterBucket));
     }
 
     [Fact]

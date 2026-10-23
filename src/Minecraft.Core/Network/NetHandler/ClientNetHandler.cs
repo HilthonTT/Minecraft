@@ -255,6 +255,9 @@ public sealed class ClientNetHandler : INetHandler
         _game.ClientPlayer.SetFood(playerHungerPacket.Food);
     }
 
+    public void ProcessPlayerUseItemPacket(PlayerUseItemPacket playerUseItemPacket) =>
+        throw new InvalidOperationException("A client does not receive item uses; it is the one that makes them.");
+
     public void ProcessContainerClickPacket(ContainerClickPacket containerClickPacket)
     {
         throw new InvalidOperationException("A client does not receive container clicks; it is the one that makes them.");

@@ -64,6 +64,8 @@ public interface INetHandler
 
     void ProcessPlayerEatPacket(PlayerEatPacket playerEatPacket);
 
+    void ProcessPlayerUseItemPacket(PlayerUseItemPacket playerUseItemPacket);
+
     void ProcessPlayerHungerPacket(PlayerHungerPacket playerHungerPacket);
 
     void ProcessPlayerSprintPacket(PlayerSprintPacket playerSprintPacket);

@@ -12,6 +12,7 @@ public static class ItemAtlas
     private const int AxeRow = 1;
     private const int ShovelRow = 2;
     private const int SwordRow = 3;
+    private const int HoeRow = 6;
 
     public static Vector2 Stick { get; } = new(0, 4);
     public static Vector2 Coal { get; } = new(1, 4);
@@ -20,6 +21,10 @@ public static class ItemAtlas
     public static Vector2 Diamond { get; } = new(4, 4);
     public static Vector2 Redstone { get; } = new(5, 4);
     public static Vector2 Charcoal { get; } = new(6, 4);
+    public static Vector2 Seeds { get; } = new(7, 4);
+    public static Vector2 Bucket { get; } = new(8, 4);
+    public static Vector2 WaterBucket { get; } = new(9, 4);
+    public static Vector2 LavaBucket { get; } = new(10, 4);
 
     public static Vector2 RawBeef { get; } = new(0, 5);
     public static Vector2 Steak { get; } = new(1, 5);
@@ -37,4 +42,6 @@ public static class ItemAtlas
     public static Vector2 Shovel(int materialColumn) => new(materialColumn, ShovelRow);
 
     public static Vector2 Sword(int materialColumn) => new(materialColumn, SwordRow);
+
+    public static Vector2 Hoe(int materialColumn) => new(materialColumn, HoeRow);
 }

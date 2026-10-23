@@ -38,6 +38,8 @@ public readonly struct ItemStack
 
     public Block? Block => (Item as BlockItem)?.Block;
 
+    public Block? PlacedBlock => Item?.PlacedBlock;
+
     public ToolItem? Tool => Item as ToolItem;
 
     public int MaxStackSize => Item?.MaxStackSize ?? MaxCount;

@@ -37,6 +37,21 @@ public sealed class BlockModelDeadBush(TextureAtlas textureAtlas) : ScissorModel
     protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.DeadBush);
 }
 
+public sealed class BlockModelOakSapling(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.OakSapling);
+}
+
+public sealed class BlockModelBirchSapling(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.BirchSapling);
+}
+
+public sealed class BlockModelSpruceSapling(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
+{
+    protected override void SetStandardUVs() => SetBladeUVs(BlockAtlas.SpruceSapling);
+}
+
 public sealed class BlockModelWheat(TextureAtlas textureAtlas) : ScissorModel(textureAtlas)
 {
     private Vector2[] _uvHalfMaturity = [];

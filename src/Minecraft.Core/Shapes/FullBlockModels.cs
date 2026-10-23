@@ -205,6 +205,12 @@ public sealed class BlockModelGlass : FullBlockModel
     protected override void SetStandardUVs() => SetUniformUVs(BlockAtlas.Glass);
 }
 
+public sealed class BlockModelFarmland(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
+{
+    protected override void SetStandardUVs() =>
+        SetUVs(sideCell: BlockAtlas.Dirt, topCell: BlockAtlas.FarmlandTop, bottomCell: BlockAtlas.Dirt);
+}
+
 public sealed class BlockModelWool(TextureAtlas textureAtlas) : FullBlockModel(textureAtlas)
 {
     protected override void SetStandardUVs() => SetUniformUVs(new Vector2(0, 4));

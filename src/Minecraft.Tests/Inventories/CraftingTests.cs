@@ -221,6 +221,22 @@ public sealed class CraftingTests
     }
 
     [Fact]
+    public void TwoAcrossAndAHandleAreAHoe()
+    {
+        CraftingGrid grid = Lay(3, "PP..S..S.", ('P', Planks), ('S', ItemRegistry.Stick));
+
+        Assert.Equal(ItemRegistry.WoodenHoe, grid.Result.Item);
+    }
+
+    [Fact]
+    public void IronInAVIsABucket()
+    {
+        CraftingGrid grid = Lay(3, "I.I.I....", ('I', ItemRegistry.IronIngot));
+
+        Assert.Equal(ItemRegistry.Bucket, grid.Result.Item);
+    }
+
+    [Fact]
     public void ClosingTheScreenReturnsTheIngredients()
     {
         var inventory = new Inventory();

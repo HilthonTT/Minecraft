@@ -98,7 +98,7 @@ public sealed class ClientPlayer : Player
 
     private void OnInventoryChanged()
     {
-        Block block = Inventory.Selected.Block ?? BlockRegistry.Air;
+        Block block = Inventory.Selected.PlacedBlock ?? BlockRegistry.Air;
 
         if (SelectedBlock.GetBlock() != block)
         {
@@ -335,6 +335,11 @@ public sealed class ClientPlayer : Player
             }
         }
 
+        if (Game.Input.OnMousePress(MouseButton.Right) && TryUseHeldItem(world))
+        {
+            return;
+        }
+
         if (MouseOverObject is null)
         {
             return;
@@ -404,6 +409,65 @@ public sealed class ClientPlayer : Player
         }
 
         _game.Client.WritePacket(new PlaceBlockPacket(state, blockPos));
+    }
+
+    private bool TryUseHeldItem(World world)
+    {
+        ItemStack held = Inventory.Selected;
+        if (!ItemUse.IsUsable(held.Item) || IsAimingAtSomethingUsable(world))
+        {
+            return false;
+        }
+
+        Vector3i? target = FindUseTarget(world, held.Item!);
+        if (target is null)
+        {
+            return true;
+        }
+
+        ItemStack? after = ItemUse.Use(world, held, target.Value, apply: false);
+        if (after is null)
+        {
+            return true;
+        }
+
+        OnSwingHandler?.Invoke();
+        _game.Client.WritePacket(new PlayerUseItemPacket(held.Item!.Id, target.Value));
+
+        ItemStack leftover = Inventory.ExchangeSelected(after.Value);
+        ThrowAway(leftover);
+
+        if (held.Tool is not null && after.Value.IsEmpty && !Inventory.HasEndlessSupply)
+        {
+            _game.SoundDirector.OnToolBroke(Position);
+        }
+
+        return true;
+    }
+
+    private Vector3i? FindUseTarget(World world, Item item)
+    {
+        if (ItemUse.AimsAtFluid(item))
+        {
+            return new Ray(EyePosition, Camera.LookDirection)
+                .TraceWorld(world, MaxBlockReach, stopAtFluidSources: true)?
+                .IntersectedBlockPos;
+        }
+
+        if (MouseOverObject is null)
+        {
+            return null;
+        }
+
+        if (item is BucketItem)
+        {
+            // Poured into the clicked cell when that cell gives way, like the tall grass a block replaces.
+            return MouseOverObject.BlockstateHit.GetBlock().IsOverridable
+                ? MouseOverObject.IntersectedBlockPos
+                : MouseOverObject.BlockPlacePosition;
+        }
+
+        return MouseOverObject.IntersectedBlockPos;
     }
 
     private BlockState BuildStateToPlaceAt(World world, Vector3i blockPos)

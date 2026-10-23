@@ -1,4 +1,5 @@
 ﻿using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.Types;
 using OpenTK.Mathematics;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Utilities.Vectors;
@@ -20,7 +21,11 @@ public struct Ray
         DistanceToIntersection = float.MaxValue;
     }
 
-    public RayTraceResult? TraceWorld(World world, int maxDist = 1, int stepsPerBlock = 50)
+    /// <param name="stopAtFluidSources">
+    /// Whether a still source of water or lava is something to hit. A bucket is aimed at one; nothing else is,
+    /// and a player looking into a lake is looking at its floor.
+    /// </param>
+    public RayTraceResult? TraceWorld(World world, int maxDist = 1, int stepsPerBlock = 50, bool stopAtFluidSources = false)
     {
         Vector3 position = Origin;
         int maxSteps = maxDist * stepsPerBlock;
@@ -47,12 +52,27 @@ public struct Ray
             }
 
             Block block = state.GetBlock();
-            if (block == BlockRegistry.Air || block.IsLiquid)
+            if (block == BlockRegistry.Air)
             {
                 continue;
             }
 
-            RayTraceResult? hit = Intersect(state, blockPos, block.GetSelectionBox(state, blockPos));
+            AxisAlignedBox[] boxes;
+            if (block is BlockFluid fluid)
+            {
+                if (!stopAtFluidSources || !fluid.IsSource)
+                {
+                    continue;
+                }
+
+                boxes = [block.GetFullBlockCollision(blockPos)];
+            }
+            else
+            {
+                boxes = block.GetSelectionBox(state, blockPos);
+            }
+
+            RayTraceResult? hit = Intersect(state, blockPos, boxes);
             if (hit is not null)
             {
                 return hit;

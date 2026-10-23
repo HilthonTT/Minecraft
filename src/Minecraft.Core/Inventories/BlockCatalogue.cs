@@ -27,6 +27,7 @@ public static class BlockCatalogue
         (BlockRegistry.Grass, "Grass"),
         (BlockRegistry.SnowyGrass, "Snowy Grass"),
         (BlockRegistry.Dirt, "Dirt"),
+        (BlockRegistry.Farmland, "Farmland"),
         (BlockRegistry.Sand, "Sand"),
         (BlockRegistry.Gravel, "Gravel"),
         (BlockRegistry.Clay, "Clay"),
@@ -54,6 +55,9 @@ public static class BlockCatalogue
         (BlockRegistry.Cactus, "Cactus"),
         (BlockRegistry.SugarCane, "Sugar Cane"),
         (BlockRegistry.Wheat, "Wheat"),
+        (BlockRegistry.OakSapling, "Oak Sapling"),
+        (BlockRegistry.BirchSapling, "Birch Sapling"),
+        (BlockRegistry.SpruceSapling, "Spruce Sapling"),
     ];
 
     private static readonly Dictionary<Block, string> _names =

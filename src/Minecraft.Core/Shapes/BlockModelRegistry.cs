@@ -55,6 +55,11 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.Wool.Id] = new BlockModelWool(textureAtlas);
         Models[BlockRegistry.Obsidian.Id] = new BlockModelObsidian(textureAtlas);
 
+        Models[BlockRegistry.OakSapling.Id] = new BlockModelOakSapling(textureAtlas);
+        Models[BlockRegistry.BirchSapling.Id] = new BlockModelBirchSapling(textureAtlas);
+        Models[BlockRegistry.SpruceSapling.Id] = new BlockModelSpruceSapling(textureAtlas);
+        Models[BlockRegistry.Farmland.Id] = new BlockModelFarmland(textureAtlas);
+
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {
             if (BlockRegistry.GetBlockFromIdentifier(id) is BlockFluid fluid)

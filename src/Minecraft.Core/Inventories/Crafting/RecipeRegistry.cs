@@ -20,6 +20,7 @@ public static class RecipeRegistry
         (ToolKind.Axe, ["XX", "XS", " S"]),
         (ToolKind.Shovel, ["X", "S", "S"]),
         (ToolKind.Sword, ["X", "X", "S"]),
+        (ToolKind.Hoe, ["XX", " S", " S"]),
     ];
 
     private static Recipe[] _recipes = [];
@@ -71,7 +72,13 @@ public static class RecipeRegistry
                 new ItemStack(ItemRegistry.Bread, 1),
                 ["XXX"],
                 new Dictionary<char, Item> { ['X'] = ItemRegistry.For(BlockRegistry.Wheat) }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.Bucket, 1),
+                ["X X", " X "],
+                new Dictionary<char, Item> { ['X'] = ItemRegistry.IronIngot }),
         ];
+
 
         foreach ((ToolKind kind, string[] pattern) in _toolShapes)
         {
@@ -125,6 +132,12 @@ public static class RecipeRegistry
         (ToolKind.Sword, ToolMaterial.Iron) => ItemRegistry.IronSword,
         (ToolKind.Sword, ToolMaterial.Gold) => ItemRegistry.GoldenSword,
         (ToolKind.Sword, ToolMaterial.Diamond) => ItemRegistry.DiamondSword,
+
+        (ToolKind.Hoe, ToolMaterial.Wood) => ItemRegistry.WoodenHoe,
+        (ToolKind.Hoe, ToolMaterial.Stone) => ItemRegistry.StoneHoe,
+        (ToolKind.Hoe, ToolMaterial.Iron) => ItemRegistry.IronHoe,
+        (ToolKind.Hoe, ToolMaterial.Gold) => ItemRegistry.GoldenHoe,
+        (ToolKind.Hoe, ToolMaterial.Diamond) => ItemRegistry.DiamondHoe,
 
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
