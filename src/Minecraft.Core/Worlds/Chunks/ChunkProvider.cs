@@ -37,6 +37,18 @@ public sealed class ChunkProvider
     {
         _session = session;
         session.OnPlayerAssignedHandler += OnPlayerAssigned;
+        session.OnViewDistanceChangedHandler += OnViewDistanceChanged;
+    }
+
+    // Which chunks a player should have is otherwise only worked out on crossing into a new one, so a player who
+    // changed the setting while standing still would see nothing new arrive, and keep chunks they no longer
+    // receive updates for.
+    private void OnViewDistanceChanged()
+    {
+        if (_player?.World is World world)
+        {
+            OnPlayerChunkChanged(world, World.GetChunkPosition(_player.Position.X, _player.Position.Z));
+        }
     }
 
     private void OnPlayerAssigned()

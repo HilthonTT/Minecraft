@@ -47,6 +47,8 @@ public abstract class Session
     public delegate void OnPlayerAssigned();
     public event OnPlayerAssigned? OnPlayerAssignedHandler;
 
+    public event Action? OnViewDistanceChangedHandler;
+
     protected Session(Connection connection, INetHandler netHandler)
     {
         Connection = connection;
@@ -58,10 +60,14 @@ public abstract class Session
 
     public void SetViewDistance(int viewDistance)
     {
-        PlayerSettings = PlayerSettings with
+        int clamped = Math.Clamp(viewDistance, 1, MaxAcceptedViewDistance);
+        if (clamped == PlayerSettings.ViewDistance)
         {
-            ViewDistance = Math.Clamp(viewDistance, 1, MaxAcceptedViewDistance),
-        };
+            return;
+        }
+
+        PlayerSettings = PlayerSettings with { ViewDistance = clamped };
+        OnViewDistanceChangedHandler?.Invoke();
     }
 
     public void AssignPlayer(Player player)
