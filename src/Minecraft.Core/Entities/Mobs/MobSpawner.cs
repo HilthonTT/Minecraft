@@ -452,20 +452,23 @@ public sealed class MobSpawner
             return false;
         }
 
-        int sunlitFloorY = GetSunlitFloorOfColumn(chunk, worldX & 15, worldZ & 15);
+        int sunlitFloorY = SunlitFloorOfColumn(chunk, worldX & 15, worldZ & 15);
 
         int distance = Math.Abs(offsetX) + Math.Abs(offsetZ) + Math.Max(0, sunlitFloorY - blockPos.Y);
         return distance <= SunlightSpreadDistance;
     }
 
-    private static int GetSunlitFloorOfColumn(Chunk chunk, int localX, int localZ)
+    /// <summary>
+    /// The lowest point the sun reaches straight down a column: the top of the first block that roofs it over.
+    /// </summary>
+    public static int SunlitFloorOfColumn(Chunk chunk, int localX, int localZ)
     {
         int highest = Math.Min(chunk.TopMostBlocks[localX, localZ], Constants.MAX_BUILD_HEIGHT - 1);
         int lowest = Math.Max(0, highest - SunlightColumnSearchDepth);
 
         for (int y = highest; y >= lowest; y--)
         {
-            if (chunk.GetBlockAt(localX, y, localZ).GetBlock().IsOpaque)
+            if (IsRoof(chunk.GetBlockAt(localX, y, localZ).GetBlock()))
             {
                 return y + 1;
             }
@@ -473,6 +476,13 @@ public sealed class MobSpawner
 
         return lowest;
     }
+
+    /// <summary>
+    /// Leaves are opaque to the renderer, but they are the shade of a tree, not a roof. Counting a canopy as one
+    /// left the floor of a forest, eight or nine blocks under the treetops and ringed by more of them, as far from
+    /// the sky as a cave: zombies were spawned there at noon, and ones that walked under a tree never burned.
+    /// </summary>
+    private static bool IsRoof(Block block) => block.IsOpaque && block != BlockRegistry.OakLeaves;
 
     private static bool IsNearLightSource(World world, Vector3i blockPos)
     {

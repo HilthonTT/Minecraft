@@ -753,7 +753,9 @@ Zombies only appear in the dark. The server keeps no light map — those are bui
 — so the spawner works out where the daylight falls from the heightmap every chunk already carries: the sun
 comes down each column that has nothing solid over it and then spreads out from where it lands, losing a step
 for every block it travels sideways and every block it drops. Anything more than seven steps from the open sky
-is dark, which is what tells a cave from the shade of a tree. So by day they are confined to the caves, and at
+is dark, which is what tells a cave from the shade of a tree. Leaves do not count as something solid
+for this, though the renderer draws them as opaque: under a canopy the ground can be eight or nine blocks
+below the treetops, and taking that as a roof made the floor of every forest as dark as a cave. So by day they are confined to the caves, and at
 night they have the run of the surface as well, apart from wherever a torch is burning.
 
 ![Zombies scattered across a dark meadow at night, one of them close to the camera](Screenshots/sample-3.png)
