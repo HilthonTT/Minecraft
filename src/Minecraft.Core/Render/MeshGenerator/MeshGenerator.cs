@@ -82,6 +82,11 @@ public abstract class MeshGenerator
         }
     }
 
+    protected void AddFaceToMeshFromFront(BlockFace face, Vector3i blockPos, Light[] lights)
+    {
+        AddFace(face, blockPos, lights, false, 0, 1, 2, 0, 2, 3);
+    }
+
     protected void AddFacesToMeshFromBack(BlockFace[] toAddFaces, Vector3i blockPos, Light[] lights, bool flip)
     {
         foreach (BlockFace face in toAddFaces)

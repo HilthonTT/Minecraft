@@ -26,15 +26,21 @@ public struct Ray
         int maxSteps = maxDist * stepsPerBlock;
         Vector3 offset = Direction / stepsPerBlock;
 
-        BlockState? hitBlockState = null;
-        var blockPos = Vector3i.Zero;
+        Vector3i? lastTested = null;
 
         for (int i = 0; i < maxSteps; i++)
         {
             position += offset;
 
-            var steppedPos = position.ToBlockPos();
-            BlockState? state = world.GetBlockAt(steppedPos);
+            var blockPos = position.ToBlockPos();
+            if (blockPos == lastTested)
+            {
+                continue;
+            }
+
+            lastTested = blockPos;
+
+            BlockState? state = world.GetBlockAt(blockPos);
             if (state is null)
             {
                 continue;
@@ -46,20 +52,24 @@ public struct Ray
                 continue;
             }
 
-            hitBlockState = state;
-            blockPos = steppedPos;
-            break;
+            RayTraceResult? hit = Intersect(state, blockPos, block.GetSelectionBox(state, blockPos));
+            if (hit is not null)
+            {
+                return hit;
+            }
+
+            // The ray crossed this cell without touching what is in it — the empty half above a slab, the air
+            // beside a fence post — so whatever is behind it is still in view.
         }
 
-        if (hitBlockState is null)
-        {
-            return null;
-        }
+        return null;
+    }
 
-        AxisAlignedBox[] hitAABBs = hitBlockState.GetBlock().GetSelectionBox(hitBlockState, blockPos);
+    private RayTraceResult? Intersect(BlockState state, Vector3i blockPos, AxisAlignedBox[] boxes)
+    {
         AxisAlignedBox? hitAABB = null;
         float dist = float.MaxValue;
-        foreach (AxisAlignedBox aabb in hitAABBs)
+        foreach (AxisAlignedBox aabb in boxes)
         {
             float hitDist = aabb.Intersects(this);
             if (hitDist < dist)
@@ -77,6 +87,6 @@ public struct Ray
         DistanceToIntersection = dist;
         Vector3 exactIntersection = Origin + Direction * DistanceToIntersection;
         Vector3 normalAtIntersection = hitAABB.GetNormalAtIntersectionPoint(exactIntersection);
-        return new RayTraceResult(normalAtIntersection, exactIntersection, hitBlockState, blockPos);
+        return new RayTraceResult(normalAtIntersection, exactIntersection, state, blockPos);
     }
 }

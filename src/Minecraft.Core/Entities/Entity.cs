@@ -23,6 +23,11 @@ public abstract class Entity
 
     private const float GroundProbeDepth = 0.01F;
 
+    /// <summary>
+    /// The tallest ledge walked up without a jump: a slab, or one step of a stair. A whole block still needs one.
+    /// </summary>
+    private const float StepHeight = 0.5F;
+
     private static readonly Vector3i[] _liquidFlowSideOffsets =
     [
         Vector3iExtensions.NorthBasis,
@@ -350,13 +355,24 @@ public abstract class Entity
                     continue;
                 }
 
-                if (Velocity.X > 0.0F && previousX + _width <= aabb.Min.X + CollisionTolerance)
+                // Read before stepping, which asks other blocks for their boxes and may reuse this one.
+                float near = aabb.Min.X;
+                float far = aabb.Max.X;
+                bool hitFromBelow = Velocity.X > 0.0F && previousX + _width <= near + CollisionTolerance;
+                bool hitFromAbove = Velocity.X < 0.0F && previousX >= far - CollisionTolerance;
+
+                if ((hitFromBelow || hitFromAbove) && TryStepOnto(blocks, aabb.Max.Y))
                 {
-                    Position.X = aabb.Min.X - _width;
+                    continue;
                 }
-                else if (Velocity.X < 0.0F && previousX >= aabb.Max.X - CollisionTolerance)
+
+                if (hitFromBelow)
                 {
-                    Position.X = aabb.Max.X;
+                    Position.X = near - _width;
+                }
+                else if (hitFromAbove)
+                {
+                    Position.X = far;
                 }
                 else
                 {
@@ -417,13 +433,24 @@ public abstract class Entity
                     continue;
                 }
 
-                if (Velocity.Z > 0.0F && previousZ + _length <= aabb.Min.Z + CollisionTolerance)
+                // Read before stepping, which asks other blocks for their boxes and may reuse this one.
+                float near = aabb.Min.Z;
+                float far = aabb.Max.Z;
+                bool hitFromBelow = Velocity.Z > 0.0F && previousZ + _length <= near + CollisionTolerance;
+                bool hitFromAbove = Velocity.Z < 0.0F && previousZ >= far - CollisionTolerance;
+
+                if ((hitFromBelow || hitFromAbove) && TryStepOnto(blocks, aabb.Max.Y))
                 {
-                    Position.Z = aabb.Min.Z - _length;
+                    continue;
                 }
-                else if (Velocity.Z < 0.0F && previousZ >= aabb.Max.Z - CollisionTolerance)
+
+                if (hitFromBelow)
                 {
-                    Position.Z = aabb.Max.Z;
+                    Position.Z = near - _length;
+                }
+                else if (hitFromAbove)
+                {
+                    Position.Z = far;
                 }
                 else
                 {
@@ -435,6 +462,38 @@ public abstract class Entity
                 OnHorizontalCollision();
             }
         }
+    }
+
+    /// <summary>
+    /// Lifts onto the top of a low obstacle walked into, if there is headroom there. It only happens from the
+    /// ground: in the air a ledge is something to land on or bump against, not to be carried over.
+    /// </summary>
+    private bool TryStepOnto(Dictionary<Vector3i, BlockState> blocks, float obstacleTop)
+    {
+        float rise = obstacleTop - Position.Y;
+        if (_isInAir || rise <= 0F || rise > StepHeight + CollisionTolerance)
+        {
+            return false;
+        }
+
+        float previousY = Position.Y;
+        Position.Y = obstacleTop;
+        UpdateAxisAlignedBox();
+
+        foreach (KeyValuePair<Vector3i, BlockState> collidable in blocks)
+        {
+            foreach (AxisAlignedBox aabb in collidable.Value.GetBlock().GetCollisionBox(collidable.Value, collidable.Key))
+            {
+                if (Hitbox.Intersects(aabb))
+                {
+                    Position.Y = previousY;
+                    UpdateAxisAlignedBox();
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     private bool IsStandingOnGround(Dictionary<Vector3i, BlockState> blocks)

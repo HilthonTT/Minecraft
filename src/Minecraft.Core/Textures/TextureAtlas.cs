@@ -34,6 +34,11 @@ public sealed class TextureAtlas : Texture
         return GetTextureCoords(atlatGrid.X, atlatGrid.Y);
     }
 
+    public Vector2 GetTextureCoord(Vector2 atlasGrid, float u, float v)
+    {
+        return new Vector2((atlasGrid.X + u) * _cellUVSize, (atlasGrid.Y + v) * _cellUVSize);
+    }
+
     public Vector2[] GetTextureCoords(Vector2 atlasGrid, Vector2 minFraction, Vector2 maxFraction)
     {
         float xMin = (atlasGrid.X + minFraction.X) * _cellUVSize;

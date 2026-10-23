@@ -14,6 +14,13 @@ public abstract class BlockModel
 
     public bool DoubleSidedFaces { get; protected set; }
 
+    /// <summary>
+    /// Whether the always visible faces are shaded by which way they point, the way a full block's sides are.
+    /// Blades of grass and torches are lit evenly from every side; a slab lit that way reads as a flat shape cut
+    /// out of the screen.
+    /// </summary>
+    public bool ShadesFacesByDirection { get; protected set; }
+
     protected BlockModel(TextureAtlas textureAtlas)
     {
         _textureAtlas = textureAtlas;

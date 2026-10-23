@@ -391,7 +391,7 @@ public sealed class ClientPlayer : Player
 
     private void TryPlaceAt(World world, Vector3i blockPos)
     {
-        BlockState state = BuildStateToPlaceAt(blockPos);
+        BlockState state = BuildStateToPlaceAt(world, blockPos);
 
         if (world.IsBlockedByEntity(blockPos, state))
         {
@@ -406,9 +406,19 @@ public sealed class ClientPlayer : Player
         _game.Client.WritePacket(new PlaceBlockPacket(state, blockPos));
     }
 
-    private BlockState BuildStateToPlaceAt(Vector3i blockPos)
+    private BlockState BuildStateToPlaceAt(World world, Vector3i blockPos)
     {
         BlockState state = BlockRegistry.GetState(SelectedBlock.GetBlock());
+
+        if (state is IPlacementState placement && MouseOverObject is not null)
+        {
+            placement.ApplyPlacement(new PlacementContext(
+                world,
+                blockPos,
+                MouseOverObject.IntersectedBlockPos,
+                MouseOverObject.IntersectionPoint,
+                Camera.LookDirection));
+        }
 
         if (state is IOrientedBlockState oriented && MouseOverObject is not null)
         {

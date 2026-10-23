@@ -79,6 +79,11 @@ public sealed class ServerNetHandler : INetHandler
             torch.Attachment = receivedTorch.Attachment;
         }
 
+        if (fresh is IPlacementState placement)
+        {
+            placement.CopyPlacementFrom(received);
+        }
+
         return fresh;
     }
 

@@ -175,6 +175,18 @@ public sealed class ChunkMeshGenerator : MeshGenerator
             * LightScale);
         alwaysVisibleLight.SetBrightness(Light.MaxChannelValue);
 
+        if (blockModel.ShadesFacesByDirection)
+        {
+            foreach (BlockFace face in alwaysVisibleFaces)
+            {
+                alwaysVisibleLight.SetBrightness(StaticBrightnessFacing(face.Normal));
+                Array.Fill(_lightBuffer, alwaysVisibleLight);
+                AddFaceToMeshFromFront(face, chunkLocalPos, _lightBuffer);
+            }
+
+            return;
+        }
+
         Array.Fill(_lightBuffer, alwaysVisibleLight);
 
         if (blockModel.DoubleSidedFaces)
@@ -185,6 +197,21 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         {
             AddFacesToMeshFromFront(alwaysVisibleFaces, chunkLocalPos, _lightBuffer, false);
         }
+    }
+
+    private static uint StaticBrightnessFacing(Vector3 normal)
+    {
+        if (normal.Y > 0)
+        {
+            return StaticTopLight;
+        }
+
+        if (normal.Y < 0)
+        {
+            return StaticBottomLight;
+        }
+
+        return MathF.Abs(normal.X) > MathF.Abs(normal.Z) ? StaticSideZLight : StaticSideXLight;
     }
 
     private static void Accumulate(Light light, ref uint red, ref uint green, ref uint blue, ref int count)
