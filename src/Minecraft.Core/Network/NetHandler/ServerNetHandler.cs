@@ -53,6 +53,7 @@ public sealed class ServerNetHandler : INetHandler
         if (!IsWithinBlockReach(player, blockPos))
         {
             Logger.Warn("Player " + player.ID + " placed a block out of reach at " + blockPos + ".");
+            Refund(player, placed);
             return;
         }
 
@@ -65,6 +66,7 @@ public sealed class ServerNetHandler : INetHandler
             BlockState merged = BlockRegistry.GetState(slab.FullBlock);
             if (world.IsBlockedByEntity(blockPos, merged))
             {
+                Refund(player, placed);
                 return;
             }
 
@@ -75,12 +77,35 @@ public sealed class ServerNetHandler : INetHandler
 
         if (!player.IsCreative && !MayPlace(blockPos, placed))
         {
-            Logger.Warn("Player " + player.ID + " placed a block where it cannot go at " + blockPos + ".");
+            Logger.Info("Player " + player.ID + " placed a block where it cannot go at " + blockPos + ".");
+            Refund(player, placed);
             return;
         }
 
         world.QueueToAddBlockAt(blockPos, placed);
     }
+
+    /// <summary>
+    /// Hands back the item a refused placement took. The client spends it as it sends the placement, since it is
+    /// the only side with an inventory; without this a block that lost a race with a mob walking into the same
+    /// cell, or with another player placing there, would simply be gone.
+    /// </summary>
+    private void Refund(ServerPlayer player, BlockState placed)
+    {
+        Block block = placed.GetBlock();
+
+        // Nothing a client could have held puts down air, a fluid or bedrock, so there is nothing to give back.
+        if (player.IsCreative || block == BlockRegistry.Air || block is BlockFluid || !block.IsBreakable)
+        {
+            return;
+        }
+
+        Item item = ItemRegistry.ItemPlacing(block);
+        _session.WritePacket(new ItemPickupPacket(NoEntity, item.Id, 1, 0));
+    }
+
+    // An id no entity carries: the pickup is of nothing lying in the world.
+    private const int NoEntity = -1;
 
     private static BlockState FreshStateLike(BlockState received)
     {
@@ -116,7 +141,8 @@ public sealed class ServerNetHandler : INetHandler
 
         return world.IsBlockPositionLoaded(blockPos) &&
                world.GetBlockAt(blockPos).GetBlock().IsOverridable &&
-               block.CanAddBlockAt(world, blockPos);
+               block.CanAddBlockAt(world, blockPos) &&
+               !world.IsBlockedByEntity(blockPos, placed);
     }
 
     private static bool IsWithinBlockReach(ServerPlayer player, Vector3i blockPos)
