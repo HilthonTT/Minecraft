@@ -83,6 +83,17 @@ public static class BlockRegistry
     public static readonly Block BirchSapling = new BlockSapling(58, TreeKind.Birch);
     public static readonly Block SpruceSapling = new BlockSapling(59, TreeKind.Spruce);
     public static readonly Block Farmland = new BlockFarmland(60);
+    public static readonly Block Ladder = new BlockLadder(61);
+    public static readonly Block Fence = BlockConnecting.Fence(62);
+    public static readonly Block GlassPane = BlockConnecting.Pane(63);
+    public static readonly Block Door = new BlockDoor(64);
+
+    public static readonly Block StoneSlab = new BlockSlab(65, Stone);
+    public static readonly Block CobblestoneSlab = new BlockSlab(66, Cobblestone);
+    public static readonly Block PlanksSlab = new BlockSlab(67, Planks);
+    public static readonly Block SandstoneSlab = new BlockSlab(68, SandStone);
+    public static readonly Block PlanksStairs = new BlockStairs(69, Planks);
+    public static readonly Block CobblestoneStairs = new BlockStairs(70, Cobblestone);
 
     private static Block[] _registeredBlocks = [];
     private static BlockState[] _defaultStates = [];
@@ -163,6 +174,16 @@ public static class BlockRegistry
             BirchSapling,
             SpruceSapling,
             Farmland,
+            Ladder,
+            Fence,
+            GlassPane,
+            Door,
+            StoneSlab,
+            CobblestoneSlab,
+            PlanksSlab,
+            SandstoneSlab,
+            PlanksStairs,
+            CobblestoneStairs,
         ];
 
         _defaultStates = new BlockState[_registeredBlocks.Length];

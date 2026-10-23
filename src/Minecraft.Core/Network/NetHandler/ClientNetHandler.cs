@@ -9,6 +9,7 @@ using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
 using Minecraft.Core.Render.UI.Presets;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.States;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
 
@@ -370,6 +371,11 @@ public sealed class ClientNetHandler : INetHandler
         Vector3i blockPos = playerInteractionPacket.BlockPos;
         BlockState state = _game.World.GetBlockAt(blockPos);
         state.GetBlock().OnInteract(state, blockPos, _game.World);
+
+        if (state is BlockStateDoor door)
+        {
+            _game.SoundDirector.OnDoorSwung(blockPos, door.IsOpen);
+        }
     }
 
     public void ProcessPlayerKeepAlivePacket(PlayerKeepAlivePacket keepAlivePacket)

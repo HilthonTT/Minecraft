@@ -59,6 +59,19 @@ public sealed class BlockModelRegistry
         Models[BlockRegistry.BirchSapling.Id] = new BlockModelBirchSapling(textureAtlas);
         Models[BlockRegistry.SpruceSapling.Id] = new BlockModelSpruceSapling(textureAtlas);
         Models[BlockRegistry.Farmland.Id] = new BlockModelFarmland(textureAtlas);
+        Models[BlockRegistry.Ladder.Id] = new BlockModelLadder(textureAtlas);
+        Models[BlockRegistry.Fence.Id] = new BlockModelFence(textureAtlas);
+        Models[BlockRegistry.GlassPane.Id] = new BlockModelGlassPane(textureAtlas);
+        Models[BlockRegistry.Door.Id] = new BlockModelDoor(textureAtlas);
+
+        Models[BlockRegistry.StoneSlab.Id] = new BlockModelSlab(
+            textureAtlas, BlockAtlas.StoneSlabSide, BlockAtlas.StoneSlabTop, BlockAtlas.StoneSlabTop);
+        Models[BlockRegistry.CobblestoneSlab.Id] = new BlockModelSlab(textureAtlas, BlockAtlas.Cobblestone);
+        Models[BlockRegistry.PlanksSlab.Id] = new BlockModelSlab(textureAtlas, BlockAtlas.Planks);
+        Models[BlockRegistry.SandstoneSlab.Id] = new BlockModelSlab(
+            textureAtlas, BlockAtlas.SandstoneSide, BlockAtlas.SandstoneTop, BlockAtlas.SandstoneBottom);
+        Models[BlockRegistry.PlanksStairs.Id] = new BlockModelStairs(textureAtlas, BlockAtlas.Planks);
+        Models[BlockRegistry.CobblestoneStairs.Id] = new BlockModelStairs(textureAtlas, BlockAtlas.Cobblestone);
 
         for (int id = 1; id <= BlockRegistry.Count; id++)
         {

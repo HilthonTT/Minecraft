@@ -21,6 +21,8 @@ public abstract class Player : Entity
     protected bool _isCrouching;
     protected bool _isRunning;
 
+    protected bool _wantsToClimb;
+
     public GameMode GameMode { get; private set; } = GameMode.Survival;
 
     public bool IsCreative => GameMode == GameMode.Creative;
@@ -66,6 +68,17 @@ public abstract class Player : Entity
     protected override bool IsAffectedByGravity => !_isFlying;
 
     protected override void OnHorizontalCollision() => TryStopRunning();
+
+    /// <summary>Walking into a ladder or jumping climbs it; crouching holds on where you are.</summary>
+    protected override float ClimbingVerticalSpeed()
+    {
+        if (_wantsToClimb)
+        {
+            return ClimbSpeed;
+        }
+
+        return _isCrouching ? 0F : -ClimbSpeed;
+    }
 
     protected void TryStartRunning()
     {

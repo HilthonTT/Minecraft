@@ -237,6 +237,41 @@ public sealed class CraftingTests
     }
 
     [Fact]
+    public void SixPlanksStandingUpAreADoor()
+    {
+        CraftingGrid grid = Lay(3, "PP.PP.PP.", ('P', Planks));
+
+        Assert.Equal(ItemRegistry.Door, grid.Result.Item);
+    }
+
+    [Fact]
+    public void ThreeInARowAreSixSlabs()
+    {
+        CraftingGrid grid = Lay(3, "...CCC...", ('C', ItemRegistry.For(BlockRegistry.Cobblestone)));
+
+        Assert.Equal(BlockRegistry.CobblestoneSlab, grid.Result.Block);
+        Assert.Equal(6, grid.Result.Count);
+    }
+
+    [Fact]
+    public void StairsAreMadeFacingEitherWay()
+    {
+        Item cobblestone = ItemRegistry.For(BlockRegistry.Cobblestone);
+
+        Assert.Equal(BlockRegistry.CobblestoneStairs, Lay(3, "C..CC.CCC", ('C', cobblestone)).Result.Block);
+        Assert.Equal(BlockRegistry.CobblestoneStairs, Lay(3, "..C.CCCCC", ('C', cobblestone)).Result.Block);
+    }
+
+    [Fact]
+    public void SticksMakeLaddersAndFences()
+    {
+        Item stick = ItemRegistry.Stick;
+
+        Assert.Equal(BlockRegistry.Ladder, Lay(3, "S.SSSSS.S", ('S', stick)).Result.Block);
+        Assert.Equal(BlockRegistry.Fence, Lay(3, "SSSSSS...", ('S', stick)).Result.Block);
+    }
+
+    [Fact]
     public void ClosingTheScreenReturnsTheIngredients()
     {
         var inventory = new Inventory();

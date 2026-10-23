@@ -35,8 +35,19 @@ public static class BlockAtlas
     public static Vector2 SpruceSapling { get; } = new(15, 3);
     public static Vector2 BirchSapling { get; } = new(15, 4);
 
+    public static Vector2 Ladder { get; } = new(3, 5);
+    public static Vector2 DoorTop { get; } = new(1, 5);
+    public static Vector2 DoorBottom { get; } = new(1, 6);
+
     public static Vector2 FarmlandTop { get; } = new(7, 5);
     public static Vector2 Dirt { get; } = new(2, 0);
+    public static Vector2 Planks { get; } = new(4, 0);
+    public static Vector2 Cobblestone { get; } = new(0, 1);
+    public static Vector2 StoneSlabSide { get; } = new(5, 0);
+    public static Vector2 StoneSlabTop { get; } = new(6, 0);
+    public static Vector2 SandstoneSide { get; } = new(0, 12);
+    public static Vector2 SandstoneTop { get; } = new(0, 11);
+    public static Vector2 SandstoneBottom { get; } = new(0, 13);
 
     public static Vector2[] CutOutCells { get; } =
     [
@@ -58,5 +69,8 @@ public static class BlockAtlas
         OakSapling,
         SpruceSapling,
         BirchSapling,
+        Ladder,
+        DoorTop,
+        DoorBottom,
     ];
 }

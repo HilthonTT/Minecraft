@@ -143,6 +143,12 @@ public sealed class SoundDirector
         _engine.PlayAt(_sounds.Get(Sound.ChestClose).Pick(_random), CentreOf(blockPos), ChestVolume);
     }
 
+    public void OnDoorSwung(Vector3i blockPos, bool opened)
+    {
+        Sound sound = opened ? Sound.DoorOpen : Sound.DoorClose;
+        _engine.PlayAt(_sounds.Get(sound).Pick(_random), CentreOf(blockPos), ChestVolume, RandomPitch());
+    }
+
     public void OnWorldUnloaded()
     {
         _entityStates.Clear();

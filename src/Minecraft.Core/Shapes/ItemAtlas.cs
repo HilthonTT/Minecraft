@@ -25,6 +25,7 @@ public static class ItemAtlas
     public static Vector2 Bucket { get; } = new(8, 4);
     public static Vector2 WaterBucket { get; } = new(9, 4);
     public static Vector2 LavaBucket { get; } = new(10, 4);
+    public static Vector2 Door { get; } = new(11, 4);
 
     public static Vector2 RawBeef { get; } = new(0, 5);
     public static Vector2 Steak { get; } = new(1, 5);

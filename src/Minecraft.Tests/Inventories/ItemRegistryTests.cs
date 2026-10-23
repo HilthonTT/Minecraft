@@ -19,6 +19,9 @@ public sealed class ItemRegistryTests
     [InlineData(56, "Glass")]
     [InlineData(57, "OakSapling")]
     [InlineData(60, "Farmland")]
+    [InlineData(64, "Door")]
+    [InlineData(65, "StoneSlab")]
+    [InlineData(70, "CobblestoneStairs")]
     public void BlockIdsStayWhereTheyWere(int id, string name)
     {
         Block block = BlockRegistry.GetBlockFromIdentifier(id);
@@ -41,16 +44,18 @@ public sealed class ItemRegistryTests
         Assert.Equal(291, ItemRegistry.WoodenHoe.Id);
         Assert.Equal(296, ItemRegistry.Seeds.Id);
         Assert.Equal(297, ItemRegistry.Bucket.Id);
-        Assert.Equal(299, ItemRegistry.LavaBucket.Id);
+        Assert.Equal(300, ItemRegistry.Door.Id);
     }
 
     [Fact]
-    public void SeedsPlantWheat()
+    public void SeedsPlantWheatAndADoorHangsOne()
     {
         Assert.Same(BlockRegistry.Wheat, new ItemStack(ItemRegistry.Seeds, 1).PlacedBlock);
+        Assert.Same(BlockRegistry.Door, new ItemStack(ItemRegistry.Door, 1).PlacedBlock);
 
-        // The item named after wheat is only what it leaves behind.
+        // The items named after them are only what they leave behind.
         Assert.Null(ItemRegistry.For(BlockRegistry.Wheat).PlacedBlock);
+        Assert.Null(ItemRegistry.For(BlockRegistry.Door).PlacedBlock);
         Assert.Same(ItemRegistry.Seeds, ItemRegistry.ItemPlacing(BlockRegistry.Wheat));
         Assert.Same(BlockRegistry.Stone, ItemRegistry.For(BlockRegistry.Stone).PlacedBlock);
     }

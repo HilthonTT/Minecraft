@@ -36,5 +36,8 @@ public enum Sound
     ChestOpen,
     ChestClose,
 
+    DoorOpen,
+    DoorClose,
+
     Fizz,
 }

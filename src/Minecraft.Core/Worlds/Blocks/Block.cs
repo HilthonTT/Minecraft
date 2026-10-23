@@ -23,6 +23,9 @@ public abstract class Block
 
     public bool IsTranslucent { get; protected set; }
 
+    /// <summary>Whether something standing in the cell can climb it, the way a ladder is climbed.</summary>
+    public bool IsClimbable { get; protected set; }
+
     public bool HidesFacesAgainstItself { get; protected set; }
 
     public BlockSoundMaterial SoundMaterial { get; protected set; } = BlockSoundMaterial.Stone;

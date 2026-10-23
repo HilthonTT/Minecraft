@@ -22,7 +22,17 @@ public static class BlockCatalogue
         (BlockRegistry.Bedrock, "Bedrock"),
         (BlockRegistry.Obsidian, "Obsidian"),
         (BlockRegistry.Glass, "Glass"),
+        (BlockRegistry.GlassPane, "Glass Pane"),
         (BlockRegistry.Wool, "Wool"),
+
+        (BlockRegistry.StoneSlab, "Stone Slab"),
+        (BlockRegistry.CobblestoneSlab, "Cobblestone Slab"),
+        (BlockRegistry.PlanksSlab, "Wooden Slab"),
+        (BlockRegistry.SandstoneSlab, "Sandstone Slab"),
+        (BlockRegistry.PlanksStairs, "Wooden Stairs"),
+        (BlockRegistry.CobblestoneStairs, "Cobblestone Stairs"),
+        (BlockRegistry.Fence, "Fence"),
+        (BlockRegistry.Ladder, "Ladder"),
 
         (BlockRegistry.Grass, "Grass"),
         (BlockRegistry.SnowyGrass, "Snowy Grass"),
@@ -60,8 +70,15 @@ public static class BlockCatalogue
         (BlockRegistry.SpruceSapling, "Spruce Sapling"),
     ];
 
+    // Blocks with a name but no place in the list, because something else puts them down: the door item hangs a
+    // door, and a door block on its own would be only half of one.
+    private static readonly (Block Block, string Name)[] _unlisted =
+    [
+        (BlockRegistry.Door, "Door"),
+    ];
+
     private static readonly Dictionary<Block, string> _names =
-        _entries.ToDictionary(entry => entry.Block, entry => entry.Name);
+        _entries.Concat(_unlisted).ToDictionary(entry => entry.Block, entry => entry.Name);
 
     public static int Count => _entries.Length;
 

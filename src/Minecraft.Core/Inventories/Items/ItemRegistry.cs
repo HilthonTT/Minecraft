@@ -61,6 +61,8 @@ public static class ItemRegistry
     public static readonly BucketItem WaterBucket = new(298, "Water Bucket", ItemAtlas.WaterBucket, () => BlockRegistry.Water);
     public static readonly BucketItem LavaBucket = new(299, "Lava Bucket", ItemAtlas.LavaBucket, () => BlockRegistry.Lava);
 
+    public static readonly PlacingItem Door = new(300, "Door", ItemAtlas.Door, () => BlockRegistry.Door);
+
     private static Item?[] _byId = [];
 
     private static BlockItem[] _byBlockId = [];
@@ -77,7 +79,7 @@ public static class ItemRegistry
         RawBeef, Steak, RawPorkchop, CookedPorkchop, RawMutton, CookedMutton, RottenFlesh, Bread,
         Charcoal,
         WoodenHoe, StoneHoe, IronHoe, GoldenHoe, DiamondHoe,
-        Seeds, Bucket, WaterBucket, LavaBucket,
+        Seeds, Bucket, WaterBucket, LavaBucket, Door,
     ];
 
     public static void RegisterItems()

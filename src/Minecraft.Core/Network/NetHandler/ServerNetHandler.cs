@@ -56,13 +56,30 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
+        WorldServer world = _game.Server.World;
+
+        if (world.IsBlockPositionLoaded(blockPos) &&
+            placed.GetBlock() is BlockSlab slab &&
+            slab.CompletesSlab(world.GetBlockAt(blockPos), placed))
+        {
+            BlockState merged = BlockRegistry.GetState(slab.FullBlock);
+            if (world.IsBlockedByEntity(blockPos, merged))
+            {
+                return;
+            }
+
+            world.QueueToRemoveBlockAt(blockPos);
+            world.QueueToAddBlockAt(blockPos, merged);
+            return;
+        }
+
         if (!player.IsCreative && !MayPlace(blockPos, placed))
         {
             Logger.Warn("Player " + player.ID + " placed a block where it cannot go at " + blockPos + ".");
             return;
         }
 
-        _game.Server.World.QueueToAddBlockAt(blockPos, placed);
+        world.QueueToAddBlockAt(blockPos, placed);
     }
 
     private static BlockState FreshStateLike(BlockState received)

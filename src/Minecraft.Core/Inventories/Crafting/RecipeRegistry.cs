@@ -23,6 +23,20 @@ public static class RecipeRegistry
         (ToolKind.Hoe, ["XX", " S", " S"]),
     ];
 
+    private static readonly (Block Slab, Block Full)[] _slabs =
+    [
+        (BlockRegistry.StoneSlab, BlockRegistry.Stone),
+        (BlockRegistry.CobblestoneSlab, BlockRegistry.Cobblestone),
+        (BlockRegistry.PlanksSlab, BlockRegistry.Planks),
+        (BlockRegistry.SandstoneSlab, BlockRegistry.SandStone),
+    ];
+
+    private static readonly (Block Stairs, Block Full)[] _stairs =
+    [
+        (BlockRegistry.PlanksStairs, BlockRegistry.Planks),
+        (BlockRegistry.CobblestoneStairs, BlockRegistry.Cobblestone),
+    ];
+
     private static Recipe[] _recipes = [];
 
     public static void RegisterRecipes()
@@ -74,11 +88,46 @@ public static class RecipeRegistry
                 new Dictionary<char, Item> { ['X'] = ItemRegistry.For(BlockRegistry.Wheat) }),
 
             Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(BlockRegistry.Ladder), 3),
+                ["S S", "SSS", "S S"],
+                new Dictionary<char, Item> { ['S'] = stick }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(BlockRegistry.Fence), 2),
+                ["SSS", "SSS"],
+                new Dictionary<char, Item> { ['S'] = stick }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(BlockRegistry.GlassPane), 16),
+                ["XXX", "XXX"],
+                new Dictionary<char, Item> { ['X'] = ItemRegistry.For(BlockRegistry.Glass) }),
+
+            Recipe.Shaped(
+                new ItemStack(ItemRegistry.Door, 1),
+                ["XX", "XX", "XX"],
+                new Dictionary<char, Item> { ['X'] = planks }),
+
+            Recipe.Shaped(
                 new ItemStack(ItemRegistry.Bucket, 1),
                 ["X X", " X "],
                 new Dictionary<char, Item> { ['X'] = ItemRegistry.IronIngot }),
         ];
 
+        foreach ((Block slab, Block full) in _slabs)
+        {
+            recipes.Add(Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(slab), 6),
+                ["XXX"],
+                new Dictionary<char, Item> { ['X'] = ItemRegistry.For(full) }));
+        }
+
+        foreach ((Block stairs, Block full) in _stairs)
+        {
+            recipes.Add(Recipe.Shaped(
+                new ItemStack(ItemRegistry.For(stairs), 4),
+                ["X  ", "XX ", "XXX"],
+                new Dictionary<char, Item> { ['X'] = ItemRegistry.For(full) }));
+        }
 
         foreach ((ToolKind kind, string[] pattern) in _toolShapes)
         {

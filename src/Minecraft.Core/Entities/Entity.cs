@@ -28,6 +28,8 @@ public abstract class Entity
     /// </summary>
     private const float StepHeight = 0.5F;
 
+    protected const float ClimbSpeed = 2.35F;
+
     private static readonly Vector3i[] _liquidFlowSideOffsets =
     [
         Vector3iExtensions.NorthBasis,
@@ -73,6 +75,10 @@ public abstract class Entity
     protected float _verticalSpeed;
 
     protected bool _isInLiquid;
+
+    protected bool _isClimbing;
+
+    public bool IsClimbing => _isClimbing;
 
     protected Vector3 _liquidFlow;
 
@@ -199,7 +205,14 @@ public abstract class Entity
     {
         UpdateLiquidState(world);
 
-        if (IsAffectedByGravity)
+        _isClimbing = IsAffectedByGravity && IsTouchingClimbable(world);
+
+        if (_isClimbing)
+        {
+            _verticalSpeed = 0F;
+            Velocity.Y = ClimbingVerticalSpeed();
+        }
+        else if (IsAffectedByGravity)
         {
             TryApplyGravity(deltaTime);
         }
@@ -273,6 +286,34 @@ public abstract class Entity
         }
 
         return flow.LengthSquared > 0.0001F ? Vector3.Normalize(flow) : Vector3.Zero;
+    }
+
+    /// <summary>
+    /// How fast to move up or down a ladder. Anything that is not trying to climb slides down it at the speed it
+    /// would climb, rather than falling; a player overrides this with what their keys ask for.
+    /// </summary>
+    protected virtual float ClimbingVerticalSpeed() => -ClimbSpeed;
+
+    private bool IsTouchingClimbable(World world)
+    {
+        Vector3i min = Hitbox.Min.ToBlockPos();
+        Vector3i max = Hitbox.Max.ToBlockPos();
+
+        for (int x = min.X; x <= max.X; x++)
+        {
+            for (int y = min.Y; y <= max.Y; y++)
+            {
+                for (int z = min.Z; z <= max.Z; z++)
+                {
+                    if (!world.IsOutsideBuildHeight(y) && world.GetBlockAt(new Vector3i(x, y, z)).GetBlock().IsClimbable)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private int GetCollisionStepCount(float deltaTime)

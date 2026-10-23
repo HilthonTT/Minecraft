@@ -58,6 +58,8 @@ public sealed class SoundRegistry
         sounds[Sound.Burp] = LoadGroup("random", "burp", ref loaded);
         sounds[Sound.ChestOpen] = LoadGroup("random", "chestopen", ref loaded);
         sounds[Sound.ChestClose] = LoadGroup("random", "chestclosed", ref loaded);
+        sounds[Sound.DoorOpen] = LoadGroup("random", "door_open", ref loaded);
+        sounds[Sound.DoorClose] = LoadGroup("random", "door_close", ref loaded);
         sounds[Sound.Fizz] = LoadGroup("random", "fizz", ref loaded);
 
         sounds[Sound.PigDeath] = LoadGroup("mob/pig", "death", ref loaded);

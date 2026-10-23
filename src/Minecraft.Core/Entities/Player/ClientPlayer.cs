@@ -9,6 +9,8 @@ using Minecraft.Core.Utilities.Spatial;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Blocks;
+using Minecraft.Core.Worlds.Blocks.States;
+using Minecraft.Core.Worlds.Blocks.Types;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
@@ -240,6 +242,7 @@ public sealed class ClientPlayer : Player
     public override void Update(float deltaTime, World world)
     {
         Acceleration = Vector3.Zero;
+        _wantsToClimb = false;
 
         if (_game.IsGameplayInputEnabled)
         {
@@ -373,6 +376,9 @@ public sealed class ClientPlayer : Player
             else if (selected == BlockRegistry.Air)
             {
             }
+            else if (TryCompleteSlab(world))
+            {
+            }
             else if (hitBlock.IsOverridable &&
                      selected.CanAddBlockAt(world, MouseOverObject.IntersectedBlockPos))
             {
@@ -409,6 +415,45 @@ public sealed class ClientPlayer : Player
         }
 
         _game.Client.WritePacket(new PlaceBlockPacket(state, blockPos));
+    }
+
+    /// <summary>
+    /// Lays a slab into the empty half of one of the same kind, when the click was aimed at that half: on top of a
+    /// bottom slab, under a top one, or into a cell beside the clicked block that already holds the other half.
+    /// </summary>
+    private bool TryCompleteSlab(World world)
+    {
+        if (SelectedBlock.GetBlock() is not BlockSlab slab || MouseOverObject is null)
+        {
+            return false;
+        }
+
+        Vector3i clicked = MouseOverObject.IntersectedBlockPos;
+        float normalY = MouseOverObject.NormalAtHit.Y;
+
+        bool ontoClicked = world.GetBlockAt(clicked) is BlockStateSlab clickedSlab &&
+                           clickedSlab.GetBlock() == slab &&
+                           (clickedSlab.IsTop ? normalY < -0.5F : normalY > 0.5F);
+
+        Vector3i target = ontoClicked ? clicked : MouseOverObject.BlockPlacePosition;
+        BlockState existing = world.GetBlockAt(target);
+
+        var incoming = (BlockStateSlab)BlockRegistry.GetState(slab);
+        incoming.IsTop = existing is BlockStateSlab { IsTop: false };
+
+        if (!slab.CompletesSlab(existing, incoming))
+        {
+            return false;
+        }
+
+        BlockState merged = BlockRegistry.GetState(slab.FullBlock);
+        if (world.IsBlockedByEntity(target, merged) || !Inventory.TryConsumeSelected())
+        {
+            return true;
+        }
+
+        _game.Client.WritePacket(new PlaceBlockPacket(incoming, target));
+        return true;
     }
 
     private bool TryUseHeldItem(World world)
@@ -563,7 +608,7 @@ public sealed class ClientPlayer : Player
 
     private void UpdateFallTracking()
     {
-        if (IsCreative || _isFlying || _isInLiquid)
+        if (IsCreative || _isFlying || _isInLiquid || _isClimbing)
         {
             ResetFallTracking();
             return;
@@ -668,6 +713,8 @@ public sealed class ClientPlayer : Player
         bool inputToMoveForward = focused && Game.Input.OnKeyDown(Keys.W);
         bool inputToJump = focused && Game.Input.OnKeyDown(Keys.Space);
         bool inputToFly = focused && Game.Input.OnKeyPress(Keys.Space);
+
+        _wantsToClimb = inputToMoveForward || inputToJump;
 
         if (inputToCrouch)
         {
