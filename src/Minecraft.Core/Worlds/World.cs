@@ -16,6 +16,10 @@ public class World
 {
     private const float SecondsPerTick = 0.05F;
 
+    // After a long stall the world catches up this many ticks in one frame and lets the rest of the backlog go,
+    // rather than spending the next frames running nothing but ticks.
+    private const int MaxTicksPerFrame = 5;
+
     private readonly Queue<Vector3i> _toRemoveBlocks = new();
     private readonly Queue<(Vector3i BlockPos, BlockState State)> _toAddBlocks = new();
     private readonly Queue<Entity> _toRemoveEntities = new();
@@ -211,28 +215,49 @@ public class World
     private void Tick(float deltaTime)
     {
         _elapsedSecondsSinceLastTick += deltaTime;
-        if (_elapsedSecondsSinceLastTick < SecondsPerTick)
+
+        // The time left over past a tick is carried into the next one. Dropping it made a tick wait for whole
+        // frames, so at 60 frames a second a tick took four of them as often as three and the world ran at about
+        // fifteen ticks a second instead of twenty — and so did everything counted in ticks, from a furnace's
+        // cooking to the flow of water.
+        int ticksRun = 0;
+        while (_elapsedSecondsSinceLastTick >= SecondsPerTick && ticksRun < MaxTicksPerFrame)
         {
-            return;
+            if (ticksRun > 0)
+            {
+                // Each tick decides against the world the one before it left, not against changes still queued.
+                ClearBlockRemoveBuffer();
+                ClearBlockAddBuffer();
+            }
+
+            _elapsedSecondsSinceLastTick -= SecondsPerTick;
+            ticksRun++;
+            RunTick(SecondsPerTick);
         }
 
+        if (ticksRun == MaxTicksPerFrame)
+        {
+            _elapsedSecondsSinceLastTick = 0;
+        }
+    }
+
+    private void RunTick(float deltaTime)
+    {
         _tickCount++;
 
         foreach (Chunk chunk in _loadedChunks.Values.ToArray())
         {
-            chunk.Tick(_elapsedSecondsSinceLastTick, this);
+            chunk.Tick(deltaTime, this);
         }
 
         RunScheduledBlockUpdates();
 
         foreach (Entity entity in _loadedEntities.Values.ToArray())
         {
-            entity.Tick(_elapsedSecondsSinceLastTick, this);
+            entity.Tick(deltaTime, this);
         }
 
-        OnTick(_elapsedSecondsSinceLastTick);
-
-        _elapsedSecondsSinceLastTick = 0;
+        OnTick(deltaTime);
     }
 
     public void ScheduleBlockUpdate(Vector3i blockPos, int delayTicks)
