@@ -362,9 +362,11 @@ is asked before the block is asked what it would leave: a wall of stone still co
 and still leaves no cobblestone.
 
 Leaves are deliberately not an exception. In the game this borrows from they tear and leave a sapling instead,
-but there are no saplings here and nothing to grow one into, so dropping nothing would not be a trade for
-something else — it would put a full building block, and the canopy of every tree in the world, permanently
-out of reach.
+but dropping nothing would put a full building block permanently out of reach. So leaves leave themselves, and
+one break in ten leaves a sapling as well. Every tree is crowned with the same leaves, so which sapling it is
+comes from the nearest trunk. Wild grass works the same way with seeds, which is where wheat starts. A block
+that can leave more than one thing says so through `Block.AddDrops`, which is handed the world and the position
+for exactly this kind of question. Ripe wheat is the plainest case: a wheat and a few seeds to plant again.
 
 Drops are thrown by the **packet handler**, not by the world's own block removal. Everything goes through that
 removal: water washing a flower away, a bank of sand settling a cell at a time, a blast taking a hillside

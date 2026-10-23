@@ -107,6 +107,24 @@ cooked in a furnace it is worth more than twice as much. Three wheat in a row ma
 | Raw beef, raw porkchop | 3 |
 | Raw mutton | 2 |
 
+### Farming
+
+Wheat comes from seeds, and the first seeds come from wild grass: one tuft in eight leaves some behind. A hoe
+turns grass or dirt with nothing on top into farmland, and seeds are planted on farmland and nowhere else. Wheat
+ripens in two stages about half a minute apart. Broken green, it gives back the seed that went in; broken ripe,
+it gives a wheat and one to three seeds. Farmland with something solid put on top of it goes back to dirt.
+
+Trees grow back too. Breaking leaves now and then shakes out a sapling, of whichever tree the nearest trunk
+belongs to: oak, birch or spruce. Planted on grass, dirt or farmland, a sapling grows into a tree in about two
+minutes on average, as long as there is room above it for the trunk.
+
+### Buckets
+
+Three iron ingots in a V make a bucket. Right click a still pool of water or lava with an empty bucket to
+scoop it up, and right click with a full one to pour it out where a block would go. In creative the bucket in
+hand never changes. Pouring water next to lava still turns the lava to obsidian or cobblestone, so a bucket of
+water is how a lava pool gets crossed, or mined for obsidian.
+
 ### Furnaces and chests
 
 A furnace is eight cobblestone laid round the edge of a table's bench, and a chest is the same ring made of
@@ -176,7 +194,7 @@ name, seed and mode from the menu instead, and never deletes anything.
 | `Shift`         | Crouch, or descend while flying            |
 | `Ctrl`          | Sprint                                     |
 | Left click      | Hit a mob, or hold to break a block        |
-| Right click     | Place block, or interact (a crafting table, furnace, chest, TNT) |
+| Right click     | Place block, interact (a crafting table, furnace, chest, door, TNT), or use a hoe or bucket |
 | Hold right click | Eat the food in hand                      |
 | Middle click    | Pick the block being looked at             |
 | `1`–`9`         | Choose a hotbar slot to build with         |
@@ -249,9 +267,31 @@ a first pickaxe fits in the small one, and every tool needs the large one:
 | Axe | Two across, one below on the same side, two sticks | One axe |
 | Shovel | One, two sticks under it | One shovel |
 | Sword | Two, one stick under them | One sword |
+| Hoe | Two across, two sticks under one end | One hoe |
+| Slabs | Three in a row of stone, cobblestone, planks or sandstone | Six slabs |
+| Stairs | A staircase of six planks or cobblestone | Four stairs |
+| Ladder | Seven sticks in an H | Three ladders |
+| Fence | Two rows of three sticks | Two fences |
+| Glass pane | Two rows of three glass | Sixteen panes |
+| Door | Six planks, two wide and three high | One door |
+| Bucket | Three iron ingots in a V | One bucket |
 
-The four tool shapes are made in five materials — planks, cobblestone, iron, gold and diamond — which is the
+The five tool shapes are made in five materials — planks, cobblestone, iron, gold and diamond — which is the
 same picture laid out in whatever is to hand.
+
+### Building
+
+A slab goes in the half of the cell that was clicked: the top half when clicking the underside of a block or the
+upper half of its side, the bottom half otherwise. Laying a second slab of the same kind into the empty half
+makes the whole block again. Stairs climb away from whoever placed them, and turn upside down the same way a
+slab goes to the top half. Half a block is low enough to walk up without jumping, so a flight of stairs or slabs
+is a ramp.
+
+A door is hung from the side of the cell facing you and needs something solid under it; right click either half
+to open or shut it. A ladder goes on a wall. Walking into it or holding `Space` climbs, `Shift` holds on where
+you are, and letting go slides you down, with no fall damage either way. Fences and glass panes join up with
+each other and with any solid block beside them. A fence stands a block and a half tall for anything trying to
+jump it, and a pane, like the glass it is cut from, breaks into nothing.
 
 ### Tools
 
