@@ -31,20 +31,36 @@ public sealed class AudioEngine : IDisposable
 
     public AudioEngine()
     {
+        WaveOut? output = null;
+
         try
         {
-            _mixer = new MixingSampleProvider(MixerFormat) { ReadFully = true };
-            _mixer.MixerInputEnded += (_, _) => Interlocked.Decrement(ref _activeVoices);
+            var mixer = new MixingSampleProvider(MixerFormat) { ReadFully = true };
+            mixer.MixerInputEnded += (_, _) => Interlocked.Decrement(ref _activeVoices);
 
-            _output = new WaveOut();
-            _output.Init(new SampleToWaveProvider(_mixer));
-            _output.Play();
+            output = new WaveOut();
+            output.Init(new SampleToWaveProvider(mixer));
+            output.Play();
+
+            _mixer = mixer;
+            _output = output;
         }
         catch (Exception exception)
         {
             Logger.Warn($"No audio output is available, the game will run without sound: {exception.Message}");
-            _mixer = null;
-            _output = null;
+            DisposeQuietly(output);
+        }
+    }
+
+    private static void DisposeQuietly(WaveOut? output)
+    {
+        try
+        {
+            output?.Dispose();
+        }
+        catch (Exception exception)
+        {
+            Logger.Warn($"Could not release the audio output that failed to start: {exception.Message}");
         }
     }
 

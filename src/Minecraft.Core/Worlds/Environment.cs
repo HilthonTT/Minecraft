@@ -11,7 +11,13 @@ public sealed class Environment
     private const float DuskHour = 19.0F;
     private const float DawnHour = 5.0F;
 
-    public float CurrentTime { get; set; }
+    private float _currentTime;
+
+    public float CurrentTime
+    {
+        get => _currentTime;
+        set => _currentTime = WrapIntoDay(value);
+    }
 
     public int TimeInDay { get; private set; }
 
@@ -52,13 +58,25 @@ public sealed class Environment
 
     public bool IsDarkOutside => CurrentHourOfDay >= DuskHour || CurrentHourOfDay < DawnHour;
 
+    private float WrapIntoDay(float time)
+    {
+        if (!float.IsFinite(time))
+        {
+            return 0F;
+        }
+
+        float wrapped = time % TimeInDay;
+        if (wrapped < 0F)
+        {
+            wrapped += TimeInDay;
+        }
+
+        return wrapped >= TimeInDay ? 0F : wrapped;
+    }
+
     public void Update(float deltaTimeSeconds)
     {
         CurrentTime += deltaTimeSeconds;
-        if (CurrentTime >= TimeInDay)
-        {
-            CurrentTime = 0;
-        }
 
         double sunRiseAllignmentOffset = ((TimeInDay / 24.0F * 6.0F) / TimeInDay) * Math.PI * 2;
         _sunRotationRads = (CurrentTime / TimeInDay) * Math.PI * 2 - sunRiseAllignmentOffset;

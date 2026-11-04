@@ -9,9 +9,24 @@ public static class WorldSaves
 
     private const int MaxSuggestedSuffix = 1000;
 
+    private static readonly HashSet<string> _reservedDeviceNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL",
+        "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
     public static string GetWorldDirectory(string savesRoot, string worldName)
     {
-        return Path.Combine(savesRoot, SanitiseWorldName(worldName));
+        string directory = Path.Combine(savesRoot, SanitiseWorldName(worldName));
+
+        string unreserved = Path.Combine(savesRoot, ReplaceInvalidCharacters(worldName));
+        if (unreserved != directory && File.Exists(Path.Combine(unreserved, WorldMetadataFile.FileName)))
+        {
+            return unreserved;
+        }
+
+        return directory;
     }
 
     public static bool WorldExists(string savesRoot, string worldName)
@@ -128,6 +143,12 @@ public static class WorldSaves
 
     public static string SanitiseWorldName(string worldName)
     {
+        string sanitised = ReplaceInvalidCharacters(worldName);
+        return IsReservedDeviceName(sanitised) ? sanitised + "_" : sanitised;
+    }
+
+    private static string ReplaceInvalidCharacters(string worldName)
+    {
         string trimmed = worldName.Trim();
         if (trimmed.Length == 0)
         {
@@ -143,5 +164,12 @@ public static class WorldSaves
 
         string sanitised = builder.ToString().Trim('.', ' ');
         return sanitised.Length == 0 ? FallbackWorldName : sanitised;
+    }
+
+    private static bool IsReservedDeviceName(string name)
+    {
+        int extension = name.IndexOf('.');
+        string stem = (extension < 0 ? name : name[..extension]).TrimEnd(' ');
+        return _reservedDeviceNames.Contains(stem);
     }
 }

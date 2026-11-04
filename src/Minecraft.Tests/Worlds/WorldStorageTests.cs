@@ -32,6 +32,59 @@ public sealed class WorldStorageTests : IDisposable
         Assert.Equal(expected, WorldSaves.SanitiseWorldName(typed));
     }
 
+    [Theory]
+    [InlineData("nul", "nul_")]
+    [InlineData("CON", "CON_")]
+    [InlineData("com1", "com1_")]
+    [InlineData("Lpt9", "Lpt9_")]
+    [InlineData("aux.world", "aux.world_")]
+    [InlineData("nully", "nully")]
+    [InlineData("console", "console")]
+    [InlineData("COM10", "COM10")]
+    public void AWorldNameIsNeverADeviceName(string typed, string expected)
+    {
+        Assert.Equal(expected, WorldSaves.SanitiseWorldName(typed));
+    }
+
+    [Fact]
+    public void AWorldNamedAfterADeviceIsSavedAndFoundAgain()
+    {
+        Save("nul");
+
+        Assert.True(WorldSaves.WorldExists(_savesRoot, "nul"));
+
+        string listed = Assert.Single(WorldSaves.ListWorlds(_savesRoot));
+        Assert.True(WorldSaves.WorldExists(_savesRoot, listed));
+    }
+
+    [Fact]
+    public void AWorldAlreadySavedUnderADeviceNameIsStillOpened()
+    {
+        string legacy = Path.Combine(_savesRoot, "aux");
+
+        try
+        {
+            Directory.CreateDirectory(legacy);
+            File.WriteAllLines(
+                Path.Combine(legacy, WorldMetadataFile.FileName),
+                ["version=" + WorldMetadata.CurrentVersion, "seed=42"]);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return;
+        }
+
+        if (!File.Exists(Path.Combine(legacy, WorldMetadataFile.FileName)))
+        {
+            return;
+        }
+
+        Assert.Equal(legacy, WorldSaves.GetWorldDirectory(_savesRoot, "aux"));
+
+        using var storage = new WorldStorage(_savesRoot, "aux");
+        Assert.Equal(42, storage.LoadOrCreateMetadata(null, null).Seed);
+    }
+
     [Fact]
     public void AWorldDirectorySitsInsideTheSavesDirectory()
     {
@@ -107,6 +160,8 @@ public sealed class WorldStorageTests : IDisposable
     [InlineData("time=soon")]
     [InlineData("gamemode=spectator")]
     [InlineData("gamemode=7")]
+    [InlineData("time=NaN")]
+    [InlineData("time=Infinity")]
     public void ALevelDatThatSaysSomethingImpossibleIsRefused(string line)
     {
         WriteLevelDat("broken", "version=" + WorldMetadata.CurrentVersion, "seed=5", line);

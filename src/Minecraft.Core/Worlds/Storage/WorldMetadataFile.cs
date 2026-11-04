@@ -167,7 +167,8 @@ public static class WorldMetadataFile
             return fallback;
         }
 
-        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) &&
+               float.IsFinite(parsed)
             ? parsed
             : throw new FormatException($"'{key}' is not a number: '{value}'.");
     }
