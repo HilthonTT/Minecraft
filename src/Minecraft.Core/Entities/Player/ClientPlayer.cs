@@ -50,6 +50,9 @@ public sealed class ClientPlayer : Player
     private int _pendingContainerClick;
     private Vector3i _pendingContainerPos;
 
+    private int _swungSlot;
+    private Item? _swungItem;
+
     private float _eatingSeconds;
     private float _secondsUntilEatingSound;
     private Item? _itemBeingEaten;
@@ -172,6 +175,8 @@ public sealed class ClientPlayer : Player
         Inventory.TakeOne(item);
     }
 
+    public bool WearWeaponThatLanded() => Inventory.WearSlot(_swungSlot, _swungItem);
+
     public void ApplyFieldOfViewSetting()
     {
         _cameraRig.SetDefaultFieldOfView(_game.Settings.FieldOfViewRadians);
@@ -223,6 +228,7 @@ public sealed class ClientPlayer : Player
 
         _containerClicksSent = 0;
         _pendingContainerClick = 0;
+        _swungItem = null;
         StopEating();
 
         _cameraRig.Reset();
@@ -334,6 +340,8 @@ public sealed class ClientPlayer : Player
             if (MouseOverEntity is not null)
             {
                 // The weapon wears when the server reports the blow landed, not here.
+                _swungSlot = Inventory.SelectedHotbarSlot;
+                _swungItem = Inventory.Selected.Item;
                 _game.Client.WritePacket(new PlayerAttackEntityPacket(MouseOverEntity.ID));
             }
         }

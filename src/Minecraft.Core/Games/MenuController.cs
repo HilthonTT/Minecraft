@@ -71,6 +71,12 @@ public sealed class MenuController
 
     public void ShowMainMenu() => SetScreen(Screen.Main);
 
+    public void ShowMainMenu(string error)
+    {
+        SetScreen(Screen.Main);
+        _mainMenu.SetStatus(error, isError: true);
+    }
+
     public void ShowPauseMenu() => SetScreen(Screen.Pause);
 
     public void Hide() => SetScreen(Screen.None);

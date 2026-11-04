@@ -1,6 +1,6 @@
-﻿using System.Net.Sockets;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Net.Sockets;
 using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
@@ -43,6 +43,10 @@ public sealed class Client
         };
         _packetTransferThread.Start();
     }
+
+    public bool HasLostConnection => _session is { State: SessionState.Closed };
+
+    public string? DisconnectMessage => _session?.DisconnectMessage;
 
     public bool ConnectWith(string host, int port)
     {

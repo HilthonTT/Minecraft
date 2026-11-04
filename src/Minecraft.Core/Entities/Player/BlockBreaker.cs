@@ -29,6 +29,8 @@ public sealed class BlockBreaker
     private bool _hasAskedToBreakTarget;
     private float _secondsSinceAskedToBreak;
 
+    private bool _hasWornForTarget;
+
     public float Progress { get; private set; }
 
     public BlockBreaker(Game game, ClientPlayer player, Action onSwing)
@@ -63,6 +65,7 @@ public sealed class BlockBreaker
             _secondsSpentBreaking = 0F;
             _secondsUntilNextMiningSwing = 0F;
             _hasAskedToBreakTarget = false;
+            _hasWornForTarget = false;
         }
 
         if (_hasAskedToBreakTarget)
@@ -104,10 +107,12 @@ public sealed class BlockBreaker
 
         // Whatever tool is in hand wears for each block it gets through, the right one or not. Things that come
         // away at a touch, like flowers, are not worth any of it.
-        if (block.SecondsToBreak > 0F && _player.Inventory.WearSelected())
+        if (!_hasWornForTarget && block.SecondsToBreak > 0F && _player.Inventory.WearSelected())
         {
             _game.SoundDirector.OnToolBroke(_player.Position);
         }
+
+        _hasWornForTarget = true;
 
         _secondsUntilNextBreak = SecondsBetweenBreaks;
         _hasAskedToBreakTarget = true;
@@ -123,6 +128,7 @@ public sealed class BlockBreaker
 
         _secondsUntilNextBreak = 0F;
         _hasAskedToBreakTarget = false;
+        _hasWornForTarget = false;
         Progress = 0F;
     }
 }

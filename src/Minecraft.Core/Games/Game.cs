@@ -251,6 +251,21 @@ public sealed class Game
         Menu.ShowMainMenu();
     }
 
+    private void ReturnToTitleAfterLosing(string? disconnectMessage)
+    {
+        if (State == GameState.Inventory)
+        {
+            MasterRenderer.InventoryCanvas.ReturnBenchContents();
+            MasterRenderer.InventoryCanvas.OpenWithBench(2);
+        }
+
+        EndSession();
+        EnterState(GameState.MainMenu);
+        Menu.ShowMainMenu(string.IsNullOrWhiteSpace(disconnectMessage)
+            ? "Lost the connection to the server."
+            : disconnectMessage);
+    }
+
     public void OnCloseGame()
     {
         EndSession();
@@ -312,6 +327,13 @@ public sealed class Game
         }
 
         Client.Update(elapsedSeconds);
+
+        if (Client.HasLostConnection)
+        {
+            ReturnToTitleAfterLosing(Client.DisconnectMessage);
+            return;
+        }
+
         World.Update(elapsedSeconds);
         MasterRenderer.EndFrameUpdate(elapsedSeconds);
         SoundDirector.Update(elapsedSeconds, World);

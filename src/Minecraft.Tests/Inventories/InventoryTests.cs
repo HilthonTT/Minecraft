@@ -180,6 +180,34 @@ public sealed class InventoryTests
     }
 
     [Fact]
+    public void ABlowWearsTheWeaponThatSwungEvenAfterTheHandHasMoved()
+    {
+        Inventory inventory = Survival();
+        inventory.SetSlot(0, new ItemStack(ItemRegistry.StoneSword, 1));
+        inventory.SetSlot(1, new ItemStack(ItemRegistry.IronPickaxe, 1));
+
+        Item? swung = inventory.Selected.Item;
+        inventory.SelectHotbarSlot(1);
+
+        Assert.False(inventory.WearSlot(0, swung));
+        Assert.Equal(1, inventory.GetSlot(0).Damage);
+        Assert.Equal(0, inventory.Selected.Damage);
+    }
+
+    [Fact]
+    public void ABlowWearsNothingOnceTheWeaponHasLeftItsSlot()
+    {
+        Inventory inventory = Survival();
+        inventory.SetSlot(0, new ItemStack(ItemRegistry.StoneSword, 1));
+
+        Item? swung = inventory.Selected.Item;
+        inventory.SetSlot(0, new ItemStack(ItemRegistry.IronPickaxe, 1));
+
+        Assert.False(inventory.WearSlot(0, swung));
+        Assert.Equal(0, inventory.GetSlot(0).Damage);
+    }
+
+    [Fact]
     public void NothingWearsOutInCreative()
     {
         var inventory = new Inventory();

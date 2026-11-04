@@ -123,21 +123,23 @@ public sealed class Inventory
         OnChangedHandler?.Invoke();
     }
 
-    public bool WearSelected()
+    public bool WearSelected() => WearSlot(_selectedHotbarSlot, _slots[_selectedHotbarSlot].Item);
+
+    public bool WearSlot(int index, Item? item)
     {
-        if (HasEndlessSupply)
+        if (HasEndlessSupply || index < 0 || index >= TotalSlots)
         {
             return false;
         }
 
-        ItemStack selected = _slots[_selectedHotbarSlot];
-        if (selected.Tool is null)
+        ItemStack stack = _slots[index];
+        if (stack.Tool is null || stack.Item != item)
         {
             return false;
         }
 
-        ItemStack worn = selected.Worn();
-        _slots[_selectedHotbarSlot] = worn;
+        ItemStack worn = stack.Worn();
+        _slots[index] = worn;
         OnChangedHandler?.Invoke();
 
         return worn.IsEmpty;

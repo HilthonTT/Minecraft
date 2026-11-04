@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using Minecraft.Core.Entities;
 using Minecraft.Core.Games;
 using Minecraft.Core.Logging;
@@ -7,8 +9,6 @@ using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds.Blocks;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
-using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
 
 namespace Minecraft.Core.Worlds;
 
@@ -21,7 +21,7 @@ public class World
     private const int MaxTicksPerFrame = 5;
 
     private readonly Queue<Vector3i> _toRemoveBlocks = new();
-    private readonly Queue<(Vector3i BlockPos, BlockState State)> _toAddBlocks = new();
+    private readonly Queue<(Vector3i BlockPos, BlockState State, Action? OnRejected)> _toAddBlocks = new();
     private readonly Queue<Entity> _toRemoveEntities = new();
 
     private readonly Dictionary<Vector2, int> _chunkPlayerPopulation = [];
@@ -199,8 +199,11 @@ public class World
     {
         while (_toAddBlocks.Count > 0)
         {
-            (Vector3i blockPos, BlockState state) = _toAddBlocks.Dequeue();
-            AddBlockToWorld(blockPos, state);
+            (Vector3i blockPos, BlockState state, Action? onRejected) = _toAddBlocks.Dequeue();
+            if (!AddBlockToWorld(blockPos, state))
+            {
+                onRejected?.Invoke();
+            }
         }
     }
 
@@ -330,9 +333,9 @@ public class World
         }
     }
 
-    public void QueueToAddBlockAt(Vector3i blockPos, BlockState block)
+    public void QueueToAddBlockAt(Vector3i blockPos, BlockState block, Action? onRejected = null)
     {
-        _toAddBlocks.Enqueue((blockPos, block));
+        _toAddBlocks.Enqueue((blockPos, block, onRejected));
     }
 
     public void NotifyBlockStateChanged(Vector3i blockPos, BlockState state)

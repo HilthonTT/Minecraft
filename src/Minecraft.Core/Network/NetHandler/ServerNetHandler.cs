@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Entities;
+﻿using System.Text;
+using Minecraft.Core.Entities;
 using Minecraft.Core.Entities.Mobs;
 using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Games;
@@ -29,6 +30,8 @@ public sealed class ServerNetHandler : INetHandler
     private const float MaxMoveBlocksPerPacket = 64F;
 
     private const int MaxChatMessageLength = 256;
+
+    public const int MaxPlayerNameLength = 16;
 
     private readonly Game _game;
     private ServerSession _session = null!;
@@ -71,7 +74,12 @@ public sealed class ServerNetHandler : INetHandler
             }
 
             world.QueueToRemoveBlockAt(blockPos);
-            world.QueueToAddBlockAt(blockPos, merged);
+            BlockState existing = world.GetBlockAt(blockPos);
+            world.QueueToAddBlockAt(blockPos, merged, () =>
+            {
+                Refund(player, placed);
+                world.QueueToAddBlockAt(blockPos, existing);
+            });
             return;
         }
 
@@ -82,7 +90,7 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        world.QueueToAddBlockAt(blockPos, placed);
+        world.QueueToAddBlockAt(blockPos, placed, () => Refund(player, placed));
     }
 
     /// <summary>
@@ -344,7 +352,7 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        string playerName = playerJoinRequestPacket.Name.Trim();
+        string playerName = NormalizePlayerName(playerJoinRequestPacket.Name);
         if (playerName.Length == 0 || playerName == "Player")
         {
             _session.WritePacket(new PlayerLeavePacket(0, LeaveReason.Banned, "You are not allowed on this server."));
@@ -382,6 +390,29 @@ public sealed class ServerNetHandler : INetHandler
                 _session.WritePacket(new PlayerJoinPacket(client.Player.Name, client.Player.ID));
             }
         }
+    }
+
+    public static string NormalizePlayerName(string requested)
+    {
+        var name = new StringBuilder(MaxPlayerNameLength);
+
+        foreach (char character in requested.Trim())
+        {
+            if (char.IsControl(character))
+            {
+                continue;
+            }
+
+            if (name.Length == MaxPlayerNameLength ||
+                (char.IsHighSurrogate(character) && name.Length == MaxPlayerNameLength - 1))
+            {
+                break;
+            }
+
+            name.Append(character);
+        }
+
+        return name.ToString().Trim();
     }
 
     public void ProcessPlayerBlockInteractionpacket(PlayerBlockInteractionPacket playerInteractionPacket)
@@ -533,7 +564,7 @@ public sealed class ServerNetHandler : INetHandler
             return;
         }
 
-        if (!IsWithin(player, blockPos, MaxSurvivalBlockReach))
+        if (!IsWithinBlockReach(player, blockPos))
         {
             Logger.Warn("Player " + player.ID + " reached into a container out of reach at " + blockPos + ".");
             world.NotifyBlockStateChanged(blockPos, (BlockState)container);

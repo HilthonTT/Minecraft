@@ -127,7 +127,7 @@ public sealed class ClientNetHandler : INetHandler
 
     public void ProcessEntityHurtPacket(EntityHurtPacket entityHurtPacket)
     {
-        if (entityHurtPacket.AttackerID == _game.ClientPlayer.ID && _game.ClientPlayer.Inventory.WearSelected())
+        if (entityHurtPacket.AttackerID == _game.ClientPlayer.ID && _game.ClientPlayer.WearWeaponThatLanded())
         {
             _game.SoundDirector.OnToolBroke(_game.ClientPlayer.Position);
         }
@@ -351,6 +351,7 @@ public sealed class ClientNetHandler : INetHandler
         if (playerLeavePacket.ID == 0)
         {
             Logger.Info("You were disconnected for reason: " + playerLeavePacket.Reason + " Message: " + playerLeavePacket.Message);
+            _session.DisconnectMessage = playerLeavePacket.Message;
             _session.State = SessionState.Closed;
             return;
         }

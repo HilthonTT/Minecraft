@@ -8,4 +8,6 @@ public sealed class ClientSession : Session
         : base(connection, netHandler)
     {
     }
+
+    public string? DisconnectMessage { get; set; }
 }
