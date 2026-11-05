@@ -11,6 +11,8 @@ public sealed class UIRenderer
     private readonly CameraController _cameraController;
     private readonly UIShader _uiShader = new();
 
+    private int _appliedScaleVersion = -1;
+
     public UIRenderer(CameraController cameraController)
     {
         _cameraController = cameraController;
@@ -25,9 +27,22 @@ public sealed class UIRenderer
 
     private void OnCameraProjectionChanged(ProjectionMatrixInfo projectionInfo)
     {
+        UIScale.SetWindowSize(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
+        ApplyScale();
+    }
+
+    private void ApplyScale()
+    {
+        if (_appliedScaleVersion == UIScale.Version)
+        {
+            return;
+        }
+
+        _appliedScaleVersion = UIScale.Version;
+
         foreach (UICanvas canvas in _canvasses[RenderSpace.Screen])
         {
-            canvas.SetDimensions(projectionInfo.WindowPixelWidth, projectionInfo.WindowPixelHeight);
+            canvas.SetDimensions(UIScale.CanvasWidth, UIScale.CanvasHeight);
         }
     }
 
@@ -40,6 +55,11 @@ public sealed class UIRenderer
         }
 
         spaceCanvasses.Add(canvas);
+
+        if (canvas.RenderSpace == RenderSpace.Screen)
+        {
+            canvas.SetDimensions(UIScale.CanvasWidth, UIScale.CanvasHeight);
+        }
     }
 
     public void RemoveCanvas(UICanvas canvas)
@@ -71,6 +91,9 @@ public sealed class UIRenderer
 
     public void Render()
     {
+        UIMotion.Tick();
+        ApplyScale();
+
         foreach (KeyValuePair<RenderSpace, List<UICanvas>> spaceCanvasses in _canvasses)
         {
             for (int i = spaceCanvasses.Value.Count - 1; i >= 0; i--)

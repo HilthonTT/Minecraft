@@ -1,33 +1,39 @@
+using System.Text;
 using Minecraft.Core.Games;
 using Minecraft.Core.Render.Particles;
 using Minecraft.Core.Utilities.Vectors;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Chunks;
 using OpenTK.Mathematics;
-using System.Text;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasDebug : UICanvas
 {
     private readonly Game _game;
+    private const float TextScale = 0.2F;
+    private const float Padding = 6F;
+
+    private readonly UIImage _backdrop;
     private readonly UIText _debugText;
 
     public UICanvasDebug(Game game)
         : base(
             Vector3.Zero,
             Vector3.Zero,
-            game.Window.ClientSize.X,
-            game.Window.ClientSize.Y,
+            UIScale.CanvasWidth,
+            UIScale.CanvasHeight,
             RenderSpace.Screen)
     {
         _game = game;
 
+        _backdrop = UIDraw.Rect(this, UITheme.Dim, 0.45F);
+
         _debugText = new UIText(
             this,
             FontRegistry.GetFont(FontType.Arial),
-            new Vector2(0, 0),
-            new Vector2(0.2F, 0.2F),
+            new Vector2(Padding, Padding),
+            new Vector2(TextScale, TextScale),
             string.Empty);
         AddComponentToRender(_debugText);
     }
@@ -74,7 +80,12 @@ public sealed class UICanvasDebug : UICanvas
         builder.AppendLine($"IsServer={_game.IsServer}");
         builder.AppendLine($"Mem={GC.GetTotalMemory(false) / 1000000}MB");
 
-        _debugText.Text = builder.ToString();
+        _debugText.Text = builder.ToString().TrimEnd();
+
+        float width = _debugText.Text.Split('\n').Max(line => _debugText.Font.MeasureWidth(line, TextScale));
+        int lines = _debugText.Text.Count(character => character == '\n') + 1;
+        float height = lines * (int)(_debugText.Font.DesiredPixelLineHeight * TextScale);
+        UIDraw.Place(_backdrop, 0F, 0F, width + (2 * Padding), height + (2 * Padding));
     }
 
     private void AppendLightInfo(StringBuilder builder, Chunk currentChunk, Vector3i chunkLocalPos)

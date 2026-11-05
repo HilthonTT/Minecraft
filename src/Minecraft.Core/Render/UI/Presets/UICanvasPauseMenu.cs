@@ -5,66 +5,81 @@ namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasPauseMenu : UICanvasMenu
 {
-    private const float BackdropTransparency = 0.65F;
-
-    private static readonly Vector3 _backdropColor = new(0.02F, 0.02F, 0.03F);
-
     private readonly UIButton _resumeButton;
     private readonly UIButton _optionsButton;
     private readonly UIButton _quitToTitleButton;
     private readonly UIButton _quitGameButton;
 
     public UICanvasPauseMenu(Game game)
-        : base(game, "Game Menu", _backdropColor, BackdropTransparency)
+        : base(game, "Game Paused")
     {
-        _resumeButton = new UIButton(this, "Back to Game");
-        _optionsButton = new UIButton(this, "Options");
+        _resumeButton = new UIButton(this, "Back to Game", UIButtonStyle.Primary);
+        _optionsButton = new UIButton(this, "Options...");
         _quitToTitleButton = new UIButton(this, "Save and Quit to Title");
-        _quitGameButton = new UIButton(this, "Quit Game");
+        _quitGameButton = new UIButton(this, "Save and Quit Game");
+
+        SetFocusOrder(_resumeButton, _optionsButton, _quitToTitleButton, _quitGameButton);
+        Primary = _resumeButton;
 
         Layout();
     }
 
-    public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
+    protected override float MaxRowWidth => 360;
+
+    protected override string KeyHints => "Esc  Back to game      Enter  Select      Tab / Arrows  Move";
+
+    public override void OnShown()
     {
-        if (_resumeButton.Update(mousePosition, mousePressed))
+        _quitToTitleButton.Text = Game.IsServer ? "Save and Quit to Title" : "Disconnect";
+        _quitGameButton.Text = Game.IsServer ? "Save and Quit Game" : "Quit Game";
+        SetSubtitle(Game.IsServer ? Game.WorldName : "Playing on a server");
+
+        base.OnShown();
+    }
+
+    protected override MenuAction Update(UIInput input)
+    {
+        if (_resumeButton.Update(input))
         {
             return MenuAction.Resume;
         }
 
-        if (_optionsButton.Update(mousePosition, mousePressed))
+        if (_optionsButton.Update(input))
         {
             return MenuAction.Options;
         }
 
-        if (_quitToTitleButton.Update(mousePosition, mousePressed))
+        if (_quitToTitleButton.Update(input))
         {
             return MenuAction.QuitToTitle;
         }
 
-        if (_quitGameButton.Update(mousePosition, mousePressed))
-        {
-            return MenuAction.QuitGame;
-        }
-
-        return MenuAction.None;
+        return _quitGameButton.Update(input) ? MenuAction.QuitGame : MenuAction.None;
     }
 
     protected override void Layout()
     {
-        const int rowCount = 4;
-        float columnHeight = (rowCount * UIButton.Height) + ((rowCount - 1) * UIButton.Gap);
+        const float separation = 14F;
 
-        float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
-        var rowSize = new Vector2(RowWidth, UIButton.Height);
+        float gap = UITheme.RowGap;
+        float columnHeight = (4 * UIButton.Height) + (2 * gap) + separation + gap;
 
-        float row = columnTop;
-        foreach (UIButton button in (UIButton[])[_resumeButton, _optionsButton, _quitToTitleButton, _quitGameButton])
-        {
-            button.SetBounds(new Vector2(RowLeft, row), rowSize);
-            row += UIButton.Height + UIButton.Gap;
-        }
+        float top = ContentTopFor(columnHeight);
+        float contentTop = top;
+        var row = new Vector2(RowWidth, UIButton.Height);
 
-        LayoutFrame(columnTop, columnTop + columnHeight + 24);
+        _resumeButton.SetBounds(new Vector2(RowLeft, top), row);
+        top += UIButton.Height + gap;
+
+        _optionsButton.SetBounds(new Vector2(RowLeft, top), row);
+        top += UIButton.Height + gap + separation;
+
+        _quitToTitleButton.SetBounds(new Vector2(RowLeft, top), row);
+        top += UIButton.Height + gap;
+
+        _quitGameButton.SetBounds(new Vector2(RowLeft, top), row);
+        top += UIButton.Height;
+
+        LayoutFrame(contentTop, top);
     }
 }

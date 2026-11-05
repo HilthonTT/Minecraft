@@ -2,148 +2,127 @@ using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI;
 
-public sealed class UIButton
+public sealed class UIButton : UIWidget
 {
-    public const int Height = 48;
-    public const int Gap = 14;
+    public const float Height = UITheme.ButtonHeight;
+    public const float Gap = UITheme.Gap;
 
-    private const float LabelScale = 0.38F;
+    private const float LabelScale = UITheme.LabelScale;
+    private const float LabelPadding = 12F;
+    private const float KeyboardFlashSeconds = 0.12F;
 
-    private const float LabelPaddingPixels = 10;
-
-    private const string Ellipsis = "...";
-
-    private static readonly Vector3 _idleColor = new(0.24F, 0.26F, 0.31F);
-    private static readonly Vector3 _hoverColor = new(0.36F, 0.41F, 0.48F);
-    private static readonly Vector3 _destructiveIdleColor = new(0.38F, 0.16F, 0.16F);
-    private static readonly Vector3 _destructiveHoverColor = new(0.56F, 0.22F, 0.22F);
-    private static readonly Vector3 _disabledColor = new(0.16F, 0.17F, 0.19F);
-    private static readonly Vector3 _labelColor = new(0.95F, 0.95F, 0.95F);
-    private static readonly Vector3 _disabledLabelColor = new(0.55F, 0.55F, 0.55F);
-
-    private readonly Font _font;
-    private readonly UIImage _panel;
-    private readonly UIText _label;
-
-    private Vector2 _position;
-    private Vector2 _size;
+    private readonly UISurface _surface;
+    private readonly UILabel _label;
 
     private string _text;
+    private float _hover;
+    private bool _armed;
+    private bool _wasPressedLook;
+    private double _flashUntil;
 
-    public bool IsEnabled { get; set; } = true;
-
-    public bool IsDestructive { get; set; }
-
-    public bool IsVisible
+    public UIButton(UICanvas canvas, string text, UIButtonStyle style = UIButtonStyle.Normal)
+        : base(canvas)
     {
-        get => _panel.IsVisible;
-        set
-        {
-            _panel.IsVisible = value;
-            _label.IsVisible = value;
-        }
+        _text = text;
+        Style = style;
+
+        _surface = new UISurface(canvas);
+        _label = new UILabel(canvas, LabelScale, UITheme.Text, text);
     }
+
+    public UIButtonStyle Style { get; set; }
 
     public string Text
     {
         get => _text;
         set
         {
+            if (_text == value)
+            {
+                return;
+            }
+
             _text = value;
-            LayoutLabel();
+            LayoutLabel(_wasPressedLook);
         }
     }
 
-    public static float MeasureRequiredWidth(Font font, string text)
+    public static float MeasureRequiredWidth(string text)
     {
-        return font.MeasureWidth(text, LabelScale) + (2 * LabelPaddingPixels);
+        return FontRegistry.GetFont(FontType.Arial).MeasureWidth(text, LabelScale) + (2 * LabelPadding);
     }
 
-    public UIButton(UICanvas canvas, string text)
+    public override bool Update(UIInput input)
     {
-        _text = text;
-        _font = FontRegistry.GetFont(FontType.Arial);
+        bool hovered = IsEnabled && Contains(input.Mouse);
+        bool clicked = false;
 
-        _panel = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White)
+        if (input.Pressed && hovered)
         {
-            Color = _idleColor,
-        };
-        canvas.AddComponentToRender(_panel);
+            _armed = true;
+        }
 
-        _label = new UIText(canvas, _font, Vector2.Zero, new Vector2(LabelScale, LabelScale), text)
+        if (input.Released)
         {
-            Color = _labelColor,
-        };
-        canvas.AddComponentToRender(_label);
+            clicked = _armed && hovered;
+            _armed = false;
+        }
+        else if (!input.Down)
+        {
+            _armed = false;
+        }
+
+        if (ConsumeActivation())
+        {
+            clicked = true;
+            _flashUntil = UIMotion.NowSeconds + KeyboardFlashSeconds;
+        }
+
+        bool pressedLook = (_armed && hovered) || UIMotion.NowSeconds < _flashUntil;
+        float hoverTarget = hovered || FocusRingVisible ? 1F : 0F;
+        _hover = UIMotion.Approach(_hover, hoverTarget, UITheme.HoverSharpness);
+
+        Paint(pressedLook);
+
+        return clicked && IsEnabled && IsVisible;
     }
 
-    public void SetBounds(Vector2 position, Vector2 size)
+    protected override void OnLayout()
     {
-        _position = position;
-        _size = size;
-
-        _panel.PixelPositionInCanvas = position;
-        _panel.Dimension = size;
-        LayoutLabel();
+        _surface.Layout(Position, Size);
+        LayoutLabel(_wasPressedLook);
     }
 
-    public bool Update(Vector2 mousePosition, bool mousePressed)
+    protected override void OnVisibilityChanged(bool isVisible)
+    {
+        _surface.IsVisible = isVisible;
+        _label.IsVisible = isVisible;
+    }
+
+    private void Paint(bool pressedLook)
     {
         if (!IsEnabled)
         {
-            _panel.Color = _disabledColor;
-            _label.Color = _disabledLabelColor;
-            return false;
+            _surface.Paint(UITheme.SurfaceDisabled, UITheme.Outline, raised: false);
+            _label.Color = UITheme.TextFaint;
+        }
+        else
+        {
+            Vector3 outline = FocusRingVisible ? UITheme.Focus : UITheme.Outline;
+            _surface.Paint(UITheme.FillFor(Style, _hover, pressedLook), outline, raised: !pressedLook);
+            _label.Color = Vector3.Lerp(new Vector3(0.90F, 0.90F, 0.92F), UITheme.Text, _hover);
         }
 
-        bool isHovered = Contains(mousePosition);
-        _panel.Color = (isHovered, IsDestructive) switch
+        if (pressedLook != _wasPressedLook)
         {
-            (true, true) => _destructiveHoverColor,
-            (true, false) => _hoverColor,
-            (false, true) => _destructiveIdleColor,
-            (false, false) => _idleColor,
-        };
-        _label.Color = _labelColor;
-
-        return isHovered && mousePressed && IsVisible;
-    }
-
-    public bool Contains(Vector2 point)
-    {
-        return point.X >= _position.X && point.X <= _position.X + _size.X &&
-               point.Y >= _position.Y && point.Y <= _position.Y + _size.Y;
-    }
-
-    private string FitLabel(string text)
-    {
-        float available = _size.X - (2 * LabelPaddingPixels);
-
-        if (available <= 0 || _font.MeasureWidth(text, LabelScale) <= available)
-        {
-            return text;
+            _wasPressedLook = pressedLook;
+            LayoutLabel(pressedLook);
         }
-
-        float ellipsisWidth = _font.MeasureWidth(Ellipsis, LabelScale);
-
-        int fitting = text.Length;
-        while (fitting > 0 && _font.MeasureWidth(text[..fitting], LabelScale) + ellipsisWidth > available)
-        {
-            fitting--;
-        }
-
-        return fitting == 0 ? Ellipsis : text[..fitting] + Ellipsis;
     }
 
-    private void LayoutLabel()
+    private void LayoutLabel(bool pressed)
     {
-        _label.Text = FitLabel(_text);
-
-        float labelWidth = _font.MeasureWidth(_label.Text, LabelScale);
-        (float glyphTop, float glyphBottom) = _font.MeasureVerticalBounds(_label.Text, LabelScale);
-
-        _label.PixelPositionInCanvas = new Vector2(
-            _position.X + ((_size.X - labelWidth) / 2.0F),
-            _position.Y + ((_size.Y - (glyphBottom - glyphTop)) / 2.0F) - glyphTop);
+        _label.SetFitted(_text, Size.X - (2 * LabelPadding));
+        _label.PlaceCentredIn(Position + new Vector2(0F, pressed ? 1F : -1F), Size);
     }
 }

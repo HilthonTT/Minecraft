@@ -1,239 +1,248 @@
-using Minecraft.Core.Games;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using System.Text;
 
 namespace Minecraft.Core.Render.UI;
 
-public sealed class UITextField
+public sealed class UITextField : UIWidget
 {
-    public const int Height = 40;
+    public const float Height = UITheme.FieldHeight;
 
-    private const float TextScale = 0.36F;
-    private const int HorizontalPaddingPixels = 8;
-    private const int CaretWidthPixels = 2;
-    private const float CaretBlinkSeconds = 1;
+    private const float TextScale = 0.34F;
+    private const float HorizontalPadding = 10F;
+    private const float CaretWidth = 2F;
+    private const float CaretBlinkSeconds = 1.0F;
 
-    private static readonly Vector3 _panelColor = new(0.10F, 0.11F, 0.13F);
-    private static readonly Vector3 _borderColor = new(0.30F, 0.33F, 0.38F);
-    private static readonly Vector3 _focusedBorderColor = new(0.55F, 0.62F, 0.72F);
-    private static readonly Vector3 _textColor = new(0.95F, 0.95F, 0.95F);
-
-    private readonly int _maxLength;
+    private readonly TextEditBuffer _buffer;
+    private readonly UITextEditKeys _keys = new();
     private readonly Font _font;
+
     private readonly UIImage _border;
     private readonly UIImage _panel;
+    private readonly UIImage _selection;
     private readonly UIText _text;
+    private readonly UIText _placeholder;
     private readonly UIImage _caret;
 
-    private readonly HeldKey _backspaceKey = new(Keys.Backspace);
-    private readonly HeldKey _deleteKey = new(Keys.Delete);
-    private readonly HeldKey _caretLeftKey = new(Keys.Left);
-    private readonly HeldKey _caretRightKey = new(Keys.Right);
-
-    private Vector2 _position;
-    private Vector2 _size;
-    private string _value = string.Empty;
-    private int _caretIndex;
-    private DateTime _lastEditAt = DateTime.Now;
-
-    public bool HasFocus { get; set; }
-
-    public string Value
-    {
-        get => _value;
-        set
-        {
-            _value = value.Length > _maxLength ? value[.._maxLength] : value;
-            _caretIndex = _value.Length;
-            _lastEditAt = DateTime.Now;
-        }
-    }
+    private int _firstVisible;
+    private bool _isDragging;
+    private int _renderedVersion = -1;
+    private bool _renderedFocus;
+    private double _lastEditAt;
 
     public UITextField(UICanvas canvas, int maxLength)
+        : base(canvas)
     {
-        _maxLength = maxLength;
+        _buffer = new TextEditBuffer(maxLength);
         _font = FontRegistry.GetFont(FontType.Arial);
 
-        _border = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White) { Color = _borderColor };
-        canvas.AddComponentToRender(_border);
+        _border = UIDraw.Rect(canvas, UITheme.FieldBorder);
+        _panel = UIDraw.Rect(canvas, UITheme.Field);
+        _selection = UIDraw.Rect(canvas, UITheme.TextSelection);
+        _selection.IsVisible = false;
 
-        _panel = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White) { Color = _panelColor };
-        canvas.AddComponentToRender(_panel);
+        _placeholder = new UIText(canvas, _font, Vector2.Zero, new Vector2(TextScale, TextScale), string.Empty)
+        {
+            Color = UITheme.TextFaint,
+        };
+        canvas.AddComponentToRender(_placeholder);
 
         _text = new UIText(canvas, _font, Vector2.Zero, new Vector2(TextScale, TextScale), string.Empty)
         {
-            Color = _textColor,
+            Color = UITheme.Text,
         };
         canvas.AddComponentToRender(_text);
 
-        _caret = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White)
-        {
-            Color = _textColor,
-            IsVisible = false,
-        };
-        canvas.AddComponentToRender(_caret);
+        _caret = UIDraw.Rect(canvas, UITheme.Text);
+        _caret.IsVisible = false;
     }
 
-    public void SetBounds(Vector2 position, Vector2 size)
+    public string Value
     {
-        const int borderThickness = 2;
-
-        _position = position;
-        _size = size;
-
-        _border.PixelPositionInCanvas = position - new Vector2(borderThickness, borderThickness);
-        _border.Dimension = size + new Vector2(2 * borderThickness, 2 * borderThickness);
-
-        _panel.PixelPositionInCanvas = position;
-        _panel.Dimension = size;
-
-        _text.PixelPositionInCanvas = new Vector2(position.X + HorizontalPaddingPixels, TextTopPixels);
-        _caret.Dimension = new Vector2(CaretWidthPixels, GlyphBoxHeight);
-    }
-
-    public bool Contains(Vector2 point)
-    {
-        return point.X >= _position.X && point.X <= _position.X + _size.X &&
-               point.Y >= _position.Y && point.Y <= _position.Y + _size.Y;
-    }
-
-    public void Update()
-    {
-        _border.Color = HasFocus ? _focusedBorderColor : _borderColor;
-
-        if (HasFocus)
+        get => _buffer.Text;
+        set
         {
-            UpdateCaret();
-            UpdateTyping();
-        }
-
-        UpdateVisibleText();
-    }
-
-    private void UpdateCaret()
-    {
-        if (_caretLeftKey.HasFired() && _caretIndex > 0)
-        {
-            _caretIndex--;
-            _lastEditAt = DateTime.Now;
-        }
-
-        if (_caretRightKey.HasFired() && _caretIndex < _value.Length)
-        {
-            _caretIndex++;
-            _lastEditAt = DateTime.Now;
-        }
-
-        if (Game.Input.OnKeyPress(Keys.Home))
-        {
-            _caretIndex = 0;
-            _lastEditAt = DateTime.Now;
-        }
-
-        if (Game.Input.OnKeyPress(Keys.End))
-        {
-            _caretIndex = _value.Length;
-            _lastEditAt = DateTime.Now;
+            _buffer.SetText(value);
+            _firstVisible = 0;
+            _lastEditAt = UIMotion.NowSeconds;
+            Render();
         }
     }
 
-    private void UpdateTyping()
+    public TextEditBuffer Buffer => _buffer;
+
+    public string Placeholder
     {
-        if (_backspaceKey.HasFired() && _caretIndex > 0)
+        get => _placeholder.Text;
+        set => _placeholder.Text = value;
+    }
+
+    public bool HasFocus
+    {
+        get => IsFocused;
+        set => IsFocused = value;
+    }
+
+    public override bool WantsHorizontalKeys => true;
+
+    public override bool WantsText => true;
+
+    public override bool TryKeyboardActivate() => false;
+
+    public override bool Update(UIInput input)
+    {
+        string before = _buffer.Text;
+
+        UpdateMouse(input);
+
+        if (IsFocused && IsEnabled && _keys.Apply(_buffer))
         {
-            _value = _value.Remove(_caretIndex - 1, 1);
-            _caretIndex--;
-            _lastEditAt = DateTime.Now;
+            _lastEditAt = UIMotion.NowSeconds;
         }
 
-        if (_deleteKey.HasFired() && _caretIndex < _value.Length)
-        {
-            _value = _value.Remove(_caretIndex, 1);
-            _lastEditAt = DateTime.Now;
-        }
+        Render();
+        return _buffer.Text != before;
+    }
 
-        if ((Game.Input.OnKeyDown(Keys.LeftControl) || Game.Input.OnKeyDown(Keys.RightControl)) &&
-            Game.Input.OnKeyPress(Keys.V))
+    protected override void OnLayout()
+    {
+        float border = UITheme.BorderWidth;
+        UIDraw.Place(_border, Position, Size);
+        UIDraw.Place(_panel, Position + new Vector2(border, border), Size - new Vector2(2 * border, 2 * border));
+        _caret.Dimension = new Vector2(CaretWidth, GlyphBoxHeight);
+
+        _placeholder.PixelPositionInCanvas = new Vector2(TextLeft, TextTop);
+        _renderedVersion = -1;
+        Render();
+    }
+
+    protected override void OnVisibilityChanged(bool isVisible)
+    {
+        _border.IsVisible = isVisible;
+        _panel.IsVisible = isVisible;
+        _text.IsVisible = isVisible;
+        _placeholder.IsVisible = isVisible && _buffer.Text.Length == 0;
+        _selection.IsVisible = false;
+        _caret.IsVisible = false;
+        _renderedVersion = -1;
+    }
+
+    private float TextLeft => Position.X + HorizontalPadding;
+
+    private float TextWidth => Math.Max(1F, Size.X - (2 * HorizontalPadding));
+
+    private float Measure(string text) => _font.MeasureWidth(text, TextScale);
+
+    private void UpdateMouse(UIInput input)
+    {
+        if (!IsEnabled)
         {
-            Insert(Game.Input.ClipboardText);
+            _isDragging = false;
             return;
         }
 
-        IReadOnlyList<char> typed = Game.Input.TypedCharacters;
-        if (typed.Count == 0)
+        if (input.Pressed && Contains(input.Mouse))
         {
-            return;
-        }
+            int index = IndexAt(input.Mouse.X);
 
-        var builder = new StringBuilder(typed.Count);
-        foreach (char character in typed)
-        {
-            builder.Append(character);
-        }
-
-        Insert(builder.ToString());
-    }
-
-    private void Insert(string text)
-    {
-        var cleaned = new StringBuilder(text.Length);
-        foreach (char character in text)
-        {
-            if (!char.IsControl(character))
+            if (input.DoubleClicked)
             {
-                cleaned.Append(character);
+                _buffer.SelectWordAt(index);
             }
+            else
+            {
+                _buffer.MoveTo(index, UIInput.ShiftDown);
+            }
+
+            _isDragging = !input.DoubleClicked;
+            _lastEditAt = UIMotion.NowSeconds;
+            return;
         }
 
-        int room = _maxLength - _value.Length;
-        if (cleaned.Length == 0 || room <= 0)
+        if (!input.Down)
+        {
+            _isDragging = false;
+            return;
+        }
+
+        if (_isDragging)
+        {
+            _buffer.MoveTo(IndexAt(input.Mouse.X), extend: true);
+        }
+    }
+
+    private int IndexAt(float pixelX)
+    {
+        string visible = _buffer.Text[_firstVisible..];
+        return _firstVisible + UITextLayout.IndexAtOffset(visible, pixelX - TextLeft, Measure);
+    }
+
+    private void Render()
+    {
+        if (!IsVisible)
         {
             return;
         }
 
-        string insertion = cleaned.Length > room ? cleaned.ToString(0, room) : cleaned.ToString();
+        _border.Color = IsFocused ? UITheme.Focus : UITheme.FieldBorder;
+        _placeholder.IsVisible = _buffer.Text.Length == 0 && !IsFocused;
 
-        _value = _value.Insert(_caretIndex, insertion);
-        _caretIndex += insertion.Length;
-        _lastEditAt = DateTime.Now;
-    }
-
-    private void UpdateVisibleText()
-    {
-        float textWidth = _size.X - (2 * HorizontalPaddingPixels);
-
-        int firstVisible = 0;
-        while (firstVisible < _caretIndex &&
-               _font.MeasureWidth(_value[firstVisible.._caretIndex], TextScale) > textWidth - CaretWidthPixels)
+        if (_renderedVersion != _buffer.Version || _renderedFocus != IsFocused)
         {
-            firstVisible++;
+            _renderedVersion = _buffer.Version;
+            _renderedFocus = IsFocused;
+            RenderText();
         }
 
-        string visibleText = _value[firstVisible..];
-        while (visibleText.Length > 0 && _font.MeasureWidth(visibleText, TextScale) > textWidth)
-        {
-            visibleText = visibleText[..^1];
-        }
-
-        _text.Text = visibleText;
-
-        if (!HasFocus)
+        if (!IsFocused || _buffer.HasSelection)
         {
             _caret.IsVisible = false;
             return;
         }
 
-        float caretOffset = _font.MeasureWidth(_value[firstVisible.._caretIndex], TextScale);
-        _caret.PixelPositionInCanvas = new Vector2(_position.X + HorizontalPaddingPixels + caretOffset, GlyphBoxTop);
+        double sinceEdit = UIMotion.NowSeconds - _lastEditAt;
+        _caret.IsVisible = sinceEdit % CaretBlinkSeconds < CaretBlinkSeconds / 2;
+    }
 
-        double secondsSinceEdit = (DateTime.Now - _lastEditAt).TotalSeconds;
-        _caret.IsVisible = secondsSinceEdit % CaretBlinkSeconds < CaretBlinkSeconds / 2;
+    private void RenderText()
+    {
+        string value = _buffer.Text;
+        float width = TextWidth;
+
+        _firstVisible = UITextLayout.FirstVisibleIndex(value, _buffer.Caret, _firstVisible, width - CaretWidth, Measure);
+
+        string visibleText = value[_firstVisible..];
+        while (visibleText.Length > 0 && Measure(visibleText) > width)
+        {
+            visibleText = visibleText[..^1];
+        }
+
+        _text.Text = visibleText;
+        _text.PixelPositionInCanvas = new Vector2(TextLeft, TextTop);
+
+        float caretOffset = Measure(value[_firstVisible..Math.Max(_firstVisible, _buffer.Caret)]);
+        _caret.PixelPositionInCanvas = new Vector2(TextLeft + caretOffset, GlyphBoxTop);
+
+        if (!IsFocused || !_buffer.HasSelection)
+        {
+            _selection.IsVisible = false;
+            return;
+        }
+
+        int start = Math.Max(_firstVisible, _buffer.SelectionStart);
+        int end = Math.Max(start, _buffer.SelectionEnd);
+
+        float left = Measure(value[_firstVisible..start]);
+        float right = Math.Min(width, Measure(value[_firstVisible..end]));
+
+        _selection.IsVisible = right > left;
+        UIDraw.Place(
+            _selection,
+            new Vector2(TextLeft + left, GlyphBoxTop - 2F),
+            new Vector2(right - left, GlyphBoxHeight + 4F));
     }
 
     private const string HeightReference = "Ag0";
 
-    private float GlyphBoxTop => _position.Y + ((_size.Y - GlyphBoxHeight) / 2.0F);
+    private float GlyphBoxTop => Position.Y + ((Size.Y - GlyphBoxHeight) / 2.0F);
 
     private float GlyphBoxHeight
     {
@@ -244,5 +253,5 @@ public sealed class UITextField
         }
     }
 
-    private float TextTopPixels => GlyphBoxTop - _font.MeasureVerticalBounds(HeightReference, TextScale).Top;
+    private float TextTop => GlyphBoxTop - _font.MeasureVerticalBounds(HeightReference, TextScale).Top;
 }

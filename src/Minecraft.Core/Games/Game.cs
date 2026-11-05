@@ -82,6 +82,7 @@ public sealed class Game
         }
 
         _audioEngine.MasterVolume = Settings.MasterVolume;
+        UIScale.SetPreference(Settings.GuiScalePercent);
         ClientPlayer.ApplyFieldOfViewSetting();
         SendViewDistanceToServer();
     }
@@ -117,6 +118,7 @@ public sealed class Game
         }
 
         FontRegistry.Initialize();
+        UIScale.Configure(window.ClientSize.X, window.ClientSize.Y, Settings.GuiScalePercent);
 
         ClientPlayer = new ClientPlayer(this);
         MasterRenderer = new MasterRenderer(this);
@@ -165,6 +167,12 @@ public sealed class Game
 
         EnterState(GameState.Paused);
         Menu.ShowPauseMenu();
+
+        if (IsServer && Server?.World is not null)
+        {
+            Server.World.Save();
+            Menu.SetPauseStatus("World saved");
+        }
     }
 
     public void Resume()
@@ -443,6 +451,14 @@ public sealed class Game
         }
 
         EnterState(GameState.Playing);
+
+        if (RunMode != RunMode.Server)
+        {
+            MasterRenderer.IngameCanvas.ShowToast(
+                IsServer ? WorldName : "Connected to " + ip + ":" + port,
+                "Esc to pause   E for inventory   T to chat");
+        }
+
         return true;
     }
 

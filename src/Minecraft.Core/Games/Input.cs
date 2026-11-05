@@ -23,7 +23,15 @@ public sealed class Input : IDisposable
 
     public IReadOnlyList<char> TypedCharacters => _typedThisFrame;
 
-    public string ClipboardText => _window.ClipboardString ?? string.Empty;
+    public string ClipboardText
+    {
+        get => _window.ClipboardString ?? string.Empty;
+        set => _window.ClipboardString = value;
+    }
+
+    public bool IsControlDown => OnKeyDown(Keys.LeftControl) || OnKeyDown(Keys.RightControl);
+
+    public bool IsShiftDown => OnKeyDown(Keys.LeftShift) || OnKeyDown(Keys.RightShift);
 
     public void Update()
     {
@@ -38,6 +46,8 @@ public sealed class Input : IDisposable
     public bool OnMousePress(MouseButton b) => _window.MouseState.IsButtonPressed(b);
 
     public bool OnMouseDown(MouseButton b) => _window.MouseState.IsButtonDown(b);
+
+    public bool OnMouseRelease(MouseButton b) => _window.MouseState.IsButtonReleased(b);
 
     private void HandleTextInput(TextInputEventArgs e) => _pending.AddRange(e.AsString);
 

@@ -1,9 +1,8 @@
 using Minecraft.Core.Network;
+using Minecraft.Core.Render.UI;
 using Minecraft.Core.Render.UI.Presets;
 using Minecraft.Core.Worlds.Generation;
 using Minecraft.Core.Worlds.Storage;
-using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Games;
 
@@ -52,7 +51,7 @@ public sealed class MenuController
             game,
             defaultServerAddress,
             NetworkAddresses.LocalAddress + ":" + hostPort);
-        _worldList = new UICanvasWorldList(game);
+        _worldList = new UICanvasWorldList(game, _savesRoot);
         _worldSetup = new UICanvasWorldSetup(game, _savesRoot);
         _renameWorld = new UICanvasRenameWorld(game);
         _deleteWorld = new UICanvasDeleteWorld(game);
@@ -79,6 +78,8 @@ public sealed class MenuController
 
     public void ShowPauseMenu() => SetScreen(Screen.Pause);
 
+    public void SetPauseStatus(string text) => _pauseMenu.SetStatus(text);
+
     public void Hide() => SetScreen(Screen.None);
 
     public bool OnEscape()
@@ -100,10 +101,7 @@ public sealed class MenuController
             return;
         }
 
-        bool mousePressed = _game.Window.IsFocused && Game.Input.OnMousePress(MouseButton.Left);
-        Vector2 mousePosition = Game.Input.MousePosition;
-
-        Act(screen.HandleInput(mousePosition, mousePressed));
+        Act(screen.HandleInput(UIInput.Capture(_game.Window.IsFocused)));
     }
 
     private void Act(MenuAction action)
@@ -132,7 +130,7 @@ public sealed class MenuController
                 break;
 
             case MenuAction.CreateWorld:
-                _worldSetup.SetTitle(_worldList.Title);
+                _worldSetup.SetSubtitle(_worldList.Title);
                 _worldSetup.Prepare(WorldSaves.SuggestUnusedWorldName(_savesRoot, _defaultWorldName));
                 SetScreen(Screen.WorldSetup);
                 break;
@@ -249,7 +247,8 @@ public sealed class MenuController
 
         if (result == WorldRenameResult.Renamed)
         {
-            _worldList.SetStatus("Renamed '" + oldName + "'.");
+            _worldList.Select(newName);
+            _worldList.SetStatus("Renamed '" + oldName + "' to '" + newName + "'.");
         }
     }
 

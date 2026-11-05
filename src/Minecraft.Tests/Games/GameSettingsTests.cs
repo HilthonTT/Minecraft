@@ -105,4 +105,28 @@ public sealed class GameSettingsTests
             File.Delete(path);
         }
     }
+
+    [Theory]
+    [InlineData("125", 125)]
+    [InlineData("10", GameSettings.MinGuiScalePercent)]
+    [InlineData("999", GameSettings.MaxGuiScalePercent)]
+    [InlineData("big", GameSettings.DefaultGuiScalePercent)]
+    public void GuiScaleIsParsedAndClamped(string value, int expected)
+    {
+        var settings = new GameSettings();
+
+        settings.Apply("guiscale", value);
+
+        Assert.Equal(expected, settings.GuiScalePercent);
+    }
+
+    [Fact]
+    public void ShowFpsIsParsed()
+    {
+        var settings = new GameSettings();
+
+        settings.Apply("showfps", "true");
+
+        Assert.True(settings.ShowFps);
+    }
 }

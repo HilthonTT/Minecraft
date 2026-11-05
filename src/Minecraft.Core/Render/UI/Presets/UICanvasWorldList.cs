@@ -1,236 +1,166 @@
 using Minecraft.Core.Games;
 using OpenTK.Mathematics;
-using System.Globalization;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasWorldList : UICanvasMenu
 {
-    private const int MaxVisibleRows = 6;
+    private const int MaxVisibleRows = 8;
+    private const int MinVisibleRows = 2;
+    private const float ReservedChrome = 110F;
 
-    private const int RowGap = 8;
+    private readonly string _savesRoot;
+    private readonly List<WorldSummary> _worlds = [];
 
-    private const string RenameLabel = "Rename";
-    private const string DeleteLabel = "Delete";
-    private const int LinesPerScrollStep = 1;
-    private const float MessageScale = 0.30F;
-
-    private static readonly Vector3 _backdropColor = new(0.06F, 0.07F, 0.09F);
-    private static readonly Vector3 _messageColor = new(0.62F, 0.62F, 0.66F);
-
-    private readonly List<string> _worlds = [];
-
-    private readonly UIButton[] _playButtons = new UIButton[MaxVisibleRows];
-    private readonly UIButton[] _renameButtons = new UIButton[MaxVisibleRows];
-    private readonly UIButton[] _deleteButtons = new UIButton[MaxVisibleRows];
-
-    private readonly UIText _message;
+    private readonly UIList _list;
+    private readonly UIButton _playButton;
     private readonly UIButton _createButton;
+    private readonly UIButton _renameButton;
+    private readonly UIButton _deleteButton;
     private readonly UIButton _backButton;
 
-    private int _scrollOffset;
-
-    public string SelectedWorld { get; private set; } = string.Empty;
-
-    protected override float MaxRowWidth => 640;
-
-    public UICanvasWorldList(Game game)
-        : base(game, "Singleplayer", _backdropColor, 1.0F)
+    public UICanvasWorldList(Game game, string savesRoot)
+        : base(game, "Singleplayer")
     {
-        for (int row = 0; row < MaxVisibleRows; row++)
-        {
-            _playButtons[row] = new UIButton(this, string.Empty);
-            _renameButtons[row] = new UIButton(this, RenameLabel);
-            _deleteButtons[row] = new UIButton(this, DeleteLabel) { IsDestructive = true };
-        }
+        _savesRoot = savesRoot;
 
-        _message = new UIText(this, Font, Vector2.Zero, new Vector2(MessageScale, MessageScale), string.Empty)
+        _list = new UIList(this, MaxVisibleRows)
         {
-            Color = _messageColor,
+            EmptyTitle = "No worlds yet",
+            EmptyDetail = "Create a new world to start playing.",
         };
-        AddComponentToRender(_message);
 
+        _playButton = new UIButton(this, "Play Selected World", UIButtonStyle.Primary);
         _createButton = new UIButton(this, "Create New World");
+        _renameButton = new UIButton(this, "Rename");
+        _deleteButton = new UIButton(this, "Delete", UIButtonStyle.Danger);
         _backButton = new UIButton(this, "Back");
+
+        SetFocusOrder(_list, _playButton, _createButton, _renameButton, _deleteButton, _backButton);
+        Primary = _playButton;
 
         Layout();
     }
+
+    public string SelectedWorld => _list.SelectedIndex >= 0 && _list.SelectedIndex < _worlds.Count
+        ? _worlds[_list.SelectedIndex].Name
+        : string.Empty;
+
+    protected override float MaxRowWidth => 620;
+
+    protected override string KeyHints => "Enter  Play      F2  Rename      Del  Delete      Esc  Back";
+
+    protected override UIWidget? InitialFocus => _worlds.Count > 0 ? _list : _createButton;
 
     public void SetWorlds(IReadOnlyList<string> worlds)
     {
+        string previous = SelectedWorld;
+
         _worlds.Clear();
-        _worlds.AddRange(worlds);
+        _worlds.AddRange(worlds.Select(name => WorldSummary.Read(_savesRoot, name)));
 
-        ClampScroll();
-        Layout();
+        DateTime now = DateTime.Now;
+        _list.SetItems([.. _worlds.Select(world => new UIListItem(world.Name, world.Describe(now)))], 0);
+        Select(previous);
+
+        RefreshButtons();
     }
 
-    public override void OnShown()
+    public void Select(string worldName)
     {
-        base.OnShown();
-        ClampScroll();
-    }
-
-    public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
-    {
-        UpdateScrolling();
-
-        MenuAction rowAction = UpdateRows(mousePosition, mousePressed);
-        bool createPressed = _createButton.Update(mousePosition, mousePressed);
-        bool backPressed = _backButton.Update(mousePosition, mousePressed);
-
-        if (rowAction != MenuAction.None)
+        int index = _worlds.FindIndex(world => string.Equals(world.Name, worldName, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
         {
-            return rowAction;
+            _list.SelectedIndex = index;
+        }
+    }
+
+    protected override MenuAction Update(UIInput input)
+    {
+        _list.Update(input);
+
+        bool play = _playButton.Update(input) || _list.WasActivated;
+        bool create = _createButton.Update(input);
+        bool rename = _renameButton.Update(input);
+        bool delete = _deleteButton.Update(input);
+        bool back = _backButton.Update(input);
+
+        bool hasSelection = SelectedWorld.Length > 0;
+        bool typing = FocusedWidget is { WantsText: true };
+
+        if (hasSelection && !typing)
+        {
+            rename |= UIInput.KeyPressed(Keys.F2);
+            delete |= UIInput.KeyPressed(Keys.Delete);
         }
 
-        if (createPressed)
+        if (play && hasSelection)
+        {
+            return MenuAction.PlaySelected;
+        }
+
+        if (create)
         {
             return MenuAction.CreateWorld;
         }
 
-        return backPressed ? MenuAction.Back : MenuAction.None;
+        if (rename && hasSelection)
+        {
+            return MenuAction.RenameSelected;
+        }
+
+        if (delete && hasSelection)
+        {
+            return MenuAction.DeleteSelected;
+        }
+
+        return back ? MenuAction.Back : MenuAction.None;
     }
-
-    private MenuAction UpdateRows(Vector2 mousePosition, bool mousePressed)
-    {
-        var action = MenuAction.None;
-
-        for (int row = 0; row < MaxVisibleRows; row++)
-        {
-            bool play = _playButtons[row].Update(mousePosition, mousePressed);
-            bool rename = _renameButtons[row].Update(mousePosition, mousePressed);
-            bool delete = _deleteButtons[row].Update(mousePosition, mousePressed);
-
-            int worldIndex = _scrollOffset + row;
-            if (!_playButtons[row].IsVisible || worldIndex >= _worlds.Count)
-            {
-                continue;
-            }
-
-            if (play || rename || delete)
-            {
-                SelectedWorld = _worlds[worldIndex];
-                action = play ? MenuAction.PlaySelected
-                    : rename ? MenuAction.RenameSelected
-                    : MenuAction.DeleteSelected;
-            }
-        }
-
-        return action;
-    }
-
-    private void UpdateScrolling()
-    {
-        int maxScroll = MaxScroll();
-        if (maxScroll == 0)
-        {
-            return;
-        }
-
-        float wheel = Game.Input.ScrollDelta.Y;
-        if (wheel == 0)
-        {
-            return;
-        }
-
-        int moved = Math.Clamp(_scrollOffset - (wheel > 0 ? LinesPerScrollStep : -LinesPerScrollStep), 0, maxScroll);
-        if (moved == _scrollOffset)
-        {
-            return;
-        }
-
-        _scrollOffset = moved;
-        Layout();
-    }
-
-    private int MaxScroll() => Math.Max(0, _worlds.Count - MaxVisibleRows);
-
-    private void ClampScroll() => _scrollOffset = Math.Clamp(_scrollOffset, 0, MaxScroll());
 
     protected override void Layout()
     {
-        int rowsShown = Math.Clamp(_worlds.Count, 0, MaxVisibleRows);
+        float gap = UITheme.RowGap;
+        float buttonsBlock = UITheme.SectionGap + (2 * UIButton.Height) + gap;
 
-        string message = GetMessage(rowsShown);
-
-        float listBlock = rowsShown * (UIButton.Height + RowGap);
-
-        float messageBlock = message.Length == 0
-            ? UIButton.Gap
-            : Font.MeasureVerticalBounds(message, MessageScale).Bottom + UIButton.Gap;
-
-        float contentHeight =
-            listBlock + messageBlock +
-            UIButton.Height + UIButton.Gap +
-            UIButton.Height;
-
-        float contentTop = Math.Max(110, (PixelHeight - contentHeight) / 2.0F);
-        float top = contentTop;
-
-        float sideWidth = Math.Min(
-            Math.Max(
-                UIButton.MeasureRequiredWidth(Font, RenameLabel),
-                UIButton.MeasureRequiredWidth(Font, DeleteLabel)),
-            RowWidth / 3.5F);
-        float playWidth = RowWidth - (2 * (sideWidth + RowGap));
-
-        for (int row = 0; row < MaxVisibleRows; row++)
+        float available = PixelHeight - TitleBlockHeight - (2 * UITheme.Padding) - buttonsBlock - ReservedChrome;
+        int rows = MinVisibleRows;
+        while (rows < MaxVisibleRows && UIList.HeightFor(rows + 1) <= available)
         {
-            int worldIndex = _scrollOffset + row;
-            bool isUsed = row < rowsShown && worldIndex < _worlds.Count;
-
-            _playButtons[row].IsVisible = isUsed;
-            _renameButtons[row].IsVisible = isUsed;
-            _deleteButtons[row].IsVisible = isUsed;
-
-            if (!isUsed)
-            {
-                continue;
-            }
-
-            _playButtons[row].Text = _worlds[worldIndex];
-            _playButtons[row].SetBounds(new Vector2(RowLeft, top), new Vector2(playWidth, UIButton.Height));
-
-            float renameLeft = RowLeft + playWidth + RowGap;
-            _renameButtons[row].SetBounds(new Vector2(renameLeft, top), new Vector2(sideWidth, UIButton.Height));
-            _deleteButtons[row].SetBounds(
-                new Vector2(renameLeft + sideWidth + RowGap, top),
-                new Vector2(sideWidth, UIButton.Height));
-
-            top += UIButton.Height + RowGap;
+            rows++;
         }
 
-        _message.Text = message;
-        _message.PixelPositionInCanvas = new Vector2(CenteredTextLeft(message, MessageScale), top);
-        top += messageBlock;
+        float listHeight = UIList.HeightFor(rows);
+        float top = ContentTopFor(listHeight + buttonsBlock);
+        float contentTop = top;
 
-        var wideRow = new Vector2(RowWidth, UIButton.Height);
-        _createButton.SetBounds(new Vector2(RowLeft, top), wideRow);
-        top += UIButton.Height + UIButton.Gap;
+        _list.SetBounds(new Vector2(RowLeft, top), new Vector2(RowWidth, listHeight));
+        top += listHeight + UITheme.SectionGap;
 
-        _backButton.SetBounds(new Vector2(RowLeft, top), wideRow);
+        float half = (RowWidth - gap) / 2F;
+        _playButton.SetBounds(new Vector2(RowLeft, top), new Vector2(half, UIButton.Height));
+        _createButton.SetBounds(new Vector2(RowLeft + half + gap, top), new Vector2(half, UIButton.Height));
+        top += UIButton.Height + gap;
+
+        float third = (RowWidth - (2 * gap)) / 3F;
+        _renameButton.SetBounds(new Vector2(RowLeft, top), new Vector2(third, UIButton.Height));
+        _deleteButton.SetBounds(new Vector2(RowLeft + third + gap, top), new Vector2(third, UIButton.Height));
+        _backButton.SetBounds(new Vector2(RowLeft + (2 * (third + gap)), top), new Vector2(third, UIButton.Height));
         top += UIButton.Height;
 
-        LayoutFrame(contentTop, top + 20);
+        LayoutFrame(contentTop, top);
     }
 
-    private string GetMessage(int rowsShown)
+    private void RefreshButtons()
     {
-        if (_worlds.Count == 0)
-        {
-            return "No worlds saved yet.";
-        }
+        bool hasWorlds = _worlds.Count > 0;
 
-        if (MaxScroll() == 0)
-        {
-            return string.Empty;
-        }
+        _playButton.IsEnabled = hasWorlds;
+        _renameButton.IsEnabled = hasWorlds;
+        _deleteButton.IsEnabled = hasWorlds;
 
-        int first = _scrollOffset + 1;
-        int last = _scrollOffset + rowsShown;
-
-        return first.ToString(CultureInfo.InvariantCulture) + "-" + last.ToString(CultureInfo.InvariantCulture) +
-               " of " + _worlds.Count.ToString(CultureInfo.InvariantCulture) + ", scroll for more";
+        _playButton.Style = hasWorlds ? UIButtonStyle.Primary : UIButtonStyle.Normal;
+        _createButton.Style = hasWorlds ? UIButtonStyle.Normal : UIButtonStyle.Primary;
+        Primary = hasWorlds ? _playButton : _createButton;
     }
 }

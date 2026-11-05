@@ -1,8 +1,8 @@
+using System.Text;
 using Minecraft.Core.Games;
 using Minecraft.Core.Network.Packets;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using System.Text;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
@@ -43,13 +43,12 @@ public sealed class UIChat
     private readonly UIImage[] _lineBackdrops = new UIImage[VisibleLinesOpen];
     private readonly UIText[] _lineTexts = new UIText[VisibleLinesOpen];
     private readonly UIImage _inputBackdrop;
+    private readonly UIImage _inputSelection;
     private readonly UIText _inputText;
     private readonly UIImage _inputCaret;
 
-    private readonly HeldKey _backspaceKey = new(Keys.Backspace);
-    private readonly HeldKey _deleteKey = new(Keys.Delete);
-    private readonly HeldKey _caretLeftKey = new(Keys.Left);
-    private readonly HeldKey _caretRightKey = new(Keys.Right);
+    private readonly TextEditBuffer _buffer = new(MaxInputLength);
+    private readonly UITextEditKeys _keys = new();
 
     private readonly List<ChatLine> _messages = [];
 
@@ -63,8 +62,9 @@ public sealed class UIChat
     private float _textLeftPixels;
     private float _inputTextTopPixels;
 
-    private string _input = string.Empty;
-    private int _caretIndex;
+    private int _firstVisible;
+    private int _editedVersion;
+    private bool _wasPlaying;
 
     private int _scrollOffset;
 
@@ -108,6 +108,13 @@ public sealed class UIChat
         };
         canvas.AddComponentToRender(_inputBackdrop);
 
+        _inputSelection = new UIImage(canvas, Vector2.Zero, Vector2.Zero, UITextures.White)
+        {
+            Color = UITheme.TextSelection,
+            IsVisible = false,
+        };
+        canvas.AddComponentToRender(_inputSelection);
+
         _inputText = new UIText(canvas, _font, Vector2.Zero, new Vector2(TextScale, TextScale), string.Empty)
         {
             Color = _messageColor,
@@ -138,10 +145,13 @@ public sealed class UIChat
 
     public void Update()
     {
-        if (_game.Window.IsFocused && _game.IsPlaying)
+        bool playing = _game.IsPlaying;
+        if (_game.Window.IsFocused && playing && _wasPlaying)
         {
             UpdateInput();
         }
+
+        _wasPlaying = playing;
 
         UpdateLog();
         UpdateInputLine();
@@ -185,9 +195,12 @@ public sealed class UIChat
         }
 
         UpdateScrolling();
-        UpdateCaret();
         UpdateRecall();
-        UpdateTyping();
+
+        if (_keys.Apply(_buffer))
+        {
+            _lastInputEditAt = DateTime.Now;
+        }
     }
 
     private void Open(string initialText)
@@ -210,7 +223,7 @@ public sealed class UIChat
 
     private void Send()
     {
-        string message = _input.Trim();
+        string message = _buffer.Text.Trim();
         if (message.Length == 0)
         {
             return;
@@ -257,40 +270,13 @@ public sealed class UIChat
         _scrollOffset = Math.Clamp(_scrollOffset + step, 0, maxScroll);
     }
 
-    private void UpdateCaret()
-    {
-        if (_caretLeftKey.HasFired() && _caretIndex > 0)
-        {
-            _caretIndex--;
-            _lastInputEditAt = DateTime.Now;
-        }
-
-        if (_caretRightKey.HasFired() && _caretIndex < _input.Length)
-        {
-            _caretIndex++;
-            _lastInputEditAt = DateTime.Now;
-        }
-
-        if (Game.Input.OnKeyPress(Keys.Home))
-        {
-            _caretIndex = 0;
-            _lastInputEditAt = DateTime.Now;
-        }
-
-        if (Game.Input.OnKeyPress(Keys.End))
-        {
-            _caretIndex = _input.Length;
-            _lastInputEditAt = DateTime.Now;
-        }
-    }
-
     private void UpdateRecall()
     {
         if (Game.Input.OnKeyPress(Keys.Up) && _sentMessages.Count > 0)
         {
             if (_recallIndex < 0)
             {
-                _draftBeforeRecall = _input;
+                _draftBeforeRecall = _buffer.Text;
                 _recallIndex = _sentMessages.Count - 1;
             }
             else
@@ -316,66 +302,10 @@ public sealed class UIChat
         }
     }
 
-    private void UpdateTyping()
-    {
-        if (_backspaceKey.HasFired() && _caretIndex > 0)
-        {
-            _input = _input.Remove(_caretIndex - 1, 1);
-            _caretIndex--;
-            _lastInputEditAt = DateTime.Now;
-        }
-
-        if (_deleteKey.HasFired() && _caretIndex < _input.Length)
-        {
-            _input = _input.Remove(_caretIndex, 1);
-            _lastInputEditAt = DateTime.Now;
-        }
-
-        if ((Game.Input.OnKeyDown(Keys.LeftControl) || Game.Input.OnKeyDown(Keys.RightControl)) &&
-            Game.Input.OnKeyPress(Keys.V))
-        {
-            Insert(Game.Input.ClipboardText);
-            return;
-        }
-
-        IReadOnlyList<char> typed = Game.Input.TypedCharacters;
-        if (typed.Count == 0)
-        {
-            return;
-        }
-
-        var builder = new StringBuilder(typed.Count);
-        foreach (char character in typed)
-        {
-            builder.Append(character);
-        }
-
-        Insert(builder.ToString());
-    }
-
-    private void Insert(string text)
-    {
-        string cleaned = Sanitise(text);
-        int room = MaxInputLength - _input.Length;
-        if (cleaned.Length == 0 || room <= 0)
-        {
-            return;
-        }
-
-        if (cleaned.Length > room)
-        {
-            cleaned = cleaned[..room];
-        }
-
-        _input = _input.Insert(_caretIndex, cleaned);
-        _caretIndex += cleaned.Length;
-        _lastInputEditAt = DateTime.Now;
-    }
-
     private void SetInput(string text)
     {
-        _input = text.Length > MaxInputLength ? text[..MaxInputLength] : text;
-        _caretIndex = _input.Length;
+        _buffer.SetText(text);
+        _firstVisible = 0;
         _lastInputEditAt = DateTime.Now;
     }
 
@@ -510,30 +440,58 @@ public sealed class UIChat
         if (!IsTyping)
         {
             _inputCaret.IsVisible = false;
+            _inputSelection.IsVisible = false;
             return;
         }
 
-        int firstVisible = 0;
-        while (firstVisible < _caretIndex &&
-               _font.MeasureWidth(_input[firstVisible.._caretIndex], TextScale) > _textWidthPixels - CaretWidthPixels)
+        string input = _buffer.Text;
+        if (_editedVersion != _buffer.Version)
         {
-            firstVisible++;
+            _editedVersion = _buffer.Version;
+            _firstVisible = UITextLayout.FirstVisibleIndex(
+                input,
+                _buffer.Caret,
+                _firstVisible,
+                _textWidthPixels - CaretWidthPixels,
+                Measure);
         }
 
-        string visibleText = _input[firstVisible..];
-        while (visibleText.Length > 0 && _font.MeasureWidth(visibleText, TextScale) > _textWidthPixels)
+        string visibleText = input[_firstVisible..];
+        while (visibleText.Length > 0 && Measure(visibleText) > _textWidthPixels)
         {
             visibleText = visibleText[..^1];
         }
 
         _inputText.Text = visibleText;
 
-        float caretOffset = _font.MeasureWidth(_input[firstVisible.._caretIndex], TextScale);
+        float caretOffset = Measure(input[_firstVisible..Math.Max(_firstVisible, _buffer.Caret)]);
         _inputCaret.PixelPositionInCanvas = new Vector2(_textLeftPixels + caretOffset, _inputTextTopPixels);
 
+        UpdateInputSelection(input);
+
         double secondsSinceEdit = (DateTime.Now - _lastInputEditAt).TotalSeconds;
-        _inputCaret.IsVisible = secondsSinceEdit % CaretBlinkSeconds < CaretBlinkSeconds / 2;
+        _inputCaret.IsVisible = !_buffer.HasSelection && secondsSinceEdit % CaretBlinkSeconds < CaretBlinkSeconds / 2;
     }
+
+    private void UpdateInputSelection(string input)
+    {
+        if (!_buffer.HasSelection)
+        {
+            _inputSelection.IsVisible = false;
+            return;
+        }
+
+        int start = Math.Max(_firstVisible, _buffer.SelectionStart);
+        int end = Math.Max(start, _buffer.SelectionEnd);
+        float left = Measure(input[_firstVisible..start]);
+        float right = Math.Min(_textWidthPixels, Measure(input[_firstVisible..end]));
+
+        _inputSelection.IsVisible = right > left;
+        _inputSelection.PixelPositionInCanvas = new Vector2(_textLeftPixels + left, _inputTextTopPixels);
+        _inputSelection.Dimension = new Vector2(right - left, _lineHeightPixels);
+    }
+
+    private float Measure(string text) => _font.MeasureWidth(text, TextScale);
 
     private void Layout()
     {

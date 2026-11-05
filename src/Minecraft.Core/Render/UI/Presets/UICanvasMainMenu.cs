@@ -5,64 +5,86 @@ namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasMainMenu : UICanvasMenu
 {
-    private static readonly Vector3 _backdropColor = new(0.06F, 0.07F, 0.09F);
+    private const float LogoScale = 1.25F;
+    private const float ExtraLogoGap = 22F;
 
     private readonly UIButton _singleplayerButton;
     private readonly UIButton _multiplayerButton;
     private readonly UIButton _optionsButton;
     private readonly UIButton _quitButton;
+    private readonly UILabel _version;
 
     public UICanvasMainMenu(Game game)
-        : base(game, "Minecraft OpenGL", _backdropColor, 1.0F)
+        : base(game, "MINECRAFT")
     {
-        _singleplayerButton = new UIButton(this, "Singleplayer");
+        _singleplayerButton = new UIButton(this, "Singleplayer", UIButtonStyle.Primary);
         _multiplayerButton = new UIButton(this, "Multiplayer");
         _optionsButton = new UIButton(this, "Options");
         _quitButton = new UIButton(this, "Quit Game");
 
-        Layout();
+        _version = new UILabel(this, UITheme.TinyScale, UITheme.TextFaint, "Minecraft OpenGL", shadow: false);
+
+        SetFocusOrder(_singleplayerButton, _multiplayerButton, _optionsButton, _quitButton);
+        Primary = _singleplayerButton;
+
+        SetSubtitle("OpenGL Edition", UITheme.Warning);
     }
 
-    public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
+    protected override float TitleScale => LogoScale;
+
+    protected override float MaxRowWidth => 380;
+
+    protected override bool ShowsCard => false;
+
+    protected override float SceneDim => 0.22F;
+
+    protected override string KeyHints => "Enter  Select      Tab / Arrows  Move";
+
+    protected override MenuAction Update(UIInput input)
     {
-        if (_singleplayerButton.Update(mousePosition, mousePressed))
+        if (_singleplayerButton.Update(input))
         {
             return MenuAction.Singleplayer;
         }
 
-        if (_multiplayerButton.Update(mousePosition, mousePressed))
+        if (_multiplayerButton.Update(input))
         {
             return MenuAction.Multiplayer;
         }
 
-        if (_optionsButton.Update(mousePosition, mousePressed))
+        if (_optionsButton.Update(input))
         {
             return MenuAction.Options;
         }
 
-        if (_quitButton.Update(mousePosition, mousePressed))
-        {
-            return MenuAction.QuitGame;
-        }
-
-        return MenuAction.None;
+        return _quitButton.Update(input) ? MenuAction.QuitGame : MenuAction.None;
     }
 
     protected override void Layout()
     {
-        const int rowCount = 4;
-        float columnHeight = (rowCount * UIButton.Height) + ((rowCount - 1) * UIButton.Gap);
+        float rowHeight = UIButton.Height + 4F;
+        float gap = UITheme.RowGap;
+        float columnHeight = ExtraLogoGap + (3 * rowHeight) + (2 * gap);
 
-        float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
-        var rowSize = new Vector2(RowWidth, UIButton.Height);
+        float contentTop = ContentTopFor(columnHeight);
+        float top = contentTop + ExtraLogoGap;
+        var wide = new Vector2(RowWidth, rowHeight);
 
-        float row = columnTop;
-        foreach (UIButton button in (UIButton[])[_singleplayerButton, _multiplayerButton, _optionsButton, _quitButton])
-        {
-            button.SetBounds(new Vector2(RowLeft, row), rowSize);
-            row += UIButton.Height + UIButton.Gap;
-        }
+        _singleplayerButton.SetBounds(new Vector2(RowLeft, top), wide);
+        top += rowHeight + gap;
 
-        LayoutFrame(columnTop, columnTop + columnHeight + 24);
+        _multiplayerButton.SetBounds(new Vector2(RowLeft, top), wide);
+        top += rowHeight + gap;
+
+        float half = (RowWidth - gap) / 2F;
+        _optionsButton.SetBounds(new Vector2(RowLeft, top), new Vector2(half, rowHeight));
+        _quitButton.SetBounds(new Vector2(RowLeft + half + gap, top), new Vector2(half, rowHeight));
+        top += rowHeight;
+
+        LayoutFrame(contentTop, top);
+
+        _version.PlaceTop(
+            PixelWidth - UITheme.Margin - _version.Width,
+            PixelHeight - UITheme.Margin - _version.CapHeight);
     }
 }

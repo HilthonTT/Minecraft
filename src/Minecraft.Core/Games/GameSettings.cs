@@ -23,11 +23,17 @@ public sealed class GameSettings
     private const string RealisticShadersValue = "realistic";
     private const string NoShadersValue = "off";
 
+    public const int MinGuiScalePercent = 50;
+    public const int MaxGuiScalePercent = 200;
+    public const int DefaultGuiScalePercent = 100;
+
     private int _renderDistanceChunks = Constants.VIEW_DISTANCE_CHUNKS;
     private float _fieldOfViewDegrees = DefaultFieldOfViewDegrees;
     private float _masterVolume = 1.0F;
     private float _mouseSensitivity = 1.0F;
     private bool _realisticShaders;
+    private int _guiScalePercent = DefaultGuiScalePercent;
+    private bool _showFps;
 
     public event Action? OnChangedHandler;
 
@@ -59,6 +65,18 @@ public sealed class GameSettings
     {
         get => _realisticShaders;
         set => Set(ref _realisticShaders, value);
+    }
+
+    public int GuiScalePercent
+    {
+        get => _guiScalePercent;
+        set => Set(ref _guiScalePercent, Math.Clamp(value, MinGuiScalePercent, MaxGuiScalePercent));
+    }
+
+    public bool ShowFps
+    {
+        get => _showFps;
+        set => Set(ref _showFps, value);
     }
 
     public float FieldOfViewRadians => MathHelper.DegreesToRadians(_fieldOfViewDegrees);
@@ -125,6 +143,8 @@ public sealed class GameSettings
                     "volume=" + _masterVolume.ToString("0.###", CultureInfo.InvariantCulture),
                     "sensitivity=" + _mouseSensitivity.ToString("0.###", CultureInfo.InvariantCulture),
                     "shaders=" + (_realisticShaders ? RealisticShadersValue : NoShadersValue),
+                    "guiscale=" + _guiScalePercent.ToString(CultureInfo.InvariantCulture),
+                    "showfps=" + (_showFps ? "true" : "false"),
                 ]);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -177,6 +197,22 @@ public sealed class GameSettings
                 else if (value.Equals(NoShadersValue, StringComparison.OrdinalIgnoreCase))
                 {
                     RealisticShaders = false;
+                }
+
+                break;
+
+            case "guiscale":
+                if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int guiScale))
+                {
+                    GuiScalePercent = guiScale;
+                }
+
+                break;
+
+            case "showfps":
+                if (bool.TryParse(value, out bool showFps))
+                {
+                    ShowFps = showFps;
                 }
 
                 break;

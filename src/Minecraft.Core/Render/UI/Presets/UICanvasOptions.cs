@@ -6,133 +6,297 @@ namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasOptions : UICanvasMenu
 {
-    private const float BackdropTransparency = 0.72F;
+    private const float SectionHeight = 30F;
+    private const float ControlMaxWidth = 270F;
+    private const float ScrollStep = 48F;
+    private const float ScrollbarWidth = 4F;
+    private const float ReservedChrome = 120F;
 
-    private static readonly Vector3 _backdropColor = new(0.03F, 0.03F, 0.05F);
+    private static readonly int[] _guiScalePercents = [75, 85, 100, 115, 130, 150];
 
     private readonly GameSettings _settings;
+    private readonly List<OptionRow> _rows = [];
+    private readonly UIButton _doneButton;
+    private readonly UIImage _scrollTrack;
+    private readonly UIImage _scrollThumb;
 
-    private readonly UISlider _renderDistance;
-    private readonly UISlider _fieldOfView;
-    private readonly UISlider _volume;
-    private readonly UISlider _sensitivity;
-    private readonly UIButton _shadersButton;
-    private readonly UIButton _backButton;
-
-    protected override float MaxRowWidth => 460;
+    private float _scroll;
+    private float _maxScroll;
+    private float _viewportTop;
+    private float _viewportHeight;
 
     public UICanvasOptions(Game game)
-        : base(game, "Options", _backdropColor, BackdropTransparency)
+        : base(game, "Options")
     {
         _settings = game.Settings;
 
-        _renderDistance = new UISlider(
-            this,
+        Section("Video");
+        Slider(
             "Render Distance",
             GameSettings.MinRenderDistanceChunks,
             GameSettings.MaxRenderDistanceChunks,
+            1F,
+            () => _settings.RenderDistanceChunks,
+            value => _settings.RenderDistanceChunks = (int)MathF.Round(value),
             value => Whole(value) + (MathF.Round(value) == 1 ? " chunk" : " chunks"));
-
-        _fieldOfView = new UISlider(
-            this,
+        Slider(
             "Field of View",
             GameSettings.MinFieldOfViewDegrees,
             GameSettings.MaxFieldOfViewDegrees,
-            value => Whole(value) + "°");
+            1F,
+            () => _settings.FieldOfViewDegrees,
+            value => _settings.FieldOfViewDegrees = MathF.Round(value),
+            value => Whole(value) + " degrees");
+        Toggle(
+            "Shaders",
+            () => _settings.RealisticShaders,
+            value => _settings.RealisticShaders = value,
+            "Realistic",
+            "Off");
 
-        _volume = new UISlider(this, "Volume", 0F, 1F, value => Percentage(value));
+        Section("Interface");
+        Cycle(
+            "GUI Scale",
+            [.. _guiScalePercents.Select(percent => percent.ToString(CultureInfo.InvariantCulture) + "%")],
+            () => NearestGuiScaleIndex(_settings.GuiScalePercent),
+            index => _settings.GuiScalePercent = _guiScalePercents[index]);
+        Toggle("Show FPS", () => _settings.ShowFps, value => _settings.ShowFps = value);
 
-        _sensitivity = new UISlider(
-            this,
+        Section("Audio");
+        Slider("Master Volume", 0F, 1F, 0.01F, () => _settings.MasterVolume, value => _settings.MasterVolume = value, Percentage);
+
+        Section("Controls");
+        Slider(
             "Mouse Sensitivity",
             GameSettings.MinMouseSensitivity,
             GameSettings.MaxMouseSensitivity,
-            value => Percentage(value / 2F));
+            0.05F,
+            () => _settings.MouseSensitivity,
+            value => _settings.MouseSensitivity = value,
+            Percentage);
 
-        _shadersButton = new UIButton(this, ShadersLabel(_settings.RealisticShaders));
+        _doneButton = new UIButton(this, "Done", UIButtonStyle.Primary);
+        _scrollTrack = UIDraw.Rect(this, UITheme.Field, 0.8F);
+        _scrollThumb = UIDraw.Rect(this, UITheme.TextFaint);
 
-        _backButton = new UIButton(this, "Done");
+        SetFocusOrder([.. _rows.Where(row => row.Control is not null).Select(row => row.Control!), _doneButton]);
+        Primary = _doneButton;
 
         Layout();
     }
 
-    public override void OnShown()
-    {
-        base.OnShown();
+    protected override float MaxRowWidth => 540;
 
-        _renderDistance.Value = _settings.RenderDistanceChunks;
-        _fieldOfView.Value = _settings.FieldOfViewDegrees;
-        _volume.Value = _settings.MasterVolume;
-        _sensitivity.Value = _settings.MouseSensitivity;
-        _shadersButton.Text = ShadersLabel(_settings.RealisticShaders);
+    protected override string KeyHints => "Esc  Done      Tab / Arrows  Move      Left / Right  Change";
+
+    public static int NearestGuiScaleIndex(int percent)
+    {
+        int best = 0;
+        for (int index = 1; index < _guiScalePercents.Length; index++)
+        {
+            if (Math.Abs(_guiScalePercents[index] - percent) < Math.Abs(_guiScalePercents[best] - percent))
+            {
+                best = index;
+            }
+        }
+
+        return best;
     }
 
-    public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
+    public override void OnShown()
     {
-        if (_renderDistance.Update(mousePosition, mousePressed) is float renderDistance)
+        foreach (OptionRow row in _rows)
         {
-            _settings.RenderDistanceChunks = (int)MathF.Round(renderDistance);
+            row.Sync();
         }
 
-        if (_fieldOfView.Update(mousePosition, mousePressed) is float fieldOfView)
+        _scroll = 0F;
+        Layout();
+
+        base.OnShown();
+    }
+
+    protected override MenuAction Update(UIInput input)
+    {
+        UpdateScrolling(input);
+
+        foreach (OptionRow row in _rows)
         {
-            _settings.FieldOfViewDegrees = MathF.Round(fieldOfView);
+            row.Update(input);
         }
 
-        if (_volume.Update(mousePosition, mousePressed) is float volume)
+        return _doneButton.Update(input) ? MenuAction.Back : MenuAction.None;
+    }
+
+    protected override void OnFocusChanged(UIWidget? widget)
+    {
+        OptionRow? row = _rows.FirstOrDefault(candidate => candidate.Control == widget);
+        if (row is null || _viewportHeight <= 0F)
         {
-            _settings.MasterVolume = volume;
+            return;
         }
 
-        if (_sensitivity.Update(mousePosition, mousePressed) is float sensitivity)
-        {
-            _settings.MouseSensitivity = sensitivity;
-        }
+        float rowTop = row.Offset - _scroll;
+        float rowBottom = rowTop + row.Height;
 
-        if (_shadersButton.Update(mousePosition, mousePressed))
+        if (rowTop < 0F)
         {
-            _settings.RealisticShaders = !_settings.RealisticShaders;
-            _shadersButton.Text = ShadersLabel(_settings.RealisticShaders);
+            ScrollTo(row.Offset - (row.Index > 0 && _rows[row.Index - 1].IsSection ? SectionHeight : 0F));
         }
-
-        if (_backButton.Update(mousePosition, mousePressed))
+        else if (rowBottom > _viewportHeight)
         {
-            return MenuAction.Back;
+            ScrollTo(row.Offset + row.Height - _viewportHeight);
         }
-
-        return MenuAction.None;
     }
 
     protected override void Layout()
     {
-        const int sliderCount = 4;
-        const int buttonGap = 24;
-
-        float sliderColumnHeight = (sliderCount * UISlider.Height) + ((sliderCount - 1) * UISlider.Gap);
-        float columnHeight = sliderColumnHeight + buttonGap + UIButton.Height + UIButton.Gap + UIButton.Height;
-
-        float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
-        var sliderSize = new Vector2(RowWidth, UISlider.Height);
-
-        float row = columnTop;
-        foreach (UISlider slider in (UISlider[])[_renderDistance, _fieldOfView, _volume, _sensitivity])
+        float offset = 0F;
+        foreach (OptionRow row in _rows)
         {
-            slider.SetBounds(new Vector2(RowLeft, row), sliderSize);
-            row += UISlider.Height + UISlider.Gap;
+            row.Offset = offset;
+            offset += row.Height + (row.IsSection ? 0F : UITheme.Gap);
         }
 
-        row += buttonGap - UISlider.Gap;
-        _shadersButton.SetBounds(new Vector2(RowLeft, row), new Vector2(RowWidth, UIButton.Height));
+        float rowsHeight = Math.Max(0F, offset - UITheme.Gap);
+        float doneBlock = UITheme.SectionGap + UIButton.Height;
+        float available = PixelHeight - TitleBlockHeight - (2 * UITheme.Padding) - doneBlock - ReservedChrome;
 
-        row += UIButton.Height + UIButton.Gap;
-        _backButton.SetBounds(new Vector2(RowLeft, row), new Vector2(RowWidth, UIButton.Height));
+        _viewportHeight = Math.Clamp(available, Math.Min(rowsHeight, UITheme.RowHeight + SectionHeight), rowsHeight);
+        _maxScroll = Math.Max(0F, rowsHeight - _viewportHeight);
+        _scroll = Math.Clamp(_scroll, 0F, _maxScroll);
 
-        LayoutFrame(columnTop, columnTop + columnHeight + 24);
+        _viewportTop = ContentTopFor(_viewportHeight + doneBlock);
+
+        float controlWidth = Math.Min(ControlMaxWidth, RowWidth * 0.55F);
+        float controlLeft = RowLeft + RowWidth - controlWidth;
+
+        foreach (OptionRow row in _rows)
+        {
+            float top = _viewportTop + row.Offset - _scroll;
+            bool visible = top >= _viewportTop - 0.5F && top + row.Height <= _viewportTop + _viewportHeight + 0.5F;
+
+            row.Label.IsVisible = visible;
+
+            if (row.IsSection)
+            {
+                row.Rule!.IsVisible = visible;
+                row.Label.PlaceTop(RowLeft, top + SectionHeight - 10F - row.Label.CapHeight);
+                UIDraw.Place(row.Rule, RowLeft + row.Label.Width + 10F, top + SectionHeight - 10F - (row.Label.CapHeight / 2F), RowWidth - row.Label.Width - 10F, 1F);
+                continue;
+            }
+
+            row.Control!.IsVisible = visible;
+            row.Label.SetFitted(row.Name, RowWidth - controlWidth - UITheme.SectionGap);
+            row.Label.PlaceMiddle(RowLeft, top + (row.Height / 2F));
+            row.Control.SetBounds(new Vector2(controlLeft, top), new Vector2(controlWidth, row.Height));
+        }
+
+        LayoutScrollbar();
+
+        float doneTop = _viewportTop + _viewportHeight + UITheme.SectionGap;
+        _doneButton.SetBounds(new Vector2(RowLeft + ((RowWidth - 240F) / 2F), doneTop), new Vector2(Math.Min(240F, RowWidth), UIButton.Height));
+
+        LayoutFrame(_viewportTop, doneTop + UIButton.Height);
     }
 
-    private static string ShadersLabel(bool realistic)
+    private void Section(string title)
     {
-        return realistic ? "Shaders: Realistic" : "Shaders: Off";
+        var label = new UILabel(this, UITheme.SmallScale, UITheme.Accent, title.ToUpperInvariant());
+        UIImage rule = UIDraw.Rect(this, UITheme.PanelBorder);
+
+        _rows.Add(new OptionRow(_rows.Count, title, label, null, SectionHeight) { Rule = rule });
+    }
+
+    private void Slider(
+        string name,
+        float minimum,
+        float maximum,
+        float step,
+        Func<float> read,
+        Action<float> write,
+        Func<float, string> describe)
+    {
+        var slider = new UISlider(this, minimum, maximum, step, describe);
+        AddRow(name, slider, () => slider.Value = read(), input =>
+        {
+            if (slider.Update(input))
+            {
+                write(slider.Value);
+            }
+        });
+    }
+
+    private void Toggle(string name, Func<bool> read, Action<bool> write, string onText = "On", string offText = "Off")
+    {
+        var toggle = new UIToggle(this, read(), onText, offText);
+        AddRow(name, toggle, () => toggle.Value = read(), input =>
+        {
+            if (toggle.Update(input))
+            {
+                write(toggle.Value);
+            }
+        });
+    }
+
+    private void Cycle(string name, IReadOnlyList<string> options, Func<int> read, Action<int> write)
+    {
+        var cycle = new UICycleButton(this, options, read());
+        AddRow(name, cycle, () => cycle.SelectedIndex = read(), input =>
+        {
+            if (cycle.Update(input))
+            {
+                write(cycle.SelectedIndex);
+            }
+        });
+    }
+
+    private void AddRow(string name, UIWidget control, Action sync, Action<UIInput> update)
+    {
+        var label = new UILabel(this, UITheme.LabelScale, UITheme.Text, name);
+        _rows.Add(new OptionRow(_rows.Count, name, label, control, UITheme.RowHeight) { Sync = sync, Update = update });
+    }
+
+    private void UpdateScrolling(UIInput input)
+    {
+        if (_maxScroll <= 0F || input.Scroll == 0F)
+        {
+            return;
+        }
+
+        ScrollTo(_scroll - (MathF.Sign(input.Scroll) * ScrollStep));
+    }
+
+    private void ScrollTo(float scroll)
+    {
+        float clamped = Math.Clamp(scroll, 0F, _maxScroll);
+        if (clamped == _scroll)
+        {
+            return;
+        }
+
+        _scroll = clamped;
+        Layout();
+    }
+
+    private void LayoutScrollbar()
+    {
+        bool scrollable = _maxScroll > 0F;
+        _scrollTrack.IsVisible = scrollable;
+        _scrollThumb.IsVisible = scrollable;
+
+        if (!scrollable)
+        {
+            return;
+        }
+
+        float left = RowLeft + RowWidth + (UITheme.Padding / 2F) - (ScrollbarWidth / 2F);
+        float total = _viewportHeight + _maxScroll;
+        float thumbHeight = Math.Max(24F, _viewportHeight * (_viewportHeight / total));
+        float thumbTop = _viewportTop + ((_viewportHeight - thumbHeight) * (_scroll / _maxScroll));
+
+        UIDraw.Place(_scrollTrack, left, _viewportTop, ScrollbarWidth, _viewportHeight);
+        UIDraw.Place(_scrollThumb, left, thumbTop, ScrollbarWidth, thumbHeight);
     }
 
     private static string Whole(float value)
@@ -143,5 +307,28 @@ public sealed class UICanvasOptions : UICanvasMenu
     private static string Percentage(float fraction)
     {
         return MathF.Round(fraction * 100F).ToString("0", CultureInfo.InvariantCulture) + "%";
+    }
+
+    private sealed class OptionRow(int index, string name, UILabel label, UIWidget? control, float height)
+    {
+        public int Index { get; } = index;
+
+        public string Name { get; } = name;
+
+        public UILabel Label { get; } = label;
+
+        public UIWidget? Control { get; } = control;
+
+        public float Height { get; } = height;
+
+        public bool IsSection => Control is null;
+
+        public UIImage? Rule { get; init; }
+
+        public float Offset { get; set; }
+
+        public Action Sync { get; init; } = () => { };
+
+        public Action<UIInput> Update { get; init; } = _ => { };
     }
 }

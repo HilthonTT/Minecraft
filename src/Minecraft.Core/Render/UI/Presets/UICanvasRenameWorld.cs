@@ -1,66 +1,58 @@
 using Minecraft.Core.Games;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
 public sealed class UICanvasRenameWorld : UICanvasMenu
 {
     private const int MaxNameLength = 32;
-    private const float LabelScale = 0.32F;
-    private const int LabelToFieldGap = 6;
-    private const int SectionGap = 20;
+    private const float LabelToFieldGap = 8F;
 
-    private static readonly Vector3 _backdropColor = new(0.06F, 0.07F, 0.09F);
-    private static readonly Vector3 _labelColor = new(0.85F, 0.85F, 0.88F);
-
-    private readonly UIText _label;
+    private readonly UILabel _label;
     private readonly UITextField _nameField;
     private readonly UIButton _renameButton;
     private readonly UIButton _cancelButton;
+
+    public UICanvasRenameWorld(Game game)
+        : base(game, "Rename World")
+    {
+        _label = new UILabel(this, UITheme.SmallScale, UITheme.TextMuted, "NEW NAME");
+        _nameField = new UITextField(this, MaxNameLength);
+        _renameButton = new UIButton(this, "Rename", UIButtonStyle.Primary);
+        _cancelButton = new UIButton(this, "Cancel");
+
+        SetFocusOrder(_nameField, _renameButton, _cancelButton);
+        Primary = _renameButton;
+
+        Layout();
+    }
 
     public string CurrentName { get; private set; } = string.Empty;
 
     public string NewName => _nameField.Value;
 
-    public UICanvasRenameWorld(Game game)
-        : base(game, "Rename World", _backdropColor, 1.0F)
-    {
-        _label = new UIText(this, Font, Vector2.Zero, new Vector2(LabelScale, LabelScale), string.Empty)
-        {
-            Color = _labelColor,
-        };
-        AddComponentToRender(_label);
+    protected override string KeyHints => "Enter  Rename      Esc  Cancel";
 
-        _nameField = new UITextField(this, MaxNameLength);
-        _renameButton = new UIButton(this, "Rename");
-        _cancelButton = new UIButton(this, "Cancel");
-
-        Layout();
-    }
+    protected override UIWidget? InitialFocus => _nameField;
 
     public void Prepare(string currentName)
     {
         CurrentName = currentName;
 
-        _label.Text = "New name for '" + currentName + "'";
+        SetSubtitle("Currently '" + currentName + "'");
         _nameField.Value = currentName;
+        _nameField.Buffer.SelectAll();
     }
 
-    public override void OnShown()
+    protected override MenuAction Update(UIInput input)
     {
-        base.OnShown();
-        _nameField.HasFocus = true;
-    }
+        _nameField.Update(input);
+        _renameButton.IsEnabled = _nameField.Value.Trim().Length > 0;
 
-    public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
-    {
-        _nameField.Update();
+        bool renamePressed = _renameButton.Update(input);
+        bool cancelPressed = _cancelButton.Update(input);
 
-        bool renamePressed = _renameButton.Update(mousePosition, mousePressed);
-        bool cancelPressed = _cancelButton.Update(mousePosition, mousePressed);
-
-        if (renamePressed || Game.Input.OnKeyPress(Keys.Enter) || Game.Input.OnKeyPress(Keys.KeyPadEnter))
+        if (renamePressed)
         {
             return MenuAction.Confirm;
         }
@@ -70,28 +62,25 @@ public sealed class UICanvasRenameWorld : UICanvasMenu
 
     protected override void Layout()
     {
-        float labelHeight = Font.DesiredPixelLineHeight * LabelScale;
+        float labelHeight = _label.CapHeight;
+        float contentHeight = labelHeight + LabelToFieldGap + UITextField.Height + UITheme.SectionGap + UIButton.Height;
 
-        float contentHeight =
-            labelHeight + LabelToFieldGap + UITextField.Height +
-            SectionGap + UIButton.Height;
+        float top = ContentTopFor(contentHeight);
+        float contentTop = top;
 
-        float contentTop = Math.Max(110, (PixelHeight - contentHeight) / 2.0F);
-        float top = contentTop;
-
-        _label.PixelPositionInCanvas = new Vector2(RowLeft, top);
+        _label.PlaceTop(RowLeft, top);
         top += labelHeight + LabelToFieldGap;
 
         _nameField.SetBounds(new Vector2(RowLeft, top), new Vector2(RowWidth, UITextField.Height));
-        top += UITextField.Height + SectionGap;
+        top += UITextField.Height + UITheme.SectionGap;
 
-        float buttonWidth = (RowWidth - UIButton.Gap) / 2.0F;
+        float buttonWidth = (RowWidth - UITheme.Gap) / 2.0F;
         var buttonSize = new Vector2(buttonWidth, UIButton.Height);
 
         _renameButton.SetBounds(new Vector2(RowLeft, top), buttonSize);
-        _cancelButton.SetBounds(new Vector2(RowLeft + buttonWidth + UIButton.Gap, top), buttonSize);
+        _cancelButton.SetBounds(new Vector2(RowLeft + buttonWidth + UITheme.Gap, top), buttonSize);
         top += UIButton.Height;
 
-        LayoutFrame(contentTop, top + 20);
+        LayoutFrame(contentTop, top);
     }
 }
