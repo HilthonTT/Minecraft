@@ -1,0 +1,12 @@
+<Project>
+
+  <PropertyGroup>
+    <Version>0.1.0-dev</Version>
+    <Product>Minecraft Clone</Product>
+    <Authors>HilthonTT</Authors>
+    <Copyright>Copyright (c) 2026 Hilthon</Copyright>
+    <RepositoryUrl>https://github.com/HilthonTT/Minecraft</RepositoryUrl>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+</Project>

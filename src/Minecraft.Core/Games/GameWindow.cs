@@ -1,5 +1,6 @@
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network;
+using Minecraft.Core.Utilities;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -17,8 +18,8 @@ public sealed class GameWindow : OpenTK.Windowing.Desktop.GameWindow
             new NativeWindowSettings
             {
                 ClientSize = startArgs.RunMode == RunMode.Server ? new Vector2i(320, 240) : new Vector2i(1280, 720),
-                Title = "Minecraft OpenGL",
-                APIVersion = new Version(3, 3),
+                Title = GameVersion.DisplayName,
+                APIVersion = new Version(4, 0),
                 Profile = ContextProfile.Compatability,
                 StartVisible = startArgs.RunMode != RunMode.Server,
             })

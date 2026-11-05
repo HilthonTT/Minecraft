@@ -1,4 +1,5 @@
 using Minecraft.Core.Games;
+using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
 
 namespace Minecraft.Core.Render.UI.Presets;
@@ -22,7 +23,7 @@ public sealed class UICanvasMainMenu : UICanvasMenu
         _optionsButton = new UIButton(this, "Options");
         _quitButton = new UIButton(this, "Quit Game");
 
-        _version = new UILabel(this, UITheme.TinyScale, UITheme.TextFaint, "Minecraft OpenGL", shadow: false);
+        _version = new UILabel(this, UITheme.TinyScale, UITheme.TextFaint, GameVersion.DisplayName, shadow: false);
 
         SetFocusOrder(_singleplayerButton, _multiplayerButton, _optionsButton, _quitButton);
         Primary = _singleplayerButton;

@@ -1,68 +1,206 @@
 name: Release
 
-# Pushing a tag such as v0.2.0 publishes a playable build. Nothing else triggers this, so an ordinary commit
-# to main never produces a release.
 on:
   push:
-    tags: ['v*']
+    tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to build a release from'
+        description: 'Existing tag to build a release from, such as v0.2.0'
         required: true
+      draft:
+        description: 'Create the release as a draft'
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 env:
   DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
   release:
+    name: Build and publish
     runs-on: windows-latest
 
+    permissions:
+      contents: write
+
     steps:
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          if (-not $tag) { $tag = '${{ github.ref_name }}' }
+
+          if ($tag -notmatch '^v(?<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?)$') {
+            throw "Tag '$tag' is not a semantic version such as v1.2.3 or v1.2.3-beta.1."
+          }
+
+          $version = $Matches.version
+          $prerelease = if ($version.Contains('-')) { 'true' } else { 'false' }
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing $tag (version $version, prerelease $prerelease)"
+
       - name: Check out
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: refs/tags/${{ steps.version.outputs.tag }}
+
+      - name: Refuse to overwrite an existing release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view '${{ steps.version.outputs.tag }}' --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "A release for ${{ steps.version.outputs.tag }} already exists. Delete it first to rebuild it."
+          }
+          $global:LASTEXITCODE = 0
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
-      # Framework dependent, matching the README: players are already asked to install the .NET 10 runtime,
-      # and bundling it would roughly triple the download.
-      - name: Publish
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore Minecraft.slnx
+
+      - name: Build
+        run: >
+          dotnet build Minecraft.slnx
+          --configuration Release
+          --no-restore
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test Minecraft.slnx --configuration Release --no-build
+
+      - name: Publish framework-dependent build
         run: >
           dotnet publish src/Minecraft.App/Minecraft.App.csproj
           --configuration Release
           --runtime win-x64
           --self-contained false
-          --output publish
+          --output publish/framework-dependent
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
 
-      # Same guard the build workflow runs. A release missing a shader is a release that crashes on launch.
+      - name: Publish self-contained build
+        run: >
+          dotnet publish src/Minecraft.App/Minecraft.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          --output publish/self-contained
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:PublishReadyToRun=true
+          -p:ContinuousIntegrationBuild=true
+
       - name: Verify runtime assets
-        run: ./.github/scripts/Verify-RuntimeAssets.ps1 -SourceRoot src -OutputDirectory publish
-        shell: pwsh
-
-      - name: Package
         shell: pwsh
         run: |
-          $tag = '${{ github.event.inputs.tag }}'
-          if (-not $tag) { $tag = '${{ github.ref_name }}' }
-          Compress-Archive -Path publish/* -DestinationPath "Minecraft-$tag-win-x64.zip"
-          "archive=Minecraft-$tag-win-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "tag=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          ./.github/scripts/Verify-RuntimeAssets.ps1 -SourceRoot src -OutputDirectory publish/framework-dependent
+          ./.github/scripts/Verify-RuntimeAssets.ps1 -SourceRoot src -OutputDirectory publish/self-contained
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          $archives = @(
+            @{ Source = 'publish/framework-dependent'; Name = "Minecraft-$tag-win-x64.zip" }
+            @{ Source = 'publish/self-contained'; Name = "Minecraft-$tag-win-x64-self-contained.zip" }
+          )
+
+          foreach ($archive in $archives) {
+            Get-ChildItem -Path $archive.Source -Recurse -Include *.pdb | Remove-Item -Force
+            Compress-Archive -Path "$($archive.Source)/*" -DestinationPath "dist/$($archive.Name)" -CompressionLevel Optimal
+          }
+
+          Push-Location dist
+          Get-ChildItem -Filter *.zip | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content -Path SHA256SUMS.txt -Encoding ascii
+          Get-Content SHA256SUMS.txt
+          Pop-Location
+
+      - name: Write release notes
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $notes = [System.Collections.Generic.List[string]]::new()
+
+          if (Test-Path CHANGELOG.md) {
+            $inSection = $false
+            foreach ($line in Get-Content CHANGELOG.md) {
+              if ($line -match '^## \[(?<heading>[^\]]+)\]') {
+                if ($inSection) { break }
+                $inSection = $Matches.heading -eq $version
+                continue
+              }
+              if ($inSection) { $notes.Add($line) }
+            }
+          }
+
+          if (-not ($notes -join '').Trim()) {
+            $notes.Clear()
+            $notes.Add("Release $version.")
+          }
+
+          $notes.Add('')
+          $notes.Add('### Downloads')
+          $notes.Add('')
+          $notes.Add('| File | Use it when |')
+          $notes.Add('| --- | --- |')
+          $notes.Add('| `Minecraft-${{ steps.version.outputs.tag }}-win-x64-self-contained.zip` | You do not have the .NET 10 runtime installed. Larger, but runs as is. |')
+          $notes.Add('| `Minecraft-${{ steps.version.outputs.tag }}-win-x64.zip` | You already have the [.NET 10 desktop runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |')
+          $notes.Add('')
+          $notes.Add('Unzip anywhere and run `Minecraft.App.exe`. Worlds and options are kept in `%APPDATA%\MinecraftClone`, so they carry over between versions. Verify a download against `SHA256SUMS.txt` with `Get-FileHash`.')
+
+          $notes | Set-Content -Path dist/RELEASE_NOTES.md -Encoding utf8
 
       - name: Create release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create $env:tag $env:archive
-          --title $env:tag
-          --generate-notes
-          --repo ${{ github.repository }}
+        run: |
+          $arguments = @(
+            'release', 'create', '${{ steps.version.outputs.tag }}',
+            'dist/Minecraft-${{ steps.version.outputs.tag }}-win-x64.zip',
+            'dist/Minecraft-${{ steps.version.outputs.tag }}-win-x64-self-contained.zip',
+            'dist/SHA256SUMS.txt',
+            '--title', 'Minecraft ${{ steps.version.outputs.tag }}',
+            '--notes-file', 'dist/RELEASE_NOTES.md',
+            '--generate-notes',
+            '--verify-tag',
+            '--repo', '${{ github.repository }}'
+          )
+
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $arguments += '--prerelease' }
+          if ('${{ github.event.inputs.draft }}' -eq 'true') { $arguments += '--draft' }
+
+          gh @arguments
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE." }
