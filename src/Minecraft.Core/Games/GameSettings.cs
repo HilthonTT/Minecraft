@@ -1,7 +1,7 @@
+using System.Globalization;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Utilities;
 using OpenTK.Mathematics;
-using System.Globalization;
 
 namespace Minecraft.Core.Games;
 
@@ -55,10 +55,16 @@ public sealed class GameSettings
 
     public float RenderDistanceBlocks => _renderDistanceChunks * 16F;
 
+    public static string DefaultPath => UserData.Path(FileName);
+
     public static GameSettings Load()
     {
+        return Load(DefaultPath);
+    }
+
+    public static GameSettings Load(string path)
+    {
         var settings = new GameSettings();
-        string path = Assets.Path(FileName);
 
         if (!File.Exists(path))
         {
@@ -94,8 +100,11 @@ public sealed class GameSettings
 
     public void Save()
     {
-        string path = Assets.Path(FileName);
+        Save(DefaultPath);
+    }
 
+    public void Save(string path)
+    {
         try
         {
             File.WriteAllLines(

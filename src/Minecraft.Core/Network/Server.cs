@@ -1,4 +1,7 @@
-﻿using Minecraft.Core.Games;
+﻿using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
+using Minecraft.Core.Games;
 using Minecraft.Core.IO;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.NetHandler;
@@ -7,9 +10,6 @@ using Minecraft.Core.Network.Session;
 using Minecraft.Core.Utilities;
 using Minecraft.Core.Worlds;
 using Minecraft.Core.Worlds.Storage;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
 
 namespace Minecraft.Core.Network;
 
@@ -17,7 +17,7 @@ public sealed class Server
 {
     private const string SavesDirectoryName = "saves";
 
-    public static string SavesDirectory => Assets.Path(SavesDirectoryName);
+    public static string SavesDirectory => UserData.Path(SavesDirectoryName);
 
     private readonly Game _game;
 
