@@ -19,11 +19,23 @@ a client/server architecture that the singleplayer mode also runs through.
 **[DESIGN.md](DESIGN.md)** covers how it all works — terrain generation, lighting, meshing, networking, the
 save format and the sound engine.
 
+## Download
+
+Every tagged version is on the [Releases](https://github.com/HilthonTT/Minecraft/releases) page as two zips for
+64-bit Windows. `…-win-x64-self-contained.zip` carries its own .NET runtime and runs as it is;
+`…-win-x64.zip` is a fraction of the size and needs the
+[.NET 10 desktop runtime](https://dotnet.microsoft.com/download/dotnet/10.0) installed. Unzip either anywhere and
+run `Minecraft.App.exe`. `SHA256SUMS.txt` beside them holds the checksum of each, for `Get-FileHash` to compare
+against.
+
+Worlds and options are kept outside the game folder, so a new version can be unzipped somewhere fresh and
+picks up where the last one left off — see [Saved worlds](#saved-worlds).
+
 ## Requirements
 
-- [.NET SDK 10](https://dotnet.microsoft.com/download) or newer
+- [.NET SDK 10](https://dotnet.microsoft.com/download) or newer, to build it
 - Windows — texture loading goes through `System.Drawing`, so both projects target `net10.0-windows`
-- A GPU and driver supporting OpenGL 3.3 or newer
+- A GPU and driver supporting OpenGL 4.0 or newer
 
 The solution uses the `.slnx` format, which needs a recent SDK. Building the projects directly works with any
 .NET 10 SDK.
@@ -37,9 +49,26 @@ dotnet run --project src/Minecraft.App
 
 `dotnet test` runs the tests, which cover the parts of the engine that need neither a window nor a GPU.
 
-That opens the main menu. `Singleplayer` lists your saved worlds, most recently played first — a row plays its
-world and carries `Rename` and `Delete`, and `Create New World` names a world and picks its seed. `Escape`
-during a game opens the pause menu, which is where you save and leave a world or quit.
+That opens the main menu. `Singleplayer` lists your saved worlds, most recently played first, each with its
+game mode, when it was last played and its seed. Click one to select it and `Play`, or double click it;
+`Rename` and `Delete` act on the selection, and `Create New World` names a world and picks its seed. Deleting
+asks first, with `Keep It` as the default and `Delete Forever` held back for a moment so a stray double click
+cannot reach it. `Escape` during a game opens the pause menu, which saves a hosted world as it opens and is
+where you leave a world or quit.
+
+Every menu can be driven from the keyboard as well as the mouse:
+
+| Key | In a menu |
+| --- | --- |
+| `Tab`, `Shift` + `Tab`, arrow keys | Move between controls |
+| `Enter` | Press the focused control, or the screen's main button |
+| `Space` | Press the focused button or flip the focused switch |
+| `Left` / `Right` | Move a focused slider, switch or choice |
+| `Escape` | Go back |
+| `F2`, `Delete` | Rename or delete the selected world, on the world list |
+
+Text boxes and the chat take the usual editing keys: `Ctrl` with the arrows or `Backspace` works a word at a
+time, `Shift` selects, and `Ctrl` + `A`, `C`, `X` and `V` select all, copy, cut and paste.
 
 In Visual Studio, pick a profile from the launch dropdown — `Singleplayer`, `Dedicated server` and
 `Client (connect to localhost)` are defined in `src/Minecraft.App/Properties/launchSettings.json` and go
@@ -327,24 +356,41 @@ Iron and gold ore come out of the ground as ore, and a furnace turns them into i
 
 `Options`, from the title screen or the pause menu, sets:
 
-| Setting           | Range           | Notes                                                      |
-| ----------------- | --------------- | ---------------------------------------------------------- |
-| Render distance   | 2–16 chunks     | Moves the fog and the horizon with it                       |
-| Field of view     | 60°–110°        | Sprinting and crouching still widen and narrow it from there |
-| Volume            | 0–100%          |                                                             |
-| Mouse sensitivity | 10%–150%        |                                                             |
+| Setting           | Range          | Notes                                                         |
+| ----------------- | -------------- | ------------------------------------------------------------- |
+| Render distance   | 2–16 chunks    | Moves the fog and the horizon with it                          |
+| Field of view     | 60°–110°       | Sprinting and crouching still widen and narrow it from there   |
+| Shaders           | Off, Realistic | See [Realistic shaders](#realistic-shaders)                    |
+| GUI scale         | 75%–150%       | On top of the scale the window size already picks              |
+| Show FPS          | On, off        | A frame rate readout in the corner while playing               |
+| Master volume     | 0–100%         |                                                                |
+| Mouse sensitivity | 20%–300%       |                                                                |
 
-Every one of them applies as the slider moves, and the pause menu only dims the world rather than covering it,
-so a setting can be judged against the thing it changes. They are written to `options.txt` next to the
-executable when you leave the screen.
+Every one of them applies the moment it changes, and the pause menu only dims the world rather than covering it,
+so a setting can be judged against the thing it changes. They are written to `options.txt`, in the same folder
+as your worlds, when you leave the screen.
+
+### Realistic shaders
+
+`Shaders` switches between the original look and a realistic one, with no restart and no reload. Realistic
+lights the world from wherever the sun or moon actually is in the sky, warm at sunrise and sunset and a cool
+dim blue by night, and casts soft shadows over the nearest hundred and sixty or so blocks. Leaves and plants
+sway in the wind, water ripples, reflects the sky and catches the sun, the sky gains a glowing sun disc, a moon
+and stars, and bright light blooms. Off is the original pipeline untouched and costs nothing extra: none of the
+realistic one is created until it is first switched on. Realistic asks more of the GPU, so judge it against
+your render distance.
 
 Changing the render distance while playing takes effect immediately, on a server as well as in a singleplayer
 world: the client asks, and the server is what decides how much of the world to send.
 
 ## Saved worlds
 
-Worlds live in `saves/<name>/` next to the executable, and are written by whichever side runs the server, so
-singleplayer and a dedicated server save identically. A world is saved when a chunk unloads, every 60 seconds,
+Worlds live in `saves/<name>/` inside `%APPDATA%\MinecraftClone`, beside `options.txt`, and are written by
+whichever side runs the server, so singleplayer and a dedicated server save identically. A copy of the game
+whose folder already holds a `saves` directory, an `options.txt` or an empty `portable.txt` keeps everything
+beside the executable instead, which is how an install from before this change carries on finding its worlds
+and how a copy on a USB stick stays self contained. Setting the `MINECRAFT_CLONE_DATA` environment variable to
+a folder overrides both. A world is saved when a chunk unloads, every 60 seconds,
 and on a clean exit — leave through the pause menu or by closing the window rather than killing the process, or
 anything since the last autosave is lost.
 
@@ -353,16 +399,26 @@ Only chunks that were actually modified are stored; everything else is regenerat
 
 ## Layout
 
-| Project          | Purpose                |
-| ---------------- | ---------------------- |
-| `Minecraft.Core` | Engine library         |
-| `Minecraft.App`  | Executable entry point |
+| Project           | Purpose                                    |
+| ----------------- | ------------------------------------------ |
+| `Minecraft.Core`  | Engine library                             |
+| `Minecraft.App`   | Executable entry point                     |
+| `Minecraft.Tests` | Tests that need neither a window nor a GPU |
 
 The directories inside `Minecraft.Core` are listed in [DESIGN.md](DESIGN.md#project-layout).
 
+## Releases
+
+Pushing a tag such as `v0.2.0` runs the release workflow, which builds and tests the tagged commit, stamps the
+version into the game, and publishes the two zips and their checksums as a GitHub release. A tag with a suffix,
+such as `v0.2.0-beta.1`, becomes a prerelease. The notes come from that version's section in
+[CHANGELOG.md](CHANGELOG.md), followed by the pull requests merged since the last release.
+[CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release) has the steps.
+
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), and read [DESIGN.md](DESIGN.md) first if you are touching world
+See [CONTRIBUTING.md](CONTRIBUTING.md),
+ and read [DESIGN.md](DESIGN.md) first if you are touching world
 generation — determinism there is load bearing, and the rules are written down.
 
 ## Credits

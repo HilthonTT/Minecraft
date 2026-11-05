@@ -12,9 +12,11 @@ How the engine works. For building and playing it, see [README.md](README.md).
 - [Lighting](#lighting)
 - [Inventory](#inventory)
 - [Rendering](#rendering)
+- [Interface](#interface)
 - [Particles](#particles)
 - [Mobs](#mobs)
 - [Sound](#sound)
+- [Releases](#releases)
 - [Noise](#noise)
 
 ## Project layout
@@ -48,7 +50,7 @@ Inside `Minecraft.Core`:
 | `Shaders/`           | GLSL programs and their typed wrappers                                     |
 | `Shapes/`            | Block and entity model geometry, and the registries that hold it           |
 | `Textures/`          | Texture atlas, texture loading and the offscreen framebuffer               |
-| `Utilities/`         | Only what belongs to no one caller: math, noise, directions, object pool   |
+| `Utilities/`         | Only what belongs to no one caller: math, noise, directions, object pool, where player data lives, the build's version |
 | `Worlds/`            | The world itself, and the client and server halves of it                   |
 | `Worlds/Biomes/`     | The biomes and the climate map that decides between them                   |
 | `Worlds/Blocks/`     | Block types, their states and the registry and palette that number them    |
@@ -296,9 +298,16 @@ the only mode it was ever played in.
 ## Settings
 
 `GameSettings` holds what one player prefers of the game, as against `Constants`, which is what the game is. It
-lives in `options.txt` beside the executable, in the same plain `key=value` text a `level.dat` uses, and is
-read before anything built from it — the camera is constructed with the chosen field of view rather than being
-corrected to it afterwards.
+lives in `options.txt` in the player's data folder, in the same plain `key=value` text a `level.dat` uses, and
+is read before anything built from it — the camera is constructed with the chosen field of view rather than
+being corrected to it afterwards.
+
+The data folder, which also holds `saves/`, is decided once by `UserData`. It is `%APPDATA%\MinecraftClone`,
+so that a release unzipped into a fresh folder finds the worlds the last one made. Anything already living
+beside the executable wins over that — a `saves` directory, an `options.txt`, or an empty `portable.txt` put
+there on purpose — because a copy that has always kept its worlds next to itself must not appear to have lost
+them after an update. `MINECRAFT_CLONE_DATA` overrides both, which is what a test or a second install wants.
+Shipped assets are a different thing and are still read from beside the executable through `Assets`.
 
 Every setting applies the moment it changes rather than at the next world, which is why the options screen dims
 the world instead of covering it: a render distance or a field of view can be judged against the thing it
@@ -669,6 +678,47 @@ ever be, so terrain dissolves into the sky instead of ending along a line. The l
 measuring the fog as a radius also closes it over the corners first, and what is left visible reads as a circle
 rather than as four straight edges.
 
+### Realistic shaders
+
+`Options` → `Shaders` switches between two pipelines while the game runs. Off is the original one, unchanged:
+the world shader, the skydome and a vignette pass over an eight bit framebuffer. Realistic is a
+`RealisticPipeline`, built the first time it is asked for, so a player who never turns it on never pays for
+its programs or its buffers. Turning it off again hands back the float framebuffer and the bloom buffers, which
+are what take the memory, and keeps the programs for the next time. `MasterRenderer` reads the setting
+each frame and draws through whichever is current, which is what lets it change under a moving camera.
+
+Both draw the same chunk meshes. The vertex's packed illumination had two bits spare at the top, and the mesher
+now writes a material into them — solid, leaves, plant or water — which the original shader masks off and the
+realistic one reads to decide what sways and what ripples. Leaves move as a whole and plants only at their top
+corners, so a stalk stays rooted; sugar cane and cactus stack, and are left still so the pieces of one do not
+drift apart.
+
+Light comes from where the sky says the sun or moon is, with the sun's arc tilted some twenty four degrees off
+the vertical so that walls are not all left in the dark at noon. That direct light is laid over the baked sky
+and block light rather than replacing it, so a torch in a cave and smooth lighting's corner shading look as
+they always did, and it warms towards sunrise and sunset and turns to a dim cool moonlight at night.
+
+Shadows come from a 2048 square depth map covering some hundred and sixty blocks, centred a little ahead of the
+camera and moved only in whole texels of itself, so edges do not crawl as the player walks. Only the solid
+part of each chunk inside it is drawn into it, cut out blocks by their texture so a flower casts the shape of
+a flower, and the same sway is applied so a moving leaf and its shadow agree. It is sampled with a three by
+three filter, faded out towards its own edges, and skipped entirely when the sun is too low to cast anything.
+
+Water bends its lighting with four layers of moving waves without moving a single vertex, reflects the sky's
+colour more the flatter it is looked across, and carries a glint of the sun bright enough to bloom. Under
+water and underground the reflection is left out, because there is no sky there for it to show.
+
+The frame is drawn into a sixteen bit float target so the sun and its glint can be brighter than white. A
+quarter resolution pass picks out what is brightest and blurs it into bloom, and the final pass rolls off
+highlights with a curve that leaves the mid tones where the original pipeline puts them — a full filmic curve
+was tried and crushed the shadows — before a mild grade and the vignette. The interface is drawn after all of
+that, so neither pipeline tints the menus.
+
+The fog keeps the distances it always had, so terrain still dissolves exactly at the edge of the loaded world,
+and takes on the glow around the sun when looking towards it so the horizon meets the sky in the same colour.
+Mobs and dropped items go through their own shaders and are graded with everything else, but do not receive
+shadows.
+
 ### The block in hand
 
 The held block is whatever is in the selected hotbar slot, so this and the bar along the bottom of the screen
@@ -688,6 +738,37 @@ block, its state or the light where the player is standing changes, which is wha
 cave go dark with the room around it without rebuilding anything per frame.
 
 ![A wide grassland of long grass and flowers under a clear sky with a plank platform built out across it, the hotbar along the bottom of the screen with a torch selected in the first slot and that torch held in the corner of the view](Screenshots/sample-11.png)
+
+## Interface
+
+Every screen is a `UICanvas` of components in pixels, and those pixels are scaled. `UIScale` picks a factor
+from the window — the smaller of its height against 720 and its width against 1000 — and multiplies the GUI
+scale setting into it, so the interface grows with the window and still fits a short one. Mouse positions and
+the item icons drawn into slots are converted between the window and the canvas through it, which is the one
+place the two meet.
+
+Looks are kept in one place: `UITheme` holds the palette, spacing and text sizes, `UIPanel` and `UISurface`
+draw cards and bevelled buttons, and `UIMotion` eases hover, pressed and selection changes on a frame clock so
+nothing snaps. The few images the interface needs — hearts and shanks with their halves, the title backdrop —
+are drawn into textures in code by `UIPixelArt` rather than shipped.
+
+Controls derive from `UIWidget`, which knows about focus. Every screen gives its controls an order, `Tab` and
+the arrow keys walk it, and the focus ring only appears once the keyboard has been used, so it stays out of
+the way of someone using the mouse. A control can claim the arrow keys or typed text for itself, which is how a
+slider or a text box keeps `Left` and `Right`. A button acts when the mouse is released over it rather than
+when it goes down, so a press can still be dragged off and abandoned. `Escape` goes back on every screen, and
+`Enter` presses whatever the screen has marked as its main action.
+
+Text editing lives in `TextEditBuffer`, apart from any drawing, so the text boxes and the chat share one set of
+rules for the caret, selection, word jumps and the clipboard, and those rules are tested without a window.
+
+The options screen is a list of rows, each one a line in its constructor — `Section`, `Slider`, `Toggle` or
+`Cycle`, given a name and a way to read and write its setting. Rows lay themselves out, read their values
+again whenever the screen opens, join the keyboard order, and scroll if there are ever more than fit.
+
+The world list reads each world's `level.dat` and the times on its files to show the mode, how long ago it was
+played and its seed. Deleting puts `Keep It` first and focused, so `Enter` and `Escape` both keep the world,
+and holds `Delete Forever` back for a moment and a half.
 
 ## Particles
 
@@ -866,7 +947,21 @@ The set on disk is far larger than what is used, so only what is reachable is re
 of a second, which is done off the main thread so the window is not held up by it. A machine with no sound
 device logs it once and runs silently rather than refusing to start.
 
+## Releases
+
+A build knows its own version: `Directory.Build.props` sets one for every project, `0.1.0-dev` between
+releases, and the release workflow replaces it with the version in the tag. `GameVersion` reads it back from
+the assembly for the title screen and the window title, so a screenshot in a bug report says which build it
+came from.
+
+Releases are only ever made from a tag. The workflow builds and tests the tagged commit before anything is
+published, then publishes it twice — once leaning on an installed .NET 10 runtime, and once self contained
+and compiled ahead of time for a quicker start — and runs the runtime asset check against both, because a
+shader missing from a zip only shows itself as a crash on launch. Checksums go up beside the zips, and the
+notes are that version's section of `CHANGELOG.md` followed by GitHub's own list of what was merged.
+
 ## Noise
+
 
 Four generators live in `Minecraft.Core.Utilities.Noise`, all returning values in `[-1, 1]`, with `Noise01` for
 the `[0, 1]` range that height maps usually want. The single octave fields are zero on the integer lattice, so
