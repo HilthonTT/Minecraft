@@ -20,10 +20,14 @@ public sealed class GameSettings
 
     public const float DefaultFieldOfViewDegrees = 86F;
 
+    private const string RealisticShadersValue = "realistic";
+    private const string NoShadersValue = "off";
+
     private int _renderDistanceChunks = Constants.VIEW_DISTANCE_CHUNKS;
     private float _fieldOfViewDegrees = DefaultFieldOfViewDegrees;
     private float _masterVolume = 1.0F;
     private float _mouseSensitivity = 1.0F;
+    private bool _realisticShaders;
 
     public event Action? OnChangedHandler;
 
@@ -49,6 +53,12 @@ public sealed class GameSettings
     {
         get => _mouseSensitivity;
         set => Set(ref _mouseSensitivity, Math.Clamp(value, MinMouseSensitivity, MaxMouseSensitivity));
+    }
+
+    public bool RealisticShaders
+    {
+        get => _realisticShaders;
+        set => Set(ref _realisticShaders, value);
     }
 
     public float FieldOfViewRadians => MathHelper.DegreesToRadians(_fieldOfViewDegrees);
@@ -114,6 +124,7 @@ public sealed class GameSettings
                     "fov=" + _fieldOfViewDegrees.ToString("0.#", CultureInfo.InvariantCulture),
                     "volume=" + _masterVolume.ToString("0.###", CultureInfo.InvariantCulture),
                     "sensitivity=" + _mouseSensitivity.ToString("0.###", CultureInfo.InvariantCulture),
+                    "shaders=" + (_realisticShaders ? RealisticShadersValue : NoShadersValue),
                 ]);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -154,6 +165,18 @@ public sealed class GameSettings
                 if (TryParseFloat(value, out float sensitivity))
                 {
                     MouseSensitivity = sensitivity;
+                }
+
+                break;
+
+            case "shaders":
+                if (value.Equals(RealisticShadersValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    RealisticShaders = true;
+                }
+                else if (value.Equals(NoShadersValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    RealisticShaders = false;
                 }
 
                 break;

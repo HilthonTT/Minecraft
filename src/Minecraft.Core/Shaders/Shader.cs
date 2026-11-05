@@ -82,6 +82,11 @@ public abstract class Shader
         GL.Uniform3(location, vector);
     }
 
+    public void LoadVector(int location, Vector2 vector)
+    {
+        GL.Uniform2(location, vector);
+    }
+
     public void LoadMatrix(int location, Matrix4 matrix)
     {
         GL.UniformMatrix4(location, false, ref matrix);

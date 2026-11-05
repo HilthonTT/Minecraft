@@ -1,6 +1,6 @@
+using System.Globalization;
 using Minecraft.Core.Games;
 using OpenTK.Mathematics;
-using System.Globalization;
 
 namespace Minecraft.Core.Render.UI.Presets;
 
@@ -16,6 +16,7 @@ public sealed class UICanvasOptions : UICanvasMenu
     private readonly UISlider _fieldOfView;
     private readonly UISlider _volume;
     private readonly UISlider _sensitivity;
+    private readonly UIButton _shadersButton;
     private readonly UIButton _backButton;
 
     protected override float MaxRowWidth => 460;
@@ -48,6 +49,8 @@ public sealed class UICanvasOptions : UICanvasMenu
             GameSettings.MaxMouseSensitivity,
             value => Percentage(value / 2F));
 
+        _shadersButton = new UIButton(this, ShadersLabel(_settings.RealisticShaders));
+
         _backButton = new UIButton(this, "Done");
 
         Layout();
@@ -61,6 +64,7 @@ public sealed class UICanvasOptions : UICanvasMenu
         _fieldOfView.Value = _settings.FieldOfViewDegrees;
         _volume.Value = _settings.MasterVolume;
         _sensitivity.Value = _settings.MouseSensitivity;
+        _shadersButton.Text = ShadersLabel(_settings.RealisticShaders);
     }
 
     public override MenuAction HandleInput(Vector2 mousePosition, bool mousePressed)
@@ -85,6 +89,12 @@ public sealed class UICanvasOptions : UICanvasMenu
             _settings.MouseSensitivity = sensitivity;
         }
 
+        if (_shadersButton.Update(mousePosition, mousePressed))
+        {
+            _settings.RealisticShaders = !_settings.RealisticShaders;
+            _shadersButton.Text = ShadersLabel(_settings.RealisticShaders);
+        }
+
         if (_backButton.Update(mousePosition, mousePressed))
         {
             return MenuAction.Back;
@@ -99,7 +109,7 @@ public sealed class UICanvasOptions : UICanvasMenu
         const int buttonGap = 24;
 
         float sliderColumnHeight = (sliderCount * UISlider.Height) + ((sliderCount - 1) * UISlider.Gap);
-        float columnHeight = sliderColumnHeight + buttonGap + UIButton.Height;
+        float columnHeight = sliderColumnHeight + buttonGap + UIButton.Height + UIButton.Gap + UIButton.Height;
 
         float columnTop = Math.Max(110, (PixelHeight - columnHeight) / 2.0F) + 20;
         var sliderSize = new Vector2(RowWidth, UISlider.Height);
@@ -112,9 +122,17 @@ public sealed class UICanvasOptions : UICanvasMenu
         }
 
         row += buttonGap - UISlider.Gap;
+        _shadersButton.SetBounds(new Vector2(RowLeft, row), new Vector2(RowWidth, UIButton.Height));
+
+        row += UIButton.Height + UIButton.Gap;
         _backButton.SetBounds(new Vector2(RowLeft, row), new Vector2(RowWidth, UIButton.Height));
 
         LayoutFrame(columnTop, columnTop + columnHeight + 24);
+    }
+
+    private static string ShadersLabel(bool realistic)
+    {
+        return realistic ? "Shaders: Realistic" : "Shaders: Off";
     }
 
     private static string Whole(float value)

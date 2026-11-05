@@ -4,6 +4,7 @@ using Minecraft.Core.Logging;
 using Minecraft.Core.Physics;
 using Minecraft.Core.Render.MeshGenerator;
 using Minecraft.Core.Shaders.BasicShader;
+using Minecraft.Core.Shaders.ShadowShader;
 using Minecraft.Core.Shapes;
 using Minecraft.Core.Textures;
 using Minecraft.Core.Utilities;
@@ -71,27 +72,58 @@ public sealed class ChunkRenderer
         _meshGenerationThread.Start();
     }
 
-    public void RenderSolid(World world, Camera camera, in FogState fog)
+    public int TextureAtlasId => _textureAtlas.Id;
+
+    public void RenderSolid(World world, Camera camera, in FogState fog, BasicShader? shaderOverride = null)
     {
-        _shader.Start();
-        _shader.LoadTexture(_shader.LocationTextureAtlas, 0, _textureAtlas.Id);
-        _shader.LoadMatrix(_shader.LocationViewMatrix, camera.CurrentViewMatrix);
-        _shader.LoadVector(_shader.LocationSunColor, world.Environment.GetCurrentSunColor());
-        _shader.LoadVector(_shader.LocationAmbientColor, world.Environment.AmbientColor);
+        BasicShader shader = shaderOverride ?? _shader;
 
-        _shader.LoadVector(_shader.LocationCameraPosition, camera.Position);
-        _shader.LoadVector(_shader.LocationFogColor, fog.Color);
-        _shader.LoadFloat(_shader.LocationFogStart, fog.Start);
-        _shader.LoadFloat(_shader.LocationFogEnd, fog.End);
-        _shader.LoadFloat(_shader.LocationMaterialAlpha, SolidAlpha);
+        shader.Start();
+        shader.LoadTexture(shader.LocationTextureAtlas, 0, _textureAtlas.Id);
+        shader.LoadMatrix(shader.LocationViewMatrix, camera.CurrentViewMatrix);
+        shader.LoadVector(shader.LocationSunColor, world.Environment.GetCurrentSunColor());
+        shader.LoadVector(shader.LocationAmbientColor, world.Environment.AmbientColor);
 
-        DrawChunkModels(camera, liquid: false);
+        shader.LoadVector(shader.LocationCameraPosition, camera.Position);
+        shader.LoadVector(shader.LocationFogColor, fog.Color);
+        shader.LoadFloat(shader.LocationFogStart, fog.Start);
+        shader.LoadFloat(shader.LocationFogEnd, fog.End);
+        shader.LoadFloat(shader.LocationMaterialAlpha, SolidAlpha);
+
+        DrawChunkModels(shader, camera, liquid: false);
     }
 
-    public void RenderLiquid(Camera camera)
+    public void RenderShadowCasters(ShadowShader shader, ShadowMap shadowMap)
     {
-        _shader.Start();
-        _shader.LoadTexture(_shader.LocationTextureAtlas, 0, _textureAtlas.Id);
+        foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
+        {
+            VAOModel? model = chunkToRender.Value.HardBlocksModel;
+            if (model is null || model.IndicesCount == 0)
+            {
+                continue;
+            }
+
+            var min = new Vector3(chunkToRender.Key.X * 16, 0, chunkToRender.Key.Y * 16);
+            Vector3 max = min + new Vector3(16, Constants.MAX_BUILD_HEIGHT, 16);
+            if (!shadowMap.Covers(min, max))
+            {
+                continue;
+            }
+
+            model.BindVAO();
+            shader.LoadMatrix(shader.LocationTransformationMatrix, chunkToRender.Value.TransformationMatrix);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, model.IndicesCount);
+        }
+
+        VAOModel.UnbindVAO();
+    }
+
+    public void RenderLiquid(Camera camera, BasicShader? shaderOverride = null)
+    {
+        BasicShader shader = shaderOverride ?? _shader;
+
+        shader.Start();
+        shader.LoadTexture(shader.LocationTextureAtlas, 0, _textureAtlas.Id);
 
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -100,8 +132,8 @@ public sealed class ChunkRenderer
 
         GL.Disable(EnableCap.CullFace);
 
-        _shader.LoadFloat(_shader.LocationMaterialAlpha, WaterAlpha);
-        DrawChunkModels(camera, liquid: true);
+        shader.LoadFloat(shader.LocationMaterialAlpha, WaterAlpha);
+        DrawChunkModels(shader, camera, liquid: true);
 
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);
@@ -109,7 +141,7 @@ public sealed class ChunkRenderer
         GL.Disable(EnableCap.Blend);
     }
 
-    private void DrawChunkModels(Camera camera, bool liquid)
+    private void DrawChunkModels(BasicShader shader, Camera camera, bool liquid)
     {
         foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
         {
@@ -130,7 +162,7 @@ public sealed class ChunkRenderer
             }
 
             model.BindVAO();
-            _shader.LoadMatrix(_shader.LocationTransformationMatrix, chunkToRender.Value.TransformationMatrix);
+            shader.LoadMatrix(shader.LocationTransformationMatrix, chunkToRender.Value.TransformationMatrix);
             GL.DrawArrays(PrimitiveType.Triangles, 0, model.IndicesCount);
         }
     }

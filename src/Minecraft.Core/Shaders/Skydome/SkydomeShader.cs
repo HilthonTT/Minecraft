@@ -1,12 +1,17 @@
 ﻿namespace Minecraft.Core.Shaders.Skydome;
 
-public sealed class SkydomeShader : Shader
+public class SkydomeShader : Shader
 {
     private const string VertexFile = "Shaders/Skydome/vs_skydome.glsl";
     private const string FragmentFile = "Shaders/Skydome/fs_skydome.glsl";
 
     public SkydomeShader()
         : base(VertexFile, FragmentFile)
+    {
+    }
+
+    protected SkydomeShader(string vertexFile, string fragmentFile)
+        : base(vertexFile, fragmentFile)
     {
     }
 

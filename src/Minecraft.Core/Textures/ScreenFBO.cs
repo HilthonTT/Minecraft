@@ -9,26 +9,55 @@ public sealed class ScreenFBO
 
     private int _renderBuffer;
 
+    private bool _highDynamicRange;
+
     public int ColorTextureID { get; private set; }
 
     public int NormalDepthTextureID { get; private set; }
+
+    public int Width { get; private set; }
+
+    public int Height { get; private set; }
+
+    public bool IsHighDynamicRange => _highDynamicRange;
 
     public ScreenFBO(int screenWidth, int screenHeight)
     {
         CreateFBO(screenWidth, screenHeight);
     }
 
+    public void SetHighDynamicRange(bool highDynamicRange)
+    {
+        if (_highDynamicRange == highDynamicRange)
+        {
+            return;
+        }
+
+        _highDynamicRange = highDynamicRange;
+        AdjustToWindowSize(Width, Height);
+    }
+
     private void CreateFBO(int screenWidth, int screenHeight)
     {
         screenWidth = Math.Max(1, screenWidth);
         screenHeight = Math.Max(1, screenHeight);
+        Width = screenWidth;
+        Height = screenHeight;
 
         _fbo = GL.GenFramebuffer();
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _fbo);
 
         ColorTextureID = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, ColorTextureID);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, screenWidth, screenHeight, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+        if (_highDynamicRange)
+        {
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba16f, screenWidth, screenHeight, 0, PixelFormat.Rgba, PixelType.HalfFloat, IntPtr.Zero);
+        }
+        else
+        {
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, screenWidth, screenHeight, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+        }
+
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);

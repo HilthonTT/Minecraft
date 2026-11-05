@@ -1,9 +1,10 @@
-﻿using Minecraft.Core.Games;
+﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Games;
+using Minecraft.Core.Shaders.RealisticShader;
 using Minecraft.Core.Shaders.Skydome;
 using Minecraft.Core.Utilities;
 using Minecraft.Core.Utilities.Models;
 using OpenTK.Graphics.OpenGL;
-using Minecraft.Core.Entities;
 
 namespace Minecraft.Core.Render;
 
@@ -21,32 +22,42 @@ public sealed class Skydome
         _skydomeModel = new VAOModel(model.positions, model.indices);
     }
 
-    public void Render()
+    public void Render(RealisticPipeline? realistic = null)
     {
         GL.DepthMask(false);
         GL.Disable(EnableCap.CullFace);
-        _skydomeShader.Start();
+
+        SkydomeShader shader = realistic?.SkyShader ?? _skydomeShader;
+        shader.Start();
 
         Camera activeCamera = _game.MasterRenderer.GetActiveCamera();
-        _skydomeShader.LoadMatrix(_skydomeShader.LocationProjectionMatrix, activeCamera.CurrentViewMatrix.ClearTranslation() * activeCamera.CurrentProjectionMatrix);
+        shader.LoadMatrix(shader.LocationProjectionMatrix, activeCamera.CurrentViewMatrix.ClearTranslation() * activeCamera.CurrentProjectionMatrix);
 
         var environment = _game.World.Environment;
-        _skydomeShader.LoadInt(_skydomeShader.LocationCurrentTime, (int)environment.CurrentTime);
-        _skydomeShader.LoadVector(_skydomeShader.LocationSunPosition, environment.SunPosition);
-        _skydomeShader.LoadVector(_skydomeShader.LocationTopSkyColor, environment.GetCurrentTopSkyColor());
-        _skydomeShader.LoadVector(_skydomeShader.LocationBottomSkyColor, environment.GetCurrentBottomSkyColor());
-        _skydomeShader.LoadVector(_skydomeShader.LocationHorizonColor, environment.GetCurrentHorizonColor());
-        _skydomeShader.LoadVector(_skydomeShader.LocationSunColor, environment.GetCurrentSunColor());
-        _skydomeShader.LoadVector(_skydomeShader.LocationSunGlowColor, environment.GetCurrentSunGlowColor());
-        _skydomeShader.LoadVector(_skydomeShader.LocationMoonColor, environment.GetCurrentMoonColor());
-        _skydomeShader.LoadVector(_skydomeShader.LocationMoonGlowColor, environment.GetCurrentMoonGlowColor());
+        shader.LoadInt(shader.LocationCurrentTime, (int)environment.CurrentTime);
+        shader.LoadVector(shader.LocationSunPosition, environment.SunPosition);
+        shader.LoadVector(shader.LocationTopSkyColor, environment.GetCurrentTopSkyColor());
+        shader.LoadVector(shader.LocationBottomSkyColor, environment.GetCurrentBottomSkyColor());
+        shader.LoadVector(shader.LocationHorizonColor, environment.GetCurrentHorizonColor());
+        shader.LoadVector(shader.LocationSunColor, environment.GetCurrentSunColor());
+        shader.LoadVector(shader.LocationSunGlowColor, environment.GetCurrentSunGlowColor());
+        shader.LoadVector(shader.LocationMoonColor, environment.GetCurrentMoonColor());
+        shader.LoadVector(shader.LocationMoonGlowColor, environment.GetCurrentMoonGlowColor());
 
-        _skydomeShader.LoadTexture(_skydomeShader.LocationDitherTexture, 0, _game.MasterRenderer.DitherTextureId);
+        if (realistic is not null)
+        {
+            RealisticSkyShader realisticShader = realistic.SkyShader;
+            realisticShader.LoadVector(realisticShader.LocationSunPosition, realistic.Lighting.SunDirection);
+            realisticShader.LoadFloat(realisticShader.LocationAnimationTime, realistic.AnimationTime);
+            realisticShader.LoadFloat(realisticShader.LocationDaylight, realistic.Lighting.Daylight);
+        }
+
+        shader.LoadTexture(shader.LocationDitherTexture, 0, _game.MasterRenderer.DitherTextureId);
 
         _skydomeModel.BindVAO();
         GL.DrawElements(PrimitiveType.Triangles, _skydomeModel.IndicesCount, DrawElementsType.UnsignedInt, 0);
         VAOModel.UnbindVAO();
-        _skydomeShader.Stop();
+        shader.Stop();
 
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(TriangleFace.Back);

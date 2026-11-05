@@ -40,6 +40,8 @@ public sealed class MasterRenderer
     private readonly ParticleSystem _particleSystem = new();
     private readonly ParticleRenderer _particleRenderer;
 
+    private RealisticPipeline? _realisticPipeline;
+
     public ChunkRenderer Chunks { get; }
 
     public ParticleDirector Particles { get; }
@@ -137,6 +139,11 @@ public sealed class MasterRenderer
 
         Camera camera = _cameraController.Camera;
 
+        RealisticPipeline? realistic = _game.Settings.RealisticShaders ? GetRealisticPipeline() : null;
+        _screenQuad.SetRealistic(realistic is not null);
+
+        realistic?.Prepare(world, camera, _fog, Chunks, _textureAtlas.Id, _screenQuad.Width, _screenQuad.Height);
+
         GL.Enable(EnableCap.DepthTest);
         _screenQuad.Bind();
 
@@ -153,17 +160,17 @@ public sealed class MasterRenderer
 
         if (!_fog.CameraSubmerged)
         {
-            _skydome.Render();
+            _skydome.Render(realistic);
         }
 
-        Chunks.RenderSolid(world, camera, _fog);
+        Chunks.RenderSolid(world, camera, _fog, realistic?.WorldShader);
         _entityRenderer.Render(world, camera, _fog);
 
         _droppedItemRenderer.Render(world, camera, _fog.Color, _fog.Start, _fog.End);
 
         _particleRenderer.Render(_particleSystem, camera, world, _fog.Color, _fog.Start, _fog.End);
 
-        Chunks.RenderLiquid(camera);
+        Chunks.RenderLiquid(camera, realistic?.WorldShader);
 
         GL.Enable(EnableCap.Blend);
         GL.Disable(EnableCap.CullFace);
@@ -173,13 +180,35 @@ public sealed class MasterRenderer
 
         _heldItemRenderer.Render(world, camera);
 
+        if (realistic is not null)
+        {
+            GL.Disable(EnableCap.Blend);
+            _screenQuad.Unbind();
+            _screenQuad.RenderRealisticToScreen();
+            GL.Enable(EnableCap.Blend);
+        }
+
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         RenderInterface();
         GL.Disable(EnableCap.Blend);
         GL.Enable(EnableCap.CullFace);
 
-        _screenQuad.Unbind();
-        _screenQuad.RenderToScreen();
+        if (realistic is null)
+        {
+            _screenQuad.Unbind();
+            _screenQuad.RenderToScreen();
+        }
+    }
+
+    private RealisticPipeline GetRealisticPipeline()
+    {
+        if (_realisticPipeline is null)
+        {
+            _realisticPipeline = new RealisticPipeline();
+            _realisticPipeline.UploadProjectionMatrix(GetActiveCamera().CurrentProjectionMatrix);
+        }
+
+        return _realisticPipeline;
     }
 
     public void RenderInterfaceOnly()
@@ -248,6 +277,7 @@ public sealed class MasterRenderer
         _cameraController.Update();
         _heldItemRenderer.Update(deltaTime);
         _droppedItemRenderer.Update(deltaTime);
+        _realisticPipeline?.Update(deltaTime);
     }
 
     private void OnPlayerCameraProjectionChanged(ProjectionMatrixInfo projectionInfo)
@@ -263,6 +293,7 @@ public sealed class MasterRenderer
         _basicShader.Start();
         _basicShader.LoadMatrix(_basicShader.LocationProjectionMatrix, GetActiveCamera().CurrentProjectionMatrix);
         _entityRenderer.UploadProjectionMatrix(GetActiveCamera().CurrentProjectionMatrix);
+        _realisticPipeline?.UploadProjectionMatrix(GetActiveCamera().CurrentProjectionMatrix);
     }
 
     public void CleanUp()
@@ -279,6 +310,7 @@ public sealed class MasterRenderer
         _wireframeRenderer.CleanUp();
         _screenQuad.CleanUp();
         _skydome.CleanUp();
+        _realisticPipeline?.CleanUp();
         TextureLoader.Cleanup();
     }
 

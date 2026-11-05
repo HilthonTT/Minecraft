@@ -92,6 +92,7 @@ public sealed class ChunkMeshGenerator : MeshGenerator
         BlockModel blockModel = _blockModelRegistry.Models[block.Id];
 
         TargetLiquidBuffers(block.IsTranslucent);
+        SetMaterial(VertexMaterials.For(block));
 
         int worldY = sectionLocalY + sectionHeight * 16;
         var chunkLocalPos = new Vector3i(localX, worldY, localZ);

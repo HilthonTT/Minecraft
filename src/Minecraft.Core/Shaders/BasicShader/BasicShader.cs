@@ -1,12 +1,17 @@
 ﻿namespace Minecraft.Core.Shaders.BasicShader;
 
-public sealed class BasicShader : Shader
+public class BasicShader : Shader
 {
     private const string VertexFile = "Shaders/BasicShader/vertexShader.glsl";
     private const string FragmentFile = "Shaders/BasicShader/fragmentShader.glsl";
 
     public BasicShader()
     : base(VertexFile, FragmentFile)
+    {
+    }
+
+    protected BasicShader(string vertexFile, string fragmentFile)
+    : base(vertexFile, fragmentFile)
     {
     }
 

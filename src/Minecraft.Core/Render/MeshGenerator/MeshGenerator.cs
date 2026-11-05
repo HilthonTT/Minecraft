@@ -20,6 +20,8 @@ public abstract class MeshGenerator
 
     private MeshBuffers _target;
 
+    private VertexMaterial _material;
+
     protected MeshGenerator(BlockModelRegistry blockModelRegistry)
     {
         _blockModelRegistry = blockModelRegistry;
@@ -45,6 +47,11 @@ public abstract class MeshGenerator
         _target = liquid ? _liquidBuffers : _opaqueBuffers;
     }
 
+    protected void SetMaterial(VertexMaterial material)
+    {
+        _material = material;
+    }
+
     protected ChunkMesh BuildChunkMesh()
     {
         return new ChunkMesh
@@ -59,6 +66,7 @@ public abstract class MeshGenerator
         _opaqueBuffers.Clear();
         _liquidBuffers.Clear();
         _target = _opaqueBuffers;
+        _material = VertexMaterial.Solid;
     }
 
     private void AddVector3(Vector3 vector)
@@ -131,7 +139,10 @@ public abstract class MeshGenerator
 
         foreach (int index in order)
         {
-            _target.Lights[_target.LightsPointer++] = lights[index].GetStorage();
+            _target.Lights[_target.LightsPointer++] = VertexMaterials.Pack(
+                lights[index].GetStorage(),
+                _material,
+                face.Positions[index].Y);
         }
 
         for (int i = 0; i < 6; i++)
