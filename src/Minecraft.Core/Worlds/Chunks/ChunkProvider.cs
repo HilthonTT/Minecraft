@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Entities.Player;
+﻿using System.Diagnostics;
+using Minecraft.Core.Entities.Player;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Network.Packets;
 using Minecraft.Core.Network.Session;
@@ -18,6 +19,10 @@ public sealed class ChunkProvider
     }
 
     private const int MaxVelocitySquaredForLoading = 7225;
+
+    private const int MaxChunksInFlight = 16;
+
+    private const double HandOverBudgetMilliseconds = 3.0;
 
     private readonly ServerSession _session;
 
@@ -232,9 +237,18 @@ public sealed class ChunkProvider
 
     public void Update()
     {
-        HandleReceivedChunk();
+        long start = Stopwatch.GetTimestamp();
+        while (HandleReceivedChunk() &&
+               Stopwatch.GetElapsedTime(start).TotalMilliseconds < HandOverBudgetMilliseconds)
+        {
+        }
 
-        if (_player is null || _remainingChunkRequests.Count == 0)
+        RequestChunks(start);
+    }
+
+    private void RequestChunks(long start)
+    {
+        if (_player is null)
         {
             return;
         }
@@ -253,24 +267,40 @@ public sealed class ChunkProvider
                 velocitySquared);
         }
 
-        if (_remainingChunkRequests.Peek().DistanceToPlayer <= chunkDist)
+        World? playerWorld = _player.World;
+        if (playerWorld is null)
         {
-            World? playerWorld = _player.World;
-            if (playerWorld is not null)
+            return;
+        }
+
+        while (_remainingChunkRequests.Count > 0 &&
+               _remainingChunkRequests.Peek().DistanceToPlayer <= chunkDist &&
+               ChunksInFlight < MaxChunksInFlight &&
+               Stopwatch.GetElapsedTime(start).TotalMilliseconds < HandOverBudgetMilliseconds)
+        {
+            LoadChunk(playerWorld, _remainingChunkRequests.Dequeue().GridPosition);
+        }
+    }
+
+    private int ChunksInFlight
+    {
+        get
+        {
+            lock (_chunkRetrievalLock)
             {
-                LoadChunk(playerWorld, _remainingChunkRequests.Dequeue().GridPosition);
+                return _outgoingChunkRequests.Count + _receivedChunkData.Count;
             }
         }
     }
 
-    private void HandleReceivedChunk()
+    private bool HandleReceivedChunk()
     {
         GenerateChunkOutput output;
         lock (_chunkRetrievalLock)
         {
             if (_receivedChunkData.Count == 0)
             {
-                return;
+                return false;
             }
 
             output = _receivedChunkData.Dequeue();
@@ -284,7 +314,7 @@ public sealed class ChunkProvider
         {
             Logger.Warn("Wasted chunk generation at chunk " + chunkPos);
             output.Discard();
-            return;
+            return true;
         }
 
         if (world.LoadedChunks.TryGetValue(chunkPos, out Chunk? alreadyLoaded))
@@ -299,7 +329,7 @@ public sealed class ChunkProvider
             }
 
             AddPresenceToChunkInWorld(world, alreadyLoaded);
-            return;
+            return true;
         }
 
         if (chunk.GridX != (int)chunkPos.X || chunk.GridZ != (int)chunkPos.Y || !world.ChunkPool.IsLentOut(chunk))
@@ -307,10 +337,11 @@ public sealed class ChunkProvider
             Logger.Warn("Chunk " + chunkPos + " was unloaded again before this session could use it. Asking for it once more.");
             output.Discard();
             LoadChunk(world, chunkPos);
-            return;
+            return true;
         }
 
         output.Adopt();
         AddPresenceToChunkInWorld(world, chunk);
+        return true;
     }
 }

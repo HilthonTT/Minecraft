@@ -36,6 +36,27 @@ public sealed class MeshBuffersTests
     }
 
     [Fact]
+    public void ALayoutKeepsItsVerticesWhenTheBuffersAreReused()
+    {
+        var buffers = new MeshBuffers(3);
+        buffers.EnsureRoomForVertices(1);
+        buffers.Positions[buffers.PositionsPointer++] = 7F;
+        buffers.Lights[buffers.LightsPointer++] = 7u;
+        buffers.IndicesCount++;
+
+        ChunkBufferLayout layout = buffers.ToLayout();
+
+        buffers.Clear();
+        buffers.EnsureRoomForVertices(1);
+        buffers.Positions[buffers.PositionsPointer++] = 99F;
+        buffers.Lights[buffers.LightsPointer++] = 99u;
+
+        Assert.Equal(7F, layout.VertexPositions[0]);
+        Assert.Equal(7u, layout.VertexLights[0]);
+        Assert.Equal(layout.PositionsPointer, layout.VertexPositions.Length);
+    }
+
+    [Fact]
     public void ClearingKeepsTheGrownCapacity()
     {
         var buffers = new MeshBuffers(3);

@@ -17,6 +17,8 @@ public sealed class Client
     // Well inside the timeout, so that a keep-alive delayed by a busy link still lands in time.
     private const float KeepAliveIntervalSeconds = 10;
 
+    private const double PacketBudgetMilliseconds = 6.0;
+
     private readonly Game _game;
 
     private readonly Lock _writePacketLock = new();
@@ -148,9 +150,15 @@ public sealed class Client
             return;
         }
 
+        long start = Stopwatch.GetTimestamp();
         while (_toProcessPackets.TryDequeue(out Packet? packet))
         {
             packet.Process(_session.NetHandler);
+
+            if (Stopwatch.GetElapsedTime(start).TotalMilliseconds >= PacketBudgetMilliseconds)
+            {
+                break;
+            }
         }
     }
 

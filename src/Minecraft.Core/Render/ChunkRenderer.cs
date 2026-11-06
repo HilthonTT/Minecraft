@@ -1,4 +1,5 @@
-﻿using Minecraft.Core.Entities;
+﻿using System.Diagnostics;
+using Minecraft.Core.Entities;
 using Minecraft.Core.Games;
 using Minecraft.Core.Logging;
 using Minecraft.Core.Physics;
@@ -29,7 +30,19 @@ public sealed class ChunkRenderer
 
     private const float SolidAlpha = 1.0F;
 
-    private const int MeshGenerationIdleMilliseconds = 5;
+    private const int MeshWorkerWaitMilliseconds = 50;
+
+    private const int MaxReadyMeshes = 32;
+
+    private const double UploadBudgetMilliseconds = 4.0;
+
+    private const double NeighbourWaitMilliseconds = 250.0;
+
+    private static readonly Comparison<(float Distance, RenderChunk Chunk)> _nearestFirst =
+        (left, right) => left.Distance.CompareTo(right.Distance);
+
+    private static readonly Comparison<(float Distance, RenderChunk Chunk)> _farthestFirst =
+        (left, right) => right.Distance.CompareTo(left.Distance);
 
     private readonly Game _game;
     private readonly BasicShader _shader;
@@ -37,12 +50,16 @@ public sealed class ChunkRenderer
     private readonly ChunkMeshGenerator _meshGenerator;
 
     private readonly Dictionary<Vector2, RenderChunk> _toRenderChunks = [];
+    private readonly List<(float Distance, RenderChunk Chunk)> _drawOrder = [];
 
-    private readonly LinkedList<Chunk> _toRemeshChunksQueue = new();
+    private readonly LinkedList<Chunk> _urgentRemeshQueue = new();
+    private readonly List<Chunk> _remeshBacklog = [];
     private readonly HashSet<Chunk> _toRemeshChunksSet = [];
+    private readonly Queue<ChunkRemeshLayout> _readyMeshes = new();
+    private readonly AutoResetEvent _meshWorkAvailable = new(false);
 
-    private ChunkRemeshLayout _availableChunkMesh;
-    private bool _chunkAvailableToRemesh;
+    private Vector2 _meshFocus;
+    private long _lastBacklogPick;
 
     private int _worldGeneration;
 
@@ -143,13 +160,15 @@ public sealed class ChunkRenderer
 
     private void DrawChunkModels(BasicShader shader, Camera camera, bool liquid)
     {
+        _drawOrder.Clear();
+
         foreach (KeyValuePair<Vector2, RenderChunk> chunkToRender in _toRenderChunks)
         {
             VAOModel? model = liquid
                 ? chunkToRender.Value.LiquidBlocksModel
                 : chunkToRender.Value.HardBlocksModel;
 
-            if (model is null)
+            if (model is null || model.IndicesCount == 0)
             {
                 continue;
             }
@@ -161,8 +180,19 @@ public sealed class ChunkRenderer
                 continue;
             }
 
+            float offsetX = min.X + 8 - camera.Position.X;
+            float offsetZ = min.Z + 8 - camera.Position.Z;
+            _drawOrder.Add(((offsetX * offsetX) + (offsetZ * offsetZ), chunkToRender.Value));
+        }
+
+        _drawOrder.Sort(liquid ? _farthestFirst : _nearestFirst);
+
+        foreach ((float _, RenderChunk renderChunk) in _drawOrder)
+        {
+            VAOModel model = liquid ? renderChunk.LiquidBlocksModel! : renderChunk.HardBlocksModel!;
+
             model.BindVAO();
-            shader.LoadMatrix(shader.LocationTransformationMatrix, chunkToRender.Value.TransformationMatrix);
+            shader.LoadMatrix(shader.LocationTransformationMatrix, renderChunk.TransformationMatrix);
             GL.DrawArrays(PrimitiveType.Triangles, 0, model.IndicesCount);
         }
     }
@@ -186,27 +216,31 @@ public sealed class ChunkRenderer
     {
         while (_isRunning)
         {
-            Thread.Sleep(MeshGenerationIdleMilliseconds);
-
-            Chunk chunk;
-            int generation;
-            World world;
-            Vector2 chunkGridPosition;
+            Chunk? chunk = null;
+            int generation = 0;
+            World? world = null;
+            Vector2 chunkGridPosition = default;
             lock (_meshLock)
             {
-                if (_toRemeshChunksQueue.First is null || _chunkAvailableToRemesh || _game.World is null)
+                if (_game.World is not null && _readyMeshes.Count < MaxReadyMeshes)
                 {
-                    continue;
+                    chunk = TakeNextChunkToMesh();
                 }
 
-                chunk = _toRemeshChunksQueue.First.Value;
-                _toRemeshChunksQueue.RemoveFirst();
-                _toRemeshChunksSet.Remove(chunk);
-                generation = _worldGeneration;
-                world = _game.World;
-                chunkGridPosition = new Vector2(chunk.GridX, chunk.GridZ);
-                _meshingChunk = chunk;
-                _meshingChunkUnloaded = false;
+                if (chunk is not null)
+                {
+                    generation = _worldGeneration;
+                    world = _game.World;
+                    chunkGridPosition = new Vector2(chunk.GridX, chunk.GridZ);
+                    _meshingChunk = chunk;
+                    _meshingChunkUnloaded = false;
+                }
+            }
+
+            if (chunk is null || world is null)
+            {
+                _meshWorkAvailable.WaitOne(MeshWorkerWaitMilliseconds);
+                continue;
             }
 
             ChunkMesh mesh;
@@ -239,54 +273,141 @@ public sealed class ChunkRenderer
                     continue;
                 }
 
-                _availableChunkMesh = new ChunkRemeshLayout
+                _readyMeshes.Enqueue(new ChunkRemeshLayout
                 {
                     ChunkGridPosition = chunkGridPosition,
                     Mesh = mesh,
-                };
-                _chunkAvailableToRemesh = true;
+                });
             }
         }
     }
 
-    public void UploadPendingMesh()
+    private Chunk? TakeNextChunkToMesh()
     {
+        LinkedListNode<Chunk>? urgent = _urgentRemeshQueue.First;
+        if (urgent is not null)
+        {
+            _urgentRemeshQueue.RemoveFirst();
+            _toRemeshChunksSet.Remove(urgent.Value);
+            return urgent.Value;
+        }
+
+        if (_remeshBacklog.Count == 0)
+        {
+            return null;
+        }
+
+        World? world = _game.World;
+        int edgeDistance = _game.Settings.RenderDistanceChunks;
+        bool waitedLongEnough = Stopwatch.GetElapsedTime(_lastBacklogPick).TotalMilliseconds >= NeighbourWaitMilliseconds;
+
+        int nearest = -1;
+        float nearestDistance = float.MaxValue;
+        for (int index = 0; index < _remeshBacklog.Count; index++)
+        {
+            Chunk candidate = _remeshBacklog[index];
+            float offsetX = candidate.GridX - _meshFocus.X;
+            float offsetZ = candidate.GridZ - _meshFocus.Y;
+            float distance = (offsetX * offsetX) + (offsetZ * offsetZ);
+
+            if (distance >= nearestDistance)
+            {
+                continue;
+            }
+
+            bool atEdge = Math.Max(Math.Abs(offsetX), Math.Abs(offsetZ)) >= edgeDistance;
+            if (!waitedLongEnough && !atEdge && world is not null && !HasAllNeighbours(world, candidate))
+            {
+                continue;
+            }
+
+            nearestDistance = distance;
+            nearest = index;
+        }
+
+        if (nearest < 0)
+        {
+            return null;
+        }
+
+        _lastBacklogPick = Stopwatch.GetTimestamp();
+
+        Chunk chunk = _remeshBacklog[nearest];
+        _remeshBacklog[nearest] = _remeshBacklog[^1];
+        _remeshBacklog.RemoveAt(_remeshBacklog.Count - 1);
+        _toRemeshChunksSet.Remove(chunk);
+        return chunk;
+    }
+
+    private static bool HasAllNeighbours(World world, Chunk chunk)
+    {
+        return world.LoadedChunks.ContainsKey(new Vector2(chunk.GridX - 1, chunk.GridZ)) &&
+               world.LoadedChunks.ContainsKey(new Vector2(chunk.GridX + 1, chunk.GridZ)) &&
+               world.LoadedChunks.ContainsKey(new Vector2(chunk.GridX, chunk.GridZ - 1)) &&
+               world.LoadedChunks.ContainsKey(new Vector2(chunk.GridX, chunk.GridZ + 1));
+    }
+
+    public void UploadPendingMeshes(Vector3 focus)
+    {
+        long start = Stopwatch.GetTimestamp();
+        bool uploaded = false;
+
         lock (_meshLock)
         {
-            if (!_chunkAvailableToRemesh)
-            {
-                return;
-            }
-
-            ChunkRemeshLayout chunkMesh = _availableChunkMesh;
-
-            if (_game.World?.LoadedChunks.ContainsKey(chunkMesh.ChunkGridPosition) != true)
-            {
-                _chunkAvailableToRemesh = false;
-                return;
-            }
-
-            if (_toRenderChunks.TryGetValue(chunkMesh.ChunkGridPosition, out RenderChunk? renderChunk))
-            {
-                renderChunk.HardBlocksModel?.CleanUp();
-                renderChunk.LiquidBlocksModel?.CleanUp();
-            }
-            else
-            {
-                renderChunk = new RenderChunk(
-                    (int)chunkMesh.ChunkGridPosition.X,
-                    (int)chunkMesh.ChunkGridPosition.Y);
-                _toRenderChunks.Add(chunkMesh.ChunkGridPosition, renderChunk);
-            }
-
-            renderChunk.HardBlocksModel = new VAOModel(chunkMesh.Mesh.Opaque);
-
-            renderChunk.LiquidBlocksModel = chunkMesh.Mesh.Liquid.IndicesCount > 0
-                ? new VAOModel(chunkMesh.Mesh.Liquid)
-                : null;
-
-            _chunkAvailableToRemesh = false;
+            _meshFocus = new Vector2(MathF.Floor(focus.X / 16), MathF.Floor(focus.Z / 16));
         }
+
+        while (true)
+        {
+            ChunkRemeshLayout chunkMesh;
+            lock (_meshLock)
+            {
+                if (!_readyMeshes.TryDequeue(out chunkMesh))
+                {
+                    break;
+                }
+            }
+
+            Upload(chunkMesh);
+            uploaded = true;
+
+            if (Stopwatch.GetElapsedTime(start).TotalMilliseconds >= UploadBudgetMilliseconds)
+            {
+                break;
+            }
+        }
+
+        if (uploaded)
+        {
+            _meshWorkAvailable.Set();
+        }
+    }
+
+    private void Upload(ChunkRemeshLayout chunkMesh)
+    {
+        if (_game.World?.LoadedChunks.ContainsKey(chunkMesh.ChunkGridPosition) != true)
+        {
+            return;
+        }
+
+        if (_toRenderChunks.TryGetValue(chunkMesh.ChunkGridPosition, out RenderChunk? renderChunk))
+        {
+            renderChunk.HardBlocksModel?.CleanUp();
+            renderChunk.LiquidBlocksModel?.CleanUp();
+        }
+        else
+        {
+            renderChunk = new RenderChunk(
+                (int)chunkMesh.ChunkGridPosition.X,
+                (int)chunkMesh.ChunkGridPosition.Y);
+            _toRenderChunks.Add(chunkMesh.ChunkGridPosition, renderChunk);
+        }
+
+        renderChunk.HardBlocksModel = new VAOModel(chunkMesh.Mesh.Opaque);
+
+        renderChunk.LiquidBlocksModel = chunkMesh.Mesh.Liquid.IndicesCount > 0
+            ? new VAOModel(chunkMesh.Mesh.Liquid)
+            : null;
     }
 
     public void OnChunkLoaded(World world, Chunk chunk)
@@ -296,29 +417,13 @@ public sealed class ChunkRenderer
             MeshChunk(editedLightMapChunk);
         }
 
-        foreach (KeyValuePair<Vector3i, BlockState> lightSource in chunk.LightSourceBlocks)
+        foreach (Chunk editedLightMapChunk in BlockLightPropagation.LightLoadedChunk(world, chunk))
         {
-            foreach (Chunk editedLightMapChunk in
-                     BlockLightPropagation.RepairOnBlockAdded(world, chunk, lightSource.Key, lightSource.Value))
-            {
-                MeshChunk(editedLightMapChunk);
-            }
+            MeshChunk(editedLightMapChunk);
         }
 
         MeshChunk(chunk);
         MeshNeighbourChunks(world, chunk);
-
-        foreach (Chunk neighbourChunk in world.GetCardinalChunks(chunk))
-        {
-            foreach (KeyValuePair<Vector3i, BlockState> lightSource in neighbourChunk.LightSourceBlocks)
-            {
-                foreach (Chunk editedLightMapChunk in
-                         BlockLightPropagation.RepairOnBlockAdded(world, neighbourChunk, lightSource.Key, lightSource.Value))
-                {
-                    MeshChunk(editedLightMapChunk);
-                }
-            }
-        }
     }
 
     public void OnChunkUnloaded(World world, Chunk chunk)
@@ -327,14 +432,18 @@ public sealed class ChunkRenderer
 
         lock (_meshLock)
         {
-            if (_toRemeshChunksSet.Remove(chunk))
+            if (_toRemeshChunksSet.Remove(chunk) && !_urgentRemeshQueue.Remove(chunk))
             {
-                _toRemeshChunksQueue.Remove(chunk);
+                _remeshBacklog.Remove(chunk);
             }
 
-            if (_chunkAvailableToRemesh && _availableChunkMesh.ChunkGridPosition == chunkPos)
+            for (int remaining = _readyMeshes.Count; remaining > 0; remaining--)
             {
-                _chunkAvailableToRemesh = false;
+                ChunkRemeshLayout ready = _readyMeshes.Dequeue();
+                if (ready.ChunkGridPosition != chunkPos)
+                {
+                    _readyMeshes.Enqueue(ready);
+                }
             }
 
             if (_meshingChunk == chunk)
@@ -392,18 +501,25 @@ public sealed class ChunkRenderer
         {
             if (!_toRemeshChunksSet.Add(chunk))
             {
+                if (immediate && _remeshBacklog.Remove(chunk))
+                {
+                    _urgentRemeshQueue.AddLast(chunk);
+                }
+
                 return;
             }
 
             if (immediate)
             {
-                _toRemeshChunksQueue.AddFirst(chunk);
+                _urgentRemeshQueue.AddLast(chunk);
             }
             else
             {
-                _toRemeshChunksQueue.AddLast(chunk);
+                _remeshBacklog.Add(chunk);
             }
         }
+
+        _meshWorkAvailable.Set();
     }
 
     private void MeshNeighbourChunks(
@@ -462,9 +578,10 @@ public sealed class ChunkRenderer
     {
         lock (_meshLock)
         {
-            _toRemeshChunksQueue.Clear();
+            _urgentRemeshQueue.Clear();
+            _remeshBacklog.Clear();
             _toRemeshChunksSet.Clear();
-            _chunkAvailableToRemesh = false;
+            _readyMeshes.Clear();
 
             _worldGeneration++;
         }
@@ -475,6 +592,7 @@ public sealed class ChunkRenderer
     public void CleanUp()
     {
         _isRunning = false;
+        _meshWorkAvailable.Set();
 
         _meshGenerationThread.Join(TimeSpan.FromSeconds(1));
 

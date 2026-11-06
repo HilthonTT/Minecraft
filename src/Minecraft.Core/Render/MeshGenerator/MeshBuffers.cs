@@ -58,13 +58,13 @@ public sealed class MeshBuffers
     {
         return new ChunkBufferLayout
         {
-            VertexPositions = Positions,
+            VertexPositions = Positions[..PositionsPointer],
             PositionsPointer = PositionsPointer,
-            VertexUVs = UVs,
+            VertexUVs = UVs[..UVsPointer],
             UVsPointer = UVsPointer,
-            VertexLights = Lights,
+            VertexLights = Lights[..LightsPointer],
             LightsPointer = LightsPointer,
-            VertexNormals = Normals,
+            VertexNormals = Normals[..NormalsPointer],
             NormalsPointer = NormalsPointer,
             IndicesCount = IndicesCount,
         };

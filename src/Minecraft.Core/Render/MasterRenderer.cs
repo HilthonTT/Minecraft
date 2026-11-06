@@ -273,7 +273,7 @@ public sealed class MasterRenderer
 
     public void EndFrameUpdate(float deltaTime)
     {
-        Chunks.UploadPendingMesh();
+        Chunks.UploadPendingMeshes(_cameraController.Camera.Position);
         _cameraController.Update();
         _heldItemRenderer.Update(deltaTime);
         _droppedItemRenderer.Update(deltaTime);
