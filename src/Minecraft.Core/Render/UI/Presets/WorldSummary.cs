@@ -77,7 +77,7 @@ public sealed record WorldSummary(string Name, GameMode? GameMode, int? Seed, Da
             parts.Add("Seed " + seed.ToString(CultureInfo.InvariantCulture));
         }
 
-        return parts.Count == 0 ? "No details saved" : string.Join("   |   ", parts);
+        return parts.Count == 0 ? "No details saved" : string.Join("  |  ", parts);
     }
 
     public static string DescribeAge(DateTime then, DateTime now)

@@ -22,6 +22,7 @@ public sealed class UITextField : UIWidget
     private readonly UIText _placeholder;
     private readonly UIImage _caret;
 
+    private string _placeholderText = string.Empty;
     private int _firstVisible;
     private bool _isDragging;
     private int _renderedVersion = -1;
@@ -71,8 +72,12 @@ public sealed class UITextField : UIWidget
 
     public string Placeholder
     {
-        get => _placeholder.Text;
-        set => _placeholder.Text = value;
+        get => _placeholderText;
+        set
+        {
+            _placeholderText = value;
+            FitPlaceholder();
+        }
     }
 
     public bool HasFocus
@@ -110,6 +115,7 @@ public sealed class UITextField : UIWidget
         _caret.Dimension = new Vector2(CaretWidth, GlyphBoxHeight);
 
         _placeholder.PixelPositionInCanvas = new Vector2(TextLeft, TextTop);
+        FitPlaceholder();
         _renderedVersion = -1;
         Render();
     }
@@ -130,6 +136,13 @@ public sealed class UITextField : UIWidget
     private float TextWidth => Math.Max(1F, Size.X - (2 * HorizontalPadding));
 
     private float Measure(string text) => _font.MeasureWidth(text, TextScale);
+
+    private void FitPlaceholder()
+    {
+        _placeholder.Text = Size.X > 0F
+            ? UITextLayout.Ellipsize(_placeholderText, TextWidth, Measure)
+            : _placeholderText;
+    }
 
     private void UpdateMouse(UIInput input)
     {

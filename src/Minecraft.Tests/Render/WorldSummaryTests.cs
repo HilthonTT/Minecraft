@@ -35,7 +35,7 @@ public sealed class WorldSummaryTests
     {
         var summary = new WorldSummary("Home", GameMode.Survival, 7, _now.AddMinutes(-5));
 
-        Assert.Equal("Survival   |   Played 5 minutes ago   |   Seed 7", summary.Describe(_now));
+        Assert.Equal("Survival  |  Played 5 minutes ago  |  Seed 7", summary.Describe(_now));
     }
 
     [Theory]

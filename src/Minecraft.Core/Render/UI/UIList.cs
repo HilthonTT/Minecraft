@@ -8,13 +8,14 @@ public readonly record struct UIListItem(string Title, string Detail);
 
 public sealed class UIList : UIWidget
 {
-    public const float RowHeight = 54F;
+    public const float RowHeight = 66F;
     public const float RowGap = 4F;
     public const float Inset = 6F;
 
     private const float AccentWidth = 4F;
     private const float TextInset = 16F;
     private const float ScrollbarWidth = 4F;
+    private const float LineGap = 12F;
 
     private static readonly Vector3 _selectedColor = new(0.19F, 0.25F, 0.19F);
 
@@ -339,8 +340,10 @@ public sealed class UIList : UIWidget
             _title.SetFitted(item.Title, textWidth);
             _detail.SetFitted(item.Detail, textWidth);
 
-            _title.PlaceTop(position.X + TextInset, position.Y + 11F);
-            _detail.PlaceTop(position.X + TextInset, position.Y + size.Y - 12F - _detail.CapHeight);
+            float block = _title.CapHeight + LineGap + _detail.CapHeight;
+            float top = position.Y + MathF.Round((size.Y - block) / 2F);
+            _title.PlaceTop(position.X + TextInset, top);
+            _detail.PlaceTop(position.X + TextInset, top + _title.CapHeight + LineGap);
         }
 
         public void Paint(bool selected, bool hovered)

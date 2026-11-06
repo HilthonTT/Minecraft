@@ -14,6 +14,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
     private const string RandomLabel = "Randomise";
     private const float LabelToFieldGap = 8F;
     private const float PreviewLines = 2F;
+    private const float HintToPreviewGap = 6F;
 
     private static readonly string[] _gameModeNames = ["Survival", "Creative"];
 
@@ -45,7 +46,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         _nameField = new UITextField(this, MaxNameLength) { Placeholder = "My World" };
 
         _seedLabel = new UILabel(this, UITheme.SmallScale, UITheme.TextMuted, "SEED");
-        _seedField = new UITextField(this, MaxSeedLength) { Placeholder = "Leave blank for a random seed" };
+        _seedField = new UITextField(this, MaxSeedLength) { Placeholder = "Random if left blank" };
         _randomSeedButton = new UIButton(this, RandomLabel);
 
         _gameModeLabel = new UILabel(this, UITheme.SmallScale, UITheme.TextMuted, "GAME MODE");
@@ -177,7 +178,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
     protected override void Layout()
     {
         float labelHeight = _nameLabel.CapHeight;
-        float hintHeight = _gameModeHint.LineStep * 2F;
+        float hintHeight = _gameModeHint.LineStep * 2F + HintToPreviewGap;
         float previewHeight = _preview.LineStep * PreviewLines;
         float sectionGap = UITheme.SectionGap;
 
@@ -185,7 +186,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
             labelHeight + LabelToFieldGap + UITextField.Height + sectionGap +
             labelHeight + LabelToFieldGap + UITextField.Height + sectionGap +
             labelHeight + LabelToFieldGap + UIButton.Height + UITheme.Gap + hintHeight +
-            previewHeight + UITheme.Gap + UIButton.Height;
+            previewHeight + UITheme.SectionGap + UIButton.Height;
 
         float top = ContentTopFor(contentHeight);
         float contentTop = top;
@@ -213,7 +214,7 @@ public sealed class UICanvasWorldSetup : UICanvasMenu
         top += hintHeight;
 
         _preview.PlaceTop(RowLeft, top);
-        top += previewHeight + UITheme.Gap;
+        top += previewHeight + UITheme.SectionGap;
 
         float playWidth = (RowWidth - UITheme.Gap) * 0.62F;
         _playButton.SetBounds(new Vector2(RowLeft, top), new Vector2(playWidth, UIButton.Height));
