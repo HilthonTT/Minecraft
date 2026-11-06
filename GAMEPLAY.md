@@ -1,0 +1,261 @@
+# Gameplay
+
+How the game plays, for anyone picking it up. Building it, the controls and the start arguments are in
+[README.md](README.md); how it works inside is in [DESIGN.md](DESIGN.md).
+
+## Menus
+
+The game opens on the main menu. `Singleplayer` lists your saved worlds, most recently played first, each with its
+game mode, when it was last played and its seed. Click one to select it and `Play`, or double click it;
+`Rename` and `Delete` act on the selection, and `Create New World` names a world and picks its seed. Deleting
+asks first, with `Keep It` as the default and `Delete Forever` held back for a moment so a stray double click
+cannot reach it. `Escape` during a game opens the pause menu, which saves a hosted world as it opens and is
+where you leave a world or quit.
+
+Every menu can be driven from the keyboard as well as the mouse:
+
+| Key | In a menu |
+| --- | --- |
+| `Tab`, `Shift` + `Tab`, arrow keys | Move between controls |
+| `Enter` | Press the focused control, or the screen's main button |
+| `Space` | Press the focused button or flip the focused switch |
+| `Left` / `Right` | Move a focused slider, switch or choice |
+| `Escape` | Go back |
+| `F2`, `Delete` | Rename or delete the selected world, on the world list |
+
+Text boxes and the chat take the usual editing keys: `Ctrl` with the arrows or `Backspace` works a word at a
+time, `Shift` selects, and `Ctrl` + `A`, `C`, `X` and `V` select all, copy, cut and paste.
+
+## Worlds and seeds
+
+The name offered on the create screen is one nothing is saved under yet, so pressing play generates a world;
+type the name of a world you already have and it is carried on instead. The screen says which of the two it
+would do, because a seed and a game mode only ever decide a world that does not exist yet — an existing one
+keeps the ones it was made with.
+
+The seed box takes a number, or any words, which are hashed into one. Leave it empty for a random seed;
+`Randomise` fills one in so you can read it off first. Either way the seed is repeated in the chat on the way in,
+so a world worth revisiting can be written down.
+
+## Survival and creative
+
+The create screen also picks which of the two the world is played in, and the button under `Game mode` moves
+between them.
+
+| | Survival | Creative |
+| --- | --- | --- |
+| Starting inventory | Empty | The nine blocks along the hotbar |
+| Breaking a block | Held down, and takes as long as the block is hard, divided by the tool | Instant |
+| A broken block | Falls where it stood, to be walked over — if the tool was good enough | Leaves nothing |
+| Tools | Made at a bench, and wear out | Nothing to break, and nothing to break it with |
+| Placing a block | Comes out of the stack in hand | Costs nothing |
+| Throwing one down | `Q`, or `Ctrl` + `Q` for the stack | Nothing to throw away |
+| Inventory screen | A bench, and the rows you are carrying | Those, plus everything in the game to take from |
+| Health | Ten hearts above the hotbar, and zombies and long falls take them | None; nothing can touch you |
+| Flying | No | Double tap `Space` |
+| Reach | Five blocks, which is as far as a drop can be picked up from | Forty |
+
+Typing `/gamemode survival` or `/gamemode creative` into the chat moves between the two while playing —
+`/gm s` and `/gm c` do the same — and the world remembers which it was left in. Switching empties what you
+are carrying, since a hotbar filled from creative's supply is not one survival ever had to earn.
+
+`Q` throws down one of whatever is in hand and `Ctrl` + `Q` throws the whole stack, a couple of blocks out in
+front of you. What lands cannot be picked up again for two seconds, which is long enough to turn round and
+walk off without it following you back into the hotbar. Creative has no use for it — there is nothing to be
+rid of when every slot is bottomless — so the key does nothing there.
+
+A blow leaves six seconds' grace and then the bar mends itself a half heart every four seconds, as long as
+the hunger bar on the right is nearly full. Dying puts you back at the world spawn with everything you were
+carrying.
+
+## Food
+
+Walking, sprinting, fighting and healing all make you hungry, and the ten shanks opposite the hearts show how
+far along you are. Below nine of them you are too hungry to heal, at three or fewer you are too weak to sprint, and
+with none left the hearts drain away a half at a time until one half is all you have. To eat, hold right click
+with food in hand for a moment and a stack goes down by one.
+
+Cows, pigs and sheep leave meat when a survival player kills them, and a sheep leaves its wool too. Zombies
+sometimes leave rotten flesh, which fills you up but is nobody's first choice. Raw meat is worth eating, but
+cooked in a furnace it is worth more than twice as much. Three wheat in a row make bread.
+
+| Food | Fills |
+| --- | --- |
+| Steak, cooked porkchop | 8 |
+| Cooked mutton | 6 |
+| Bread | 5 |
+| Rotten flesh | 4 |
+| Raw beef, raw porkchop | 3 |
+| Raw mutton | 2 |
+
+## Farming
+
+Wheat comes from seeds, and the first seeds come from wild grass: one tuft in eight leaves some behind. A hoe
+turns grass or dirt with nothing on top into farmland, and seeds are planted on farmland and nowhere else. Wheat
+ripens in two stages about half a minute apart. Broken green, it gives back the seed that went in; broken ripe,
+it gives a wheat and one to three seeds. Farmland with something solid put on top of it goes back to dirt.
+
+Trees grow back too. Breaking leaves now and then shakes out a sapling, of whichever tree the nearest trunk
+belongs to: oak, birch or spruce. Planted on grass, dirt or farmland, a sapling grows into a tree in about two
+minutes on average, as long as there is room above it for the trunk.
+
+## Buckets
+
+Three iron ingots in a V make a bucket. Right click a still pool of water or lava with an empty bucket to
+scoop it up, and right click with a full one to pour it out where a block would go. In creative the bucket in
+hand never changes. Pouring water next to lava still turns the lava to obsidian or cobblestone, so a bucket of
+water is how a lava pool gets crossed, or mined for obsidian.
+
+## Furnaces and chests
+
+A furnace is eight cobblestone laid round the edge of a table's bench, and a chest is the same ring made of
+planks. Right click either to open it. The furnace has a slot for what is to be smelted, a slot under it for
+fuel, and one on the right that it fills. The flame between the first two shows how much fuel is left burning,
+and the bar shows how far the current item has got. A lump of coal or charcoal cooks eight things, and wood is
+worth one and a half.
+
+| Put in | Comes out |
+| --- | --- |
+| Iron ore, gold ore | Iron ingot, gold ingot |
+| Sand | Glass |
+| Cobblestone | Stone |
+| Any log | Charcoal |
+| Raw beef, porkchop, mutton | Steak, cooked porkchop, cooked mutton |
+
+A chest holds twenty seven stacks. Breaking either one spills whatever was inside onto the ground.
+
+## Lava
+
+Pools of lava fill the bottom of the deepest caves and light them orange. It burns anything that falls in,
+destroys dropped items, and flows more slowly and for less distance than water. Where water reaches a lava
+source, the source hardens into obsidian, which only a diamond pickaxe can dig. Running lava hardens into
+cobblestone instead.
+
+## Playing together
+
+A hosted world listens on every network interface, so the singleplayer world and the one friends join are the
+same thing. Start a game, and the chat says which address to give them; they pick `Multiplayer`, type it in and
+connect. `Host Game` on the multiplayer screen does exactly what `Singleplayer` does, and is there so that
+hosting is findable from the screen where it is wanted. For a world with nobody playing on the machine that
+runs it, use a dedicated server instead.
+
+## Camera
+
+`F5` steps through the three views: out of your own eyes, from over your shoulder, and from in front looking
+back at you. Either of the two that show your body pulls the camera four blocks off along your line of sight,
+stopping short of anything solid so it never ends up inside a wall. What you are looking at does not move with
+the camera — a block is still broken and placed from where you are standing.
+
+![The player seen from the front, standing on a sandstone path across a terraced grassland, a sandstone and cobblestone shelter to the left, an oak tree and grazing sheep to the right, with the hotbar along the bottom of the screen](Screenshots/sample-13.png)
+
+## Debug keys
+
+Function keys drive the debug tools: `F1` hitboxes, `F2` debug readout, `F3` collect garbage, `F4` clear blocks
+around the player, `F6` detached overhead camera, `F7` light level overlay (`Up`/`Down` picks the level),
+`F8` fill a chunk layer with TNT, `F9` build a test room, `F10` chunk borders.
+
+## Inventory and hotbar
+
+Nine slots run along the bottom of the screen. Whichever is selected is also drawn in your hand, and its name
+fades in above the bar as you reach for it. A creative world starts you carrying a torch, planks, cobblestone,
+stone, dirt, sand, an oak log, glowstone and TNT; a survival one starts you with nothing and the row fills as
+you dig.
+
+![A wide grassland of long grass and flowers under a clear sky with a plank platform built out across it, the hotbar along the bottom of the screen with a torch selected in the first slot and that torch held in the corner of the view](Screenshots/sample-11.png)
+
+`E` opens the inventory: three rows of storage, the same nine hotbar slots at the bottom, and — in creative —
+everything in the game across the top. Left click picks a whole stack up onto the cursor and puts it down
+again, right click takes half or places one at a time, and dropping a stack onto a slot that already holds the
+same thing pours the two together. Clicking that list with a full cursor throws that stack away.
+
+That list is a supply with nothing behind it, so survival leaves it off the screen altogether: what is
+carried there comes out of the ground or off a bench, and a list of everything would be a way of helping
+yourself to the things the mode is about earning.
+
+![The inventory screen open over a grassland at dusk: four rows holding every block in the game under the heading Blocks, three empty rows of storage under Carried, and the nine hotbar slots along the bottom each with a stack of sixty four](Screenshots/sample-12.png)
+
+Pointing at something in the world and clicking the middle mouse button still reaches for it directly: if it
+is already on the hotbar that slot is selected, and in creative it is otherwise put into the slot in hand. In
+survival the second half of that would be a stack conjured out of the ground by looking at it, so there it
+only ever selects a slot that already holds the block.
+
+## Crafting
+
+The inventory screen carries a two by two bench, and a crafting table opens a three by three one — walk up to
+one you have placed and right click it. What is laid out makes what it makes; the slot beside the bench shows
+it, and clicking that slot takes it and spends one of everything on the bench, so holding the button down over
+a bench of planks turns them into sticks a batch at a time. Nothing is left behind on a table: closing the
+screen hands whatever was on it back to you.
+
+Where the line falls between the two benches is the shape of the first ten minutes. Everything needed to reach
+a first pickaxe fits in the small one, and every tool needs the large one:
+
+| | Laid out | Makes |
+| --- | --- | --- |
+| Planks | One log, anywhere | Four planks |
+| Sticks | Two planks, one above the other | Four sticks |
+| Crafting table | Four planks in a square | One table |
+| Torches | Coal or charcoal above a stick | Four torches |
+| Furnace | Eight cobblestone round an empty middle | One furnace |
+| Chest | Eight planks round an empty middle | One chest |
+| Bread | Three wheat in a row | One loaf |
+| Sandstone | Four sand in a square | One sandstone |
+| Pickaxe | Three across the top, two sticks down the middle | One pickaxe |
+| Axe | Two across, one below on the same side, two sticks | One axe |
+| Shovel | One, two sticks under it | One shovel |
+| Sword | Two, one stick under them | One sword |
+| Hoe | Two across, two sticks under one end | One hoe |
+| Slabs | Three in a row of stone, cobblestone, planks or sandstone | Six slabs |
+| Stairs | A staircase of six planks or cobblestone | Four stairs |
+| Ladder | Seven sticks in an H | Three ladders |
+| Fence | Two rows of three sticks | Two fences |
+| Glass pane | Two rows of three glass | Sixteen panes |
+| Door | Six planks, two wide and three high | One door |
+| Bucket | Three iron ingots in a V | One bucket |
+
+The five tool shapes are made in five materials — planks, cobblestone, iron, gold and diamond — which is the
+same picture laid out in whatever is to hand.
+
+## Building
+
+A slab goes in the half of the cell that was clicked: the top half when clicking the underside of a block or the
+upper half of its side, the bottom half otherwise. Laying a second slab of the same kind into the empty half
+makes the whole block again. Stairs climb away from whoever placed them, and turn upside down the same way a
+slab goes to the top half. Half a block is low enough to walk up without jumping, so a flight of stairs or slabs
+is a ramp.
+
+A door is hung from the side of the cell facing you and needs something solid under it; right click either half
+to open or shut it. A ladder goes on a wall. Walking into it or holding `Space` climbs, `Shift` holds on where
+you are, and letting go slides you down, with no fall damage either way. Fences and glass panes join up with
+each other and with any solid block beside them. A fence stands a block and a half tall for anything trying to
+jump it, and a pane, like the glass it is cut from, breaks into nothing.
+
+## Tools
+
+A tool digs the blocks it is the right tool for faster, and for some of them it is the difference between a
+drop and nothing at all. Punching stone still breaks it; it just leaves no cobblestone behind. What is buried
+below a seam is the same rule read deeper — a wooden pickaxe reaches coal, a stone one iron, an iron one gold,
+redstone and diamond.
+
+| Material | Digs | Reaches | Lasts |
+| --- | --- | --- | --- |
+| Wood | 2× | Coal | 59 |
+| Stone | 4× | Iron | 131 |
+| Iron | 6× | Gold, redstone, diamond | 250 |
+| Gold | 12× | Coal | 32 |
+| Diamond | 8× | Gold, redstone, diamond | 1561 |
+
+Gold is off to one side of the ladder rather than on it: it digs faster than diamond and wears out faster than
+wood, so it is a thing to spend a lucky vein on rather than a step on the way anywhere.
+
+A tool wears by one for each block it gets through and each blow it lands, and a slot holding a worn one
+shows a bar under it, green while there is plenty left and red as it runs out. When the last of it goes the
+slot simply empties.
+
+A sword is the one tool that is not for digging — no block is broken faster by one — and what it is for is
+mobs. It hits for four half hearts in wood up to seven in diamond, against the one a bare fist is worth; the
+digging tools are worth one less each, in the order they are worse shaped for it.
+
+Iron and gold ore come out of the ground as ore, and a furnace turns them into ingots.
+
+![A pig standing in long grass on a terraced hillside, an oak log held in the corner of the view and the outline of the block being pointed at in the middle of the screen](Screenshots/sample-7.png)
