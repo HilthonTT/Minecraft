@@ -955,7 +955,7 @@ the assembly for the title screen and the window title, so a screenshot in a bug
 came from.
 
 Releases are only ever made from a tag. The workflow builds and tests the tagged commit before anything is
-published, then publishes it twice — once leaning on an installed .NET 10 runtime, and once self contained
+published, then publishes it twice — once leaning on an installed .NET 11 runtime, and once self contained
 and compiled ahead of time for a quicker start — and runs the runtime asset check against both, because a
 shader missing from a zip only shows itself as a crash on launch. Checksums go up beside the zips, and the
 notes are that version's section of `CHANGELOG.md` followed by GitHub's own list of what was merged.

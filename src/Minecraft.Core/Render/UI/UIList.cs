@@ -134,7 +134,11 @@ public sealed class UIList : UIWidget
         return _selectedIndex != before;
     }
 
-    protected override void OnLayout() => Refresh();
+    protected override void OnLayout()
+    {
+        EnsureSelectionVisible();
+        Refresh();
+    }
 
     protected override void OnVisibilityChanged(bool isVisible)
     {

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/HilthonTT/Minecraft/actions/workflows/ci.yml/badge.svg)](https://github.com/HilthonTT/Minecraft/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/HilthonTT/Minecraft/actions/workflows/codeql.yml/badge.svg)](https://github.com/HilthonTT/Minecraft/actions/workflows/codeql.yml)
-[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/download)
+[![.NET 11](https://img.shields.io/badge/.NET-11.0-512BD4)](https://dotnet.microsoft.com/download)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https://opentk.net/).
@@ -27,12 +27,12 @@ A voxel game engine written in C# with OpenGL and GLSL, built on [OpenTK](https:
 
 Every tagged version is on the [Releases](https://github.com/HilthonTT/Minecraft/releases) page for 64-bit
 Windows. `…-win-x64-self-contained.zip` runs as it is; `…-win-x64.zip` is much smaller and needs the
-[.NET 10 desktop runtime](https://dotnet.microsoft.com/download/dotnet/10.0). Unzip anywhere and run
+[.NET 11 desktop runtime](https://dotnet.microsoft.com/download/dotnet/11.0). Unzip anywhere and run
 `Minecraft.App.exe`. `SHA256SUMS.txt` holds the checksums.
 
 ## Building
 
-Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download), Windows (texture loading uses
+Needs the [.NET 11 SDK](https://dotnet.microsoft.com/download), Windows (texture loading uses
 `System.Drawing`), and a GPU with OpenGL 4.0.
 
 ```sh

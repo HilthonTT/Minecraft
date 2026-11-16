@@ -93,7 +93,7 @@ public sealed class HeldItemRenderer
     {
         _projectionMatrix = Matrix4.CreatePerspectiveFieldOfView(
             HandFieldOfView,
-            pixelWidth / (float)Math.Max(1, pixelHeight),
+            Math.Max(1, pixelWidth) / (float)Math.Max(1, pixelHeight),
             0.05F,
             10F);
     }

@@ -79,7 +79,7 @@ public sealed class DroppedItem : Entity
                 continue;
             }
 
-            Vector3 chest = player.Position + new Vector3(0F, Constants.PLAYER_HEIGHT / 2F, 0F);
+            Vector3 chest = player.Position + new Vector3(player.Width / 2F, Constants.PLAYER_HEIGHT / 2F, player.Length / 2F);
             if ((chest - middle).LengthSquared <= PickupRadius * PickupRadius)
             {
                 return player;

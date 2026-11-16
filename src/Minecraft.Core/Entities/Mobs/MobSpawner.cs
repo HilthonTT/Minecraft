@@ -334,6 +334,9 @@ public sealed class MobSpawner
             return false;
         }
 
+        mob.Position = new Vector3(feet.X - mob.Width / 2F, feet.Y, feet.Z - mob.Length / 2F);
+        mob.ServerPosition = mob.Position;
+        mob.Hitbox.SetDimensions(mob.Position, mob.Position + new Vector3(mob.Width, mob.Height, mob.Length));
         mob.Yaw = Random.Shared.NextSingle() * MathF.Tau;
         world.SpawnEntity(mob);
         return true;

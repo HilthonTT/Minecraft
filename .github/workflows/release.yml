@@ -72,7 +72,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
@@ -93,7 +93,7 @@ jobs:
           -p:ContinuousIntegrationBuild=true
 
       - name: Test
-        run: dotnet test Minecraft.slnx --configuration Release --no-build
+        run: dotnet test --solution Minecraft.slnx --configuration Release --no-build
 
       - name: Publish framework-dependent build
         run: >
@@ -175,8 +175,8 @@ jobs:
           $notes.Add('')
           $notes.Add('| File | Use it when |')
           $notes.Add('| --- | --- |')
-          $notes.Add('| `Minecraft-${{ steps.version.outputs.tag }}-win-x64-self-contained.zip` | You do not have the .NET 10 runtime installed. Larger, but runs as is. |')
-          $notes.Add('| `Minecraft-${{ steps.version.outputs.tag }}-win-x64.zip` | You already have the [.NET 10 desktop runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |')
+          $notes.Add('| `Minecraft-${{ steps.version.outputs.tag }}-win-x64-self-contained.zip` | You do not have the .NET 11 runtime installed. Larger, but runs as is. |')
+          $notes.Add('| `Minecraft-${{ steps.version.outputs.tag }}-win-x64.zip` | You already have the [.NET 11 desktop runtime](https://dotnet.microsoft.com/download/dotnet/11.0). |')
           $notes.Add('')
           $notes.Add('Unzip anywhere and run `Minecraft.App.exe`. Worlds and options are kept in `%APPDATA%\MinecraftClone`, so they carry over between versions. Verify a download against `SHA256SUMS.txt` with `Get-FileHash`.')
 

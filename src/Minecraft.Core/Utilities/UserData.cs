@@ -24,7 +24,14 @@ public static class UserData
     {
         if (!string.IsNullOrWhiteSpace(overrideDirectory))
         {
-            return EnsureExists(System.IO.Path.GetFullPath(overrideDirectory));
+            try
+            {
+                return EnsureExists(System.IO.Path.GetFullPath(overrideDirectory));
+            }
+            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return baseDirectory;
+            }
         }
 
         foreach (string entry in _legacyEntries)

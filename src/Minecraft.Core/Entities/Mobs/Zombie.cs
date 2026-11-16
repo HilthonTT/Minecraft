@@ -108,7 +108,8 @@ public sealed class Zombie : Mob
 
         _huntingTicksRemaining--;
 
-        if (!world.LoadedEntities.TryGetValue(_attackerId, out Entity? attacker) || attacker is not ServerPlayer)
+        if (!world.LoadedEntities.TryGetValue(_attackerId, out Entity? attacker) ||
+            attacker is not ServerPlayer { IsAlive: true, IsCreative: false })
         {
             _huntingTicksRemaining = 0;
             return false;

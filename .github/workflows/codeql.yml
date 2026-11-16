@@ -22,7 +22,7 @@ env:
 jobs:
   analyze:
     name: Analyze C#
-    # Same reason as the build workflow: both projects target net10.0-windows and will not compile elsewhere.
+    # Same reason as the build workflow: both projects target net11.0-windows and will not compile elsewhere.
     runs-on: windows-latest
 
     permissions:
@@ -37,7 +37,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4

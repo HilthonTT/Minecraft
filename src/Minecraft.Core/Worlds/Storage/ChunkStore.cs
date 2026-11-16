@@ -29,6 +29,7 @@ public sealed class ChunkStore : IDisposable
     private readonly Lock _unwrittenLock = new();
     private readonly Dictionary<(int GridX, int GridZ), byte[]> _unwrittenPayloads = [];
 
+    private readonly Lock _drainLock = new();
     private int _outstandingSaves;
     private readonly ManualResetEventSlim _drained = new(true);
 
@@ -132,8 +133,11 @@ public sealed class ChunkStore : IDisposable
             _unwrittenPayloads[(chunk.GridX, chunk.GridZ)] = payload;
         }
 
-        Interlocked.Increment(ref _outstandingSaves);
-        _drained.Reset();
+        lock (_drainLock)
+        {
+            _outstandingSaves++;
+            _drained.Reset();
+        }
 
         try
         {
@@ -232,9 +236,12 @@ public sealed class ChunkStore : IDisposable
 
     private void MarkSaveFinished()
     {
-        if (Interlocked.Decrement(ref _outstandingSaves) == 0)
+        lock (_drainLock)
         {
-            _drained.Set();
+            if (--_outstandingSaves == 0)
+            {
+                _drained.Set();
+            }
         }
     }
 

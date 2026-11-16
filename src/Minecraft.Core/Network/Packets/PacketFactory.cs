@@ -1,4 +1,4 @@
-﻿using Minecraft.Core.Entities;
+using Minecraft.Core.Entities;
 using Minecraft.Core.Inventories;
 using Minecraft.Core.IO;
 using Minecraft.Core.Worlds.Blocks;
@@ -61,8 +61,13 @@ public sealed class PacketFactory
             }
             case PacketType.ChunkData:
             {
+                if (session is Session.ServerSession)
+                {
+                    throw new InvalidDataException("A client sent chunk data, which only a server may send.");
+                }
+
                 int head = 0;
-                int chunkByteSize = ReadLength(reader, MaxPayloadBytes, "Chunk data");
+                int chunkByteSize = ReadLength(reader, MaxChunkBytes, "Chunk data");
                 byte[] chunkBytes = reader.ReadBytes(chunkByteSize);
                 Worlds.World world = session.Player?.World
                     ?? throw new InvalidOperationException("Received chunk data before joining a world.");
@@ -254,6 +259,8 @@ public sealed class PacketFactory
     }
 
     private const int MaxPayloadBytes = 4 * 1024 * 1024;
+
+    private const int MaxChunkBytes = 32 * 1024 * 1024;
 
     private const int MaxStringBytes = 64 * 1024;
 

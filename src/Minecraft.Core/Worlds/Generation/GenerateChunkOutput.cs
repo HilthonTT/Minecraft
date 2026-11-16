@@ -13,6 +13,7 @@ public sealed class GenerateChunkOutput
         Chunk = chunk;
         World = world;
         GridPosition = gridPosition;
+        Lease = world.ChunkPool.LeaseOf(chunk);
         _undecidedRecipients = recipients;
     }
 
@@ -21,6 +22,8 @@ public sealed class GenerateChunkOutput
     public World World { get; }
 
     public Vector2 GridPosition { get; }
+
+    public long Lease { get; }
 
     public void Adopt()
     {

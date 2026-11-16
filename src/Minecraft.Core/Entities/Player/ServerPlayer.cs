@@ -32,6 +32,7 @@ public sealed class ServerPlayer : Player
     public bool IsHurt => _hurtSecondsRemaining > 0F;
 
     private float _hurtSecondsRemaining;
+    private int _lastDamageTaken;
     private float _secondsSinceLastHurt;
     private float _secondsSinceLastRegen;
     private float _secondsSinceLastStarve;
@@ -80,7 +81,7 @@ public sealed class ServerPlayer : Player
         }
 
         _secondsSinceLastStarve += deltaTime;
-        if (_secondsSinceLastStarve < Constants.PLAYER_STARVE_SECONDS_PER_HEALTH)
+        if (_secondsSinceLastStarve < Constants.PLAYER_STARVE_SECONDS_PER_HEALTH || IsHurt)
         {
             return false;
         }
@@ -141,12 +142,15 @@ public sealed class ServerPlayer : Player
 
     public bool TryHurt(int damage)
     {
-        if (!IsAlive || IsCreative || IsHurt || damage <= 0)
+        if (!IsAlive || IsCreative || damage <= 0 || (IsHurt && damage <= _lastDamageTaken))
         {
             return false;
         }
 
-        Health = Math.Max(Health - damage, 0);
+        int landed = IsHurt ? damage - _lastDamageTaken : damage;
+        _lastDamageTaken = damage;
+
+        Health = Math.Max(Health - landed, 0);
         _hurtSecondsRemaining = Constants.PLAYER_HURT_SECONDS;
         _secondsSinceLastHurt = 0F;
         _secondsSinceLastRegen = 0F;

@@ -301,7 +301,7 @@ public abstract class Mob : Entity
 
         foreach (Entity entity in world.LoadedEntities.Values)
         {
-            if (entity is not ServerPlayer player)
+            if (entity is not ServerPlayer player || !player.IsAlive || player.IsCreative)
             {
                 continue;
             }

@@ -30,8 +30,26 @@ workflow publishes as that release's notes, so write it for players.
 - Pausing a hosted world saves it.
 - Deleting a world puts `Keep It` first and holds `Delete Forever` back for a moment.
 - The game asks for OpenGL 4.0, which its shaders always needed.
+- The game runs on .NET 11. Players running the smaller download need the .NET 11 desktop runtime.
 
 ### Fixed
+
+- Minimising the window while in a world no longer crashes the game.
+- Resizing the window with the debug camera on no longer leaves the picture stretched or cropped.
+- The world list no longer shows blank rows after the window grows, and the chat input keeps its caret
+  inside the box after a resize.
+- Zombies ignore players in creative mode and players who have died, so they no longer shield a survival
+  player standing nearby.
+- A big hit, like a long fall or an explosion, is no longer lost when it lands just after a smaller one.
+- Starving no longer skips damage while the player is being hurt by something else.
+- Mobs spawn centred on their block instead of half inside the blocks next to them.
+- Dropped items are picked up from the same distance on every side of the player.
+- Breaking a light source no longer leaves torches and glowstone just across a chunk border dark.
+- Sugar cane at the top of the world stops trying to grow past it.
+- Worlds finish saving before the game closes, even when a chunk was queued at the last moment.
+- A chunk that was unloaded and reused at just the wrong moment can no longer turn up corrupted.
+- Servers refuse chunk data sent by clients, and accept the largest chunks a world can hold.
+- A malformed `MINECRAFT_CLONE_DATA` folder no longer stops the game from starting.
 
 - Losing the connection to a server, or being refused by one, returns to the title screen with the reason
   instead of leaving a frozen world.

@@ -4,13 +4,14 @@ public sealed class ObjectPool<T>
     where T : class, new()
 {
     private readonly Stack<T> _available;
-    private readonly HashSet<T> _lended;
+    private readonly Dictionary<T, long> _lended;
+    private long _nextLease;
     private readonly Lock _lock = new();
 
     public ObjectPool(int numberOfObjects)
     {
         _available = new Stack<T>(numberOfObjects);
-        _lended = new HashSet<T>(numberOfObjects);
+        _lended = new Dictionary<T, long>(numberOfObjects);
 
         for (int i = 0; i < numberOfObjects; i++)
         {
@@ -28,7 +29,7 @@ public sealed class ObjectPool<T>
             }
 
             T item = _available.Pop();
-            _lended.Add(item);
+            _lended.Add(item, ++_nextLease);
             return item;
         }
     }
@@ -37,7 +38,15 @@ public sealed class ObjectPool<T>
     {
         lock (_lock)
         {
-            return _lended.Contains(item);
+            return _lended.ContainsKey(item);
+        }
+    }
+
+    public long LeaseOf(T item)
+    {
+        lock (_lock)
+        {
+            return _lended.TryGetValue(item, out long lease) ? lease : 0;
         }
     }
 

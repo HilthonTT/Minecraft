@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- Texture loading goes through System.Drawing, which is Windows only. -->
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net11.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -15,7 +15,7 @@
     <PackageReference Include="NAudio.WinMM" Version="3.3.0" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="OpenTK" Version="4.9.4" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.14" />
+    <PackageReference Include="System.Drawing.Common" Version="11.0.0" />
   </ItemGroup>
 
   <!-- Assets are loaded at runtime by a path relative to the output directory, so they have to

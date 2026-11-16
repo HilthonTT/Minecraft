@@ -194,6 +194,16 @@ public static class BlockLightPropagation
                     LightUtils.SetLightOfChannel(currentChunk, position, channel, 0);
                     darkQueue.Enqueue(new LightRemoveNode(currentChunk, position, neighbourLight));
 
+                    if (currentChunk.GetBlockAt(position) is ILightSource lightSource)
+                    {
+                        uint emitted = LightUtils.GetChannelColor(lightSource, channel);
+                        if (emitted > 0)
+                        {
+                            LightUtils.SetLightOfChannel(currentChunk, position, channel, emitted);
+                            lightQueue.Enqueue(new LightAddNode(currentChunk, position));
+                        }
+                    }
+
                     MarkProcessed(processedChunks, chunk, currentChunk);
                 }
                 else if (neighbourLight >= lightRemoveNode.LightValue)

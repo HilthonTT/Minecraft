@@ -8,7 +8,7 @@ By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## Getting set up
 
 You need the [.NET SDK 10](https://dotnet.microsoft.com/download) or newer, Windows, and a GPU with OpenGL 4.0.
-Both projects target `net10.0-windows` because texture loading goes through `System.Drawing`, so there is no
+Both projects target `net11.0-windows` because texture loading goes through `System.Drawing`, so there is no
 Linux or macOS build to fall back on.
 
 ```sh
@@ -36,7 +36,7 @@ spend an evening on it.
 - **Build both configurations.** `dotnet build Minecraft.slnx --configuration Debug` and again with `Release`.
   CI does the same, along with a check that every asset the game loads by a literal path was copied next to the
   built assembly.
-- **Run the tests.** `dotnet test Minecraft.slnx`, which CI runs in both configurations. They cover what can
+- **Run the tests.** `dotnet test --solution Minecraft.slnx`, which CI runs in both configurations. They cover what can
   be checked without a window: stacks and slots, crafting, harvesting, the packet and save formats, and the
   start arguments. A change to any of those should arrive with the test that would have caught the old
   behaviour. Ids are the sharpest of them — `ItemRegistryTests` fails when a block or item id moves, because

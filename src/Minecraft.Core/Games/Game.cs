@@ -367,9 +367,20 @@ public sealed class Game
 
     public void OnWindowResize(int newWidth, int newHeight)
     {
+        if (newWidth <= 0 || newHeight <= 0)
+        {
+            return;
+        }
+
         if (RunMode != RunMode.Server && ClientPlayer is not null)
         {
             ClientPlayer.Camera.SetWindowSize(newWidth, newHeight);
+
+            Entities.Camera? activeCamera = MasterRenderer?.GetActiveCamera();
+            if (activeCamera is not null && activeCamera != ClientPlayer.Camera)
+            {
+                activeCamera.SetWindowSize(newWidth, newHeight);
+            }
         }
     }
 

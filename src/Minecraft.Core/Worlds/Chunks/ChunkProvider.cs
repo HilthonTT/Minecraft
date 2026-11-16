@@ -332,7 +332,7 @@ public sealed class ChunkProvider
             return true;
         }
 
-        if (chunk.GridX != (int)chunkPos.X || chunk.GridZ != (int)chunkPos.Y || !world.ChunkPool.IsLentOut(chunk))
+        if (chunk.GridX != (int)chunkPos.X || chunk.GridZ != (int)chunkPos.Y || world.ChunkPool.LeaseOf(chunk) != output.Lease)
         {
             Logger.Warn("Chunk " + chunkPos + " was unloaded again before this session could use it. Asking for it once more.");
             output.Discard();

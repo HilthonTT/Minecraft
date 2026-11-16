@@ -161,6 +161,8 @@ public sealed class UIChat
     {
         Layout();
         RebuildLines();
+        _scrollOffset = Math.Clamp(_scrollOffset, 0, Math.Max(0, _lines.Count - VisibleLinesOpen));
+        _editedVersion = -1;
     }
 
     private void UpdateInput()

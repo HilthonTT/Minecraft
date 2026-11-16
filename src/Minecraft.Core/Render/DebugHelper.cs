@@ -151,6 +151,8 @@ public sealed class DebugHelper
         _debugCamera.SetPosition(_game.ClientPlayer.Position + new Vector3(0, DebugCameraHeightAbovePlayer, 0));
 
         _debugCamera.SetPitchAndYaw(-MathF.PI / 2.0F + 0.1F, 0);
+        ProjectionMatrixInfo playerProjection = _game.ClientPlayer.Camera.CurrentProjection;
+        _debugCamera.SetWindowSize(playerProjection.WindowPixelWidth, playerProjection.WindowPixelHeight);
         _game.MasterRenderer.SetActiveCamera(_debugCamera);
     }
 

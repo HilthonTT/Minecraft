@@ -31,7 +31,8 @@ public static class ChatCommands
                 return true;
 
             default:
-                Reply(session, "Unknown command '" + parts[0] + "'. Try /gamemode survival or /gamemode creative.");
+                string command = parts[0].Length > 32 ? parts[0][..32] + "..." : parts[0];
+                Reply(session, "Unknown command '" + command + "'. Try /gamemode survival or /gamemode creative.");
                 return true;
         }
     }

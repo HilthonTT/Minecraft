@@ -46,7 +46,8 @@ public sealed class BlockSugarCane : Block
 
         caneState.ElapsedTimeSinceLastGrowth = 0;
 
-        if (world.GetBlockAt(blockPos.Up()).GetBlock() == BlockRegistry.Air &&
+        if (!world.IsOutsideBuildHeight(blockPos.Y + 1) &&
+            world.GetBlockAt(blockPos.Up()).GetBlock() == BlockRegistry.Air &&
             GetSugarCaneLength(world, blockPos) < MaxLength)
         {
             world.QueueToAddBlockAt(blockPos.Up(), GetNewDefaultState());

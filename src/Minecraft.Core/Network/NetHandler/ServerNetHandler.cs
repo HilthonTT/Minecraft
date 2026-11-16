@@ -379,6 +379,11 @@ public sealed class ServerNetHandler : INetHandler
             player.GameMode,
             player.Health));
         _session.WritePacket(new PlayerHungerPacket(player.Food));
+        if (_session.State == SessionState.Closed)
+        {
+            return;
+        }
+
         _session.State = SessionState.Accepted;
 
         _game.Server.BroadcastPacketExceptTo(_session, new PlayerJoinPacket(serverPlayerName, playerId));
